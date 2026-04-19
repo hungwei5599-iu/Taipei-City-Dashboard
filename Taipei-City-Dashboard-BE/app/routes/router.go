@@ -203,7 +203,11 @@ func configureAIRoutes() {
 	aiRoutes.Use(middleware.LimitTotalRequests(global.ComponentLimitTotalRequestsTimes, global.LimitRequestsDuration))
 	aiRoutes.Use(middleware.IsLoggedIn())
 	{
+		aiRoutes.POST("/chat", controllers.ChatWithHackathonTools)
 		aiRoutes.POST("/chat/twai", controllers.ChatWithTWCC)
+		aiRoutes.GET("/decisions", controllers.GetHackathonDecisions)
+		aiRoutes.GET("/side-effects", controllers.GetHackathonSideEffects)
+		aiRoutes.POST("/briefing", controllers.GenerateHackathonBriefing)
 	}
 }
 

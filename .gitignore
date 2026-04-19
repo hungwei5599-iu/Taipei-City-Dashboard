@@ -1,75 +1,70 @@
+# --- Python & Virtual Environments ---
+venv/
+.venv/
+env/
+.env/
+bin/
+lib/
+share/
+pyvenv.cfg
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# --- Javascript / Node ---
+node_modules/
+/dist
+.npm
+.eslintcache
+.stylelintcache
+
+# --- OS & IDEs ---
 .DS_Store
-/node_modules
-Taipei-City-Dashboard-FE/dist
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.secret
+*.key
+*.pem
+
+# --- Project Specific Defaults ---
 Taipei-City-Dashboard-BE/TaipeiCityDashboardBE
-
-# Log files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Editor directories and files
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-node_modules
-
-# Firebase
-/.firebase
-.firebase
-.firebaserc
-firebase.json
-*.cache
-
-dist.tar.gz
-*.sh
-!Taipei-City-Dashboard-DE/docker/develop/gitsync.sh
-!Taipei-City-Dashboard-DE/docker/prod/gitsync.sh
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-
-# .env files except for template
-docker/.env
-Taipei-City-Dashboard-FE/.env
-Taipei-City-Dashboard-FE/.env.development
-Taipei-City-Dashboard-FE/.env.production
-Taipei-City-Dashboard-FE/.env.test
-
-# docker-compose
-# db data
+Taipei-City-Dashboard-BE/dist
+Taipei-City-Dashboard-FE/dist
 docker/db-data
-# nginx ssl
 docker/nginx/ssl
-
-
-# data end
 Taipei-City-Dashboard-DE/local_env/volume_data
 Taipei-City-Dashboard-DE/logs
 Taipei-City-Dashboard-DE/data
-Taipei-City-Dashboard-DE/local_env/.env
-Taipei-City-Dashboard-DE/docker/develop/.env
-Taipei-City-Dashboard-DE/docker/prod/.env
-**/__pycache__/
-*.py[cod]
 
-*.env
+# --- Data Science & Temp ---
+*.bak
+*.tmp
+*.temp
+.ipynb_checkpointssetup_mac.sh

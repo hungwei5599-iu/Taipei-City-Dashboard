@@ -1,0 +1,28 @@
+{
+  "dag_infos": {
+    "dag_id": "cultural_density",
+    "start_date": "2026-04-17",
+    "schedule_interval": "@monthly",
+    "catchup": false,
+    "tags": ["cultural", "density", "hackathon"],
+    "description": "Calculates cultural facility density (libraries, museums, arts centers) per 10k people across districts in Taipei and New Taipei.",
+    "default_args": {
+      "owner": "airflow",
+      "email_on_failure": true,
+      "retries": 1
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "v_cultural_density_ranking",
+    "load_behavior": "overwrite"
+  },
+  "data_infos": {
+    "name_cn": "雙北文化設施密度分區統計",
+    "source": "https://opendata.culture.tw/ (MOC)",
+    "source_type": "API / SQL Join",
+    "gis_format": "Polygon (District)",
+    "output_coordinate": "EPSG:4326",
+    "is_geometry": 1,
+    "dataset_description": "結合文化部館所資料與市府人口統計，計算各區萬人文化密度。",
+    "sensitivity": "public"
+  }
+}

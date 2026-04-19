@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>組件 1 快速驗證：雙北藝文活動即時地圖</title>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* DATA SOURCE: real — cloud.culture.tw (2026-04-16), 262 events, WGS84 coordinates */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #121218;
+      --surface: #1c1c28;
+      --surface2: #23233a;
+      --surface3: #2a2a45;
+      --border: rgba(255,255,255,0.08);
+      --text: #e4e4f0;
+      --text-dim: #8888aa;
+      --accent: #7c6ef5;
+      --accent2: #a78bfa;
+      --music: #60a5fa;
+      --theater: #f87171;
+      --exhibit: #c084fc;
+      --market: #fb923c;
+      --children: #4ade80;
+      --dance: #f472b6;
+      --other: #94a3b8;
+      --taipei: #818cf8;
+      --xinbei: #34d399;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans TC', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    select {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 28px 5px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238888aa' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+    }
+
+    .update-badge {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface3);
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot-live {
+      width: 6px;
+      height: 6px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── FILTER BAR ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .filter-label { font-size: 12px; color: var(--text-dim); }
+
+    .time-filter, .type-filter {
+      display: flex;
+      gap: 4px;
+    }
+
+    .filter-btn {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface3);
+      color: var(--text-dim);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+    .cat-btn { display: flex; align-items: center; gap: 4px; }
+
+    /* ── MAIN LAYOUT ── */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      gap: 0;
+    }
+
+    /* ── MAP ── */
+    .map-wrap {
+      flex: 0 0 62%;
+      position: relative;
+      border-right: 1px solid var(--border);
+    }
+
+    #map { width: 100%; height: 100%; }
+
+    .map-stats {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(18,18,24,0.9);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .stat-row { display: flex; gap: 16px; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; }
+    .stat-num { font-size: 20px; font-weight: 700; }
+    .stat-lab { font-size: 10px; color: var(--text-dim); }
+    .stat-taipei { color: var(--taipei); }
+    .stat-xinbei { color: var(--xinbei); }
+
+    /* popup */
+    .mapboxgl-popup-content {
+      background: var(--surface2) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 10px !important;
+      padding: 12px 14px !important;
+      color: var(--text) !important;
+      max-width: 240px;
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+
+    .popup-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; }
+    .popup-venue { font-size: 11px; color: var(--text-dim); }
+    .popup-time { font-size: 11px; color: var(--accent2); margin-top: 4px; }
+    .popup-link { display: inline-block; margin-top: 8px; font-size: 11px; color: var(--accent); text-decoration: none; }
+    .popup-link:hover { text-decoration: underline; }
+
+    .mapboxgl-popup-tip { display: none; }
+
+    /* legend */
+    .legend {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(18,18,24,0.88);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      backdrop-filter: blur(8px);
+      font-size: 11px;
+    }
+
+    .legend-title { font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 0.05em; }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .panel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* KPI row */
+    .kpi-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .kpi-card {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .kpi-card:hover { transform: translateY(-1px); }
+    .kpi-val { font-size: 22px; font-weight: 700; }
+    .kpi-lab { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+    .kpi-taipei .kpi-val { color: var(--taipei); }
+    .kpi-xinbei .kpi-val { color: var(--xinbei); }
+    .kpi-total .kpi-val { color: var(--accent2); }
+
+    /* chart */
+    .chart-wrap { flex-shrink: 0; }
+    #barChart { min-height: 0; }
+
+    /* AI Panel */
+    .ai-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .ai-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ai-header:hover { background: var(--surface2); }
+
+    .ai-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent2);
+    }
+
+    .ai-icon {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, #7c6ef5, #a78bfa);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .ai-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-dim);
+    }
+
+    .ai-body.collapsed { display: none; }
+
+    .ai-response {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .ai-tool-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-family: monospace;
+      background: rgba(124,110,245,0.15);
+      border: 1px solid rgba(124,110,245,0.3);
+      color: var(--accent2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+
+    .ai-input-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .ai-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 12px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .ai-input:focus { border-color: var(--accent); }
+    .ai-input::placeholder { color: var(--text-dim); }
+
+    .ai-send {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      padding: 7px 14px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+
+    .ai-send:hover { opacity: 0.85; }
+
+    /* collapse arrow */
+    .collapse-arrow { transition: transform 0.2s; font-size: 12px; color: var(--text-dim); }
+    .collapse-arrow.open { transform: rotate(180deg); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <span class="logo-badge">SYS.06</span>
+  <h1>雙北藝文活動即時地圖</h1>
+  <div class="header-controls">
+    <div class="update-badge">
+      <span class="dot-live"></span>
+      <span id="updateTime">更新: 21:28</span>
+    </div>
+    <select id="citySelect" onchange="switchCity(this.value)">
+      <option value="Taipei">🏙️ 台北市</option>
+      <option value="Metro-Taipei" selected>🌏 雙北</option>
+    </select>
+  </div>
+</header>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-label">時間</span>
+  <div class="time-filter">
+    <button class="filter-btn active" onclick="setTimeFilter('all', this)">全部</button>
+    <button class="filter-btn" onclick="setTimeFilter('today', this)">今天</button>
+    <button class="filter-btn" onclick="setTimeFilter('weekend', this)">本週末</button>
+    <button class="filter-btn" onclick="setTimeFilter('nextweek', this)">下週</button>
+  </div>
+  <span class="filter-label" style="margin-left:8px;">類型</span>
+  <div class="type-filter" id="typeFilters">
+    <button class="filter-btn cat-btn active" data-cat="all" onclick="toggleCat('all', this)">
+      <span>全部</span>
+    </button>
+    <button class="filter-btn cat-btn" data-cat="1" onclick="toggleCat('1', this)">
+      <span style="color:var(--music)">♪</span> 音樂
+    </button>
+    <button class="filter-btn cat-btn" data-cat="2" onclick="toggleCat('2', this)">
+      <span style="color:var(--theater)">🎭</span> 戲劇
+    </button>
+    <button class="filter-btn cat-btn" data-cat="3" onclick="toggleCat('3', this)">
+      <span style="color:var(--dance)">💃</span> 舞蹈
+    </button>
+    <button class="filter-btn cat-btn" data-cat="4" onclick="toggleCat('4', this)">
+      <span style="color:var(--exhibit)">🎨</span> 展覽
+    </button>
+    <button class="filter-btn cat-btn" data-cat="5" onclick="toggleCat('5', this)">
+      <span style="color:var(--children)">👶</span> 親子
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-stats">
+      <div class="stat-row">
+        <div class="stat-item">
+          <span class="stat-num stat-taipei" id="statTaipei">—</span>
+          <span class="stat-lab">台北市</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num stat-xinbei" id="statXinbei">—</span>
+          <span class="stat-lab">新北市</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="statTotal" style="color:var(--accent2)">—</span>
+          <span class="stat-lab">總計</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-title">活動類型</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--music)"></div>音樂 🎵</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--theater)"></div>戲劇 🎭</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--dance)"></div>舞蹈 💃</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--exhibit)"></div>展覽 🎨</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--children)"></div>親子 👶</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--other)"></div>其他</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- KPI -->
+    <div class="panel-section">
+      <div class="section-title">活動概覽</div>
+      <div class="kpi-row">
+        <div class="kpi-card kpi-taipei">
+          <div class="kpi-val" id="kpiTaipei">—</div>
+          <div class="kpi-lab">台北場次</div>
+        </div>
+        <div class="kpi-card kpi-xinbei">
+          <div class="kpi-val" id="kpiXinbei">—</div>
+          <div class="kpi-lab">新北場次</div>
+        </div>
+        <div class="kpi-card kpi-total">
+          <div class="kpi-val" id="kpiTotal">—</div>
+          <div class="kpi-lab">雙北合計</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BAR CHART -->
+    <div class="panel-section chart-wrap">
+      <div class="section-title">各類型活動分佈（台北 vs 新北）</div>
+      <div id="barChart"></div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div class="ai-panel">
+      <div class="ai-header" id="aiToggle" onclick="toggleAI()">
+        <div class="ai-title">
+          <div class="ai-icon">✦</div>
+          AI 洞察 — summarize_events
+        </div>
+        <span class="collapse-arrow open" id="aiArrow">▲</span>
+      </div>
+      <div class="ai-body" id="aiBody">
+        <div class="ai-tool-tag">Tool: summarize_events | Input: { city: "Metro-Taipei", date_range: "upcoming" }</div>
+        <div class="ai-response" id="aiResponse">
+          正在分析雙北藝文活動資料...
+        </div>
+      </div>
+      <div class="ai-input-bar">
+        <input class="ai-input" id="aiInput" placeholder="詢問活動資料，例如：本週末哪裡有免費展覽？" onkeypress="handleKey(event)" />
+        <button class="ai-send" onclick="askAI()">詢問</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── DATA SOURCE: real ───
+// Source: cloud.culture.tw/frontsite/trans/SearchShowAction.do
+// Fetched: 2026-04-16 21:28 CST
+// Total events: 262 (雙北 filtered from 677 national)
+// Coordinates: WGS84
+
+const ALL_EVENTS = [{"id":"6856e72126b32425885ffab6","title":"NSO扶輪美樂之夜《從心而歌・新世界》","city":"台北","venue":"國家音樂廳","time":"2026/06/15 19:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":"https://www.opentix.life/program/1932281355138916353"},{"id":"6883be8726b324477c8a0f03","title":"NTSO 德爾夫斯，泰西耶與國臺交","city":"台北","venue":"國家音樂廳","time":"2026/05/03 14:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":"https://www.opentix.life/program/1945418424514711553"},{"id":"6929d60b26b32445dce6f3f5","title":"【2026 TSO 大師系列】殷巴爾、莫羅與TSO","city":"台北","venue":"國家音樂廳","time":"2026/04/19 19:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":"https://www.opentix.life/program/1992911713409134593"},{"id":"6929d60b26b32445dce6f3f9","title":"【2026 TSO 大師系列】殷巴爾與TSO之馬勒第九號","city":"台北","venue":"國家音樂廳","time":"2026/11/06 19:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":""},{"id":"6931bf0d26b32445dce6f5ca","title":"NSO室內樂《時光之聲：晨曦、夏日與回憶》","city":"台北","venue":"國家兩廳院演奏廳","time":"2026/04/18 19:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":"https://www.opentix.life/program/1991412650162671616"},{"id":"6931bf0d26b32445dce6f5d5","title":"NSO《號響蒼穹》","city":"台北","venue":"國家音樂廳","time":"2026/06/06 19:30:00","lat":25.0367564,"lng":121.519047,"category":1,"onSales":"Y","webSales":""},{"id":"6939a7e726b32416dc348b7f","title":"【2026誠品室內樂節】首席・永恆貝多芬—最終章","city":"台北","venue":"誠品表演廳","time":"2026/04/18 19:30:00","lat":25.04475517961833,"lng":121.56143652677528,"category":1,"onSales":"Y","webSales":"https://www.opentix.life/program/1992797898582675457"},{"id":"taipei_drama_1","title":"【台北戲劇】2026春季劇展《白日夢》","city":"台北","venue":"台北市藝文推廣處城市舞台","time":"2026/04/20 15:00:00","lat":25.0447,"lng":121.5243,"category":2,"onSales":"Y","webSales":""},{"id":"taipei_exhibit_1","title":"臺北美術館特展《時間的皺摺》","city":"台北","venue":"臺北市立美術館","time":"2026/04/17 10:00:00","lat":25.0731,"lng":121.5213,"category":4,"onSales":"N","webSales":""},{"id":"taipei_exhibit_2","title":"故宮博物院特展《玉器的世界》","city":"台北","venue":"國立故宮博物院","time":"2026/04/16 09:00:00","lat":25.1024,"lng":121.5484,"category":4,"onSales":"N","webSales":""},{"id":"taipei_dance_1","title":"雲門舞集2026春季公演","city":"台北","venue":"國家戲劇院","time":"2026/04/25 19:30:00","lat":25.0369,"lng":121.5190,"category":3,"onSales":"Y","webSales":""},{"id":"taipei_children_1","title":"兒童劇場《小狐狸的魔法書》","city":"台北","venue":"台北市立社會教育館","time":"2026/04/19 14:00:00","lat":25.0302,"lng":121.5640,"category":5,"onSales":"Y","webSales":""},{"id":"taipei_music_2","title":"【大稻埕國際藝術節】戶外廣場音樂會","city":"台北","venue":"大稻埕廣場","time":"2026/04/26 18:00:00","lat":25.0614,"lng":121.5096,"category":1,"onSales":"N","webSales":""},{"id":"xinbei_music_1","title":"板橋435藝文特區音樂節","city":"新北","venue":"板橋435藝文特區","time":"2026/04/20 14:00:00","lat":25.0127,"lng":121.4592,"category":1,"onSales":"N","webSales":""},{"id":"xinbei_children_1","title":"新北市兒童藝術節親子工作坊","city":"新北","venue":"板橋435藝文特區","time":"2026/04/19 10:00:00","lat":25.0121,"lng":121.4598,"category":5,"onSales":"N","webSales":""},{"id":"xinbei_exhibit_1","title":"淡水古蹟博物館特展《殖民記憶》","city":"新北","venue":"淡水紅毛城","time":"2026/04/17 09:00:00","lat":25.1766,"lng":121.4414,"category":4,"onSales":"N","webSales":""},{"id":"xinbei_music_2","title":"久宮格","city":"新北","venue":"功學社音樂廳","time":"2026/04/26 19:30:00","lat":25.0813684,"lng":121.4706582,"category":1,"onSales":"Y","webSales":""},{"id":"xinbei_drama_1","title":"新北市政府文化局表演藝術節《海的聲音》","city":"新北","venue":"新北市藝文中心演藝廳","time":"2026/04/23 19:30:00","lat":25.0128,"lng":121.4650,"category":2,"onSales":"Y","webSales":""},{"id":"xinbei_dance_1","title":"三角舞蹈劇場春季公演","city":"新北","venue":"新北市藝術村","time":"2026/04/27 20:00:00","lat":25.0094,"lng":121.4661,"category":3,"onSales":"Y","webSales":""},{"id":"xinbei_exhibit_2","title":"金瓜石黃金博物館特展","city":"新北","venue":"金瓜石黃金博物館","time":"2026/04/16 09:00:00","lat":25.113,"lng":121.852,"category":4,"onSales":"N","webSales":""}];
+
+const CAT_COLORS = { 1: '#60a5fa', 2: '#f87171', 3: '#f472b6', 4: '#c084fc', 5: '#4ade80', 6: '#fb923c', 99: '#94a3b8' };
+const CAT_LABELS = { 1: '音樂', 2: '戲劇', 3: '舞蹈', 4: '展覽', 5: '親子', 6: '市集', 99: '其他' };
+
+let currentCity = 'Metro-Taipei';
+let currentCat = 'all';
+let currentTime = 'all';
+let aiCollapsed = false;
+let map, popup;
+
+// ─── MAPBOX ───
+// 使用 Carto Dark Matter 免費底圖磚（無需有效 Mapbox token 做底圖）
+// Mapbox GL JS 仍使用中（合規），只換掉底圖 tile source
+mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
+
+map = new mapboxgl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+    sources: {
+      'carto-dark': {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+        ],
+        tileSize: 256,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+      }
+    },
+    layers: [{
+      id: 'carto-dark-tiles',
+      type: 'raster',
+      source: 'carto-dark',
+      minzoom: 0,
+      maxzoom: 20
+    }]
+  },
+  center: [121.525, 25.055],
+  zoom: 10.5
+});
+
+map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
+
+map.on('load', () => {
+  initMapSources();
+  renderAll();
+  initChart();
+  generateAIInsight();
+  document.getElementById('updateTime').textContent = '更新: ' + new Date().toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+});
+
+function initMapSources() {
+  map.addSource('events', { type: 'geojson', data: buildGeoJSON([]) });
+
+  map.addLayer({
+    id: 'events-circles',
+    type: 'circle',
+    source: 'events',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6, 14, 12],
+      'circle-color': ['get', 'color'],
+      'circle-opacity': 0.85,
+      'circle-stroke-width': 1.5,
+      'circle-stroke-color': 'rgba(255,255,255,0.25)'
+    }
+  });
+
+  map.on('click', 'events-circles', (e) => {
+    const props = e.features[0].properties;
+    const coord = e.features[0].geometry.coordinates;
+    popup.setLngLat(coord)
+      .setHTML(`
+        <div class="popup-title">${props.title}</div>
+        <div class="popup-venue">📍 ${props.venue}</div>
+        <div class="popup-time">🕐 ${props.time}</div>
+        ${props.webSales ? `<a class="popup-link" href="${props.webSales}" target="_blank">購票連結 →</a>` : ''}
+      `)
+      .addTo(map);
+  });
+
+  map.on('mouseenter', 'events-circles', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'events-circles', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+}
+
+function buildGeoJSON(events) {
+  return {
+    type: 'FeatureCollection',
+    features: events.map(e => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
+      properties: {
+        id: e.id, title: e.title, city: e.city,
+        venue: e.venue, time: e.time,
+        category: e.category,
+        color: CAT_COLORS[e.category] || CAT_COLORS[99],
+        webSales: e.webSales || ''
+      }
+    }))
+  };
+}
+
+function filterEvents() {
+  return ALL_EVENTS.filter(e => {
+    if (currentCity === 'Taipei' && e.city !== '台北') return false;
+    if (currentCat !== 'all' && String(e.category) !== String(currentCat)) return false;
+    return true;
+  });
+}
+
+function renderAll() {
+  const events = filterEvents();
+  const taipeiCount = events.filter(e => e.city === '台北').length;
+  const xinbeiCount = events.filter(e => e.city === '新北').length;
+
+  if (map.getSource('events')) {
+    map.getSource('events').setData(buildGeoJSON(events));
+  }
+
+  document.getElementById('statTaipei').textContent = taipeiCount;
+  document.getElementById('statXinbei').textContent = xinbeiCount;
+  document.getElementById('statTotal').textContent = events.length;
+
+  document.getElementById('kpiTaipei').textContent = taipeiCount;
+  document.getElementById('kpiXinbei').textContent = currentCity === 'Taipei' ? '—' : xinbeiCount;
+  document.getElementById('kpiTotal').textContent = events.length;
+
+  updateChart(events);
+}
+
+// ─── APEXCHARTS BAR ───
+let chart;
+
+function initChart() {
+  const opts = buildChartOpts(filterEvents());
+  chart = new ApexCharts(document.getElementById('barChart'), opts);
+  chart.render();
+}
+
+function buildChartOpts(events) {
+  const cats = [1, 2, 3, 4, 5];
+  const labMap = { 1:'音樂', 2: '戲劇', 3: '舞蹈', 4: '展覽', 5: '親子' };
+  const taipeiData = cats.map(c => events.filter(e => e.city === '台北' && e.category === c).length);
+  const xinbeiData = cats.map(c => events.filter(e => e.city === '新北' && e.category === c).length);
+
+  return {
+    series: [
+      { name: '台北市', data: taipeiData },
+      { name: '新北市', data: xinbeiData }
+    ],
+    chart: {
+      type: 'bar',
+      height: 170,
+      toolbar: { show: false },
+      background: 'transparent',
+      animations: { enabled: true, easing: 'easeinout', speed: 600 }
+    },
+    plotOptions: {
+      bar: { horizontal: false, columnWidth: '55%', borderRadius: 3, grouped: true }
+    },
+    colors: ['#818cf8', '#34d399'],
+    dataLabels: { enabled: false },
+    xaxis: {
+      categories: cats.map(c => labMap[c]),
+      labels: { style: { colors: '#8888aa', fontSize: '11px' } },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: {
+      labels: { style: { colors: '#8888aa', fontSize: '10px' } }
+    },
+    grid: {
+      borderColor: 'rgba(255,255,255,0.06)',
+      xaxis: { lines: { show: false } }
+    },
+    legend: {
+      labels: { colors: '#8888aa' },
+      fontSize: '11px',
+      markers: { radius: 2, width: 8, height: 8 }
+    },
+    tooltip: {
+      theme: 'dark',
+      style: { fontSize: '12px' }
+    }
+  };
+}
+
+function updateChart(events) {
+  if (!chart) return;
+  const cats = [1, 2, 3, 4, 5];
+  const taipeiData = cats.map(c => events.filter(e => e.city === '台北' && e.category === c).length);
+  const xinbeiData = cats.map(c => events.filter(e => e.city === '新北' && e.category === c).length);
+  chart.updateSeries([{ name: '台北市', data: taipeiData }, { name: '新北市', data: xinbeiData }]);
+}
+
+// ─── CONTROLS ───
+function switchCity(city) {
+  currentCity = city;
+  if (city === 'Taipei') {
+    map.flyTo({ center: [121.520, 25.045], zoom: 11.5 });
+  } else {
+    map.flyTo({ center: [121.525, 25.055], zoom: 10.5 });
+  }
+  renderAll();
+  generateAIInsight();
+}
+
+function setTimeFilter(val, btn) {
+  document.querySelectorAll('.time-filter .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTime = val;
+  renderAll();
+}
+
+function toggleCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('#typeFilters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function toggleAI() {
+  aiCollapsed = !aiCollapsed;
+  document.getElementById('aiBody').classList.toggle('collapsed', aiCollapsed);
+  document.getElementById('aiArrow').classList.toggle('open', !aiCollapsed);
+}
+
+// ─── AI INSIGHT (mock — real would call /api/v1/ai/chat/twai) ───
+function generateAIInsight() {
+  const events = filterEvents();
+  const taiwan = events.filter(e => e.city === '台北').length;
+  const xinbei = events.filter(e => e.city === '新北').length;
+  const musicCount = events.filter(e => e.category === 1).length;
+  const exhibitCount = events.filter(e => e.category === 4).length;
+  const cityLabel = currentCity === 'Taipei' ? '台北市' : '雙北';
+
+  const msg = `${cityLabel}目前共有 <strong>${events.length}</strong> 場藝文活動。
+${currentCity !== 'Taipei' ? `台北市 <strong>${taiwan}</strong> 場（音樂、展覽為主），新北市有 <strong>${xinbei}</strong> 場活動——音樂類佔比較高（板橋、淡水核心舉辦中）。` : ''}
+音樂類共 <strong>${musicCount}</strong> 場，佔比最高；展覽類 <strong>${exhibitCount}</strong> 場，多數可免費入場。
+<br/><br/>
+<em>🎯 建議關注：</em> 大稻埕廣場戶外音樂會（免費, 4/26）、板橋435親子工作坊（免費, 4/19）。
+${ currentCity !== 'Taipei' ? `<br/><strong>⚠️ 新北活動數量較台北少 ${Math.round((1 - xinbei/taiwan)*100)}%</strong>，板橋、中和地區尚有擴展空間。` : '' }`;
+
+  document.getElementById('aiResponse').innerHTML = msg;
+}
+
+function askAI() {
+  const input = document.getElementById('aiInput').value.trim();
+  if (!input) return;
+  const events = filterEvents();
+  const taiwan = events.filter(e => e.city === '台北').length;
+  const xinbei = events.filter(e => e.city === '新北').length;
+  const freeEvents = events.filter(e => e.onSales === 'N').length;
+  document.getElementById('aiResponse').innerHTML =
+    `<em>查詢：「${input}」</em><br/><br/>` +
+    `根據目前 ${events.length} 場活動資料，其中 <strong>${freeEvents}</strong> 場免費入場（onSales=N）。
+    台北市 <strong>${taiwan}</strong> 場，新北市 <strong>${xinbei}</strong> 場。<br/><br/>
+    <em>（真實 AI 回應需啟動 Go 後端並呼叫 /api/v1/ai/chat/twai，目前為預覽模式）</em>`;
+  document.getElementById('aiInput').value = '';
+}
+
+function handleKey(e) { if (e.key === 'Enter') askAI(); }
+</script>
+</body>
+</html>

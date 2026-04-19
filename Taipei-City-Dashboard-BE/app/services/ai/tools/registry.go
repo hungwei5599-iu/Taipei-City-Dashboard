@@ -5,32 +5,100 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
 // ToolFunc defines the signature for a tool function
 type ToolFunc func(ctx context.Context, args string) (string, error)
 
-var registry = make(map[string]ToolFunc)
-
-func init() {
-	// Register demo tools
-	Register("get_current_time", GetCurrentTime)
-	Register("get_population_summary", GetPopulationSummary)
+// Tool stores the runtime handler and the metadata sent to the model.
+type Tool struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	InputSchema map[string]interface{} `json:"input_schema"`
+	Handler     ToolFunc              `json:"-"`
 }
 
-// Register adds a tool to the registry
+var registry = make(map[string]Tool)
+
+func init() {
+	RegisterTool(Tool{
+		Name:        "get_current_time",
+		Description: "Return the current Taipei local time.",
+		InputSchema: emptyObjectSchema(),
+		Handler:     GetCurrentTime,
+	})
+	RegisterTool(Tool{
+		Name:        "get_population_summary",
+		Description: "Query the latest population age distribution summary for Taipei or New Taipei.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"city": map[string]interface{}{
+					"type":        "string",
+					"description": "Use taipei or new_taipei.",
+				},
+				"year": map[string]interface{}{
+					"type":        "integer",
+					"description": "Population summary year.",
+				},
+			},
+			"required": []string{"city", "year"},
+		},
+		Handler: GetPopulationSummary,
+	})
+}
+
+// Register adds a function-only tool to the registry.
 func Register(name string, fn ToolFunc) {
-	registry[name] = fn
+	RegisterTool(Tool{
+		Name:        name,
+		Description: name,
+		InputSchema: emptyObjectSchema(),
+		Handler:     fn,
+	})
+}
+
+// RegisterTool adds a metadata-aware tool to the registry.
+func RegisterTool(tool Tool) {
+	if tool.InputSchema == nil {
+		tool.InputSchema = emptyObjectSchema()
+	}
+	registry[tool.Name] = tool
 }
 
 // Execute calls a registered tool with the given arguments
 func Execute(ctx context.Context, name string, args string) (string, error) {
-	fn, ok := registry[name]
+	tool, ok := registry[name]
 	if !ok {
 		return "", fmt.Errorf("tool %s not found", name)
 	}
-	return fn(ctx, args)
+	return tool.Handler(ctx, args)
+}
+
+// Definitions returns registered tool metadata in a stable order.
+func Definitions() []Tool {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	definitions := make([]Tool, 0, len(names))
+	for _, name := range names {
+		tool := registry[name]
+		tool.Handler = nil
+		definitions = append(definitions, tool)
+	}
+	return definitions
+}
+
+func emptyObjectSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type":       "object",
+		"properties": map[string]interface{}{},
+	}
 }
 
 // PopulationArgs defines the arguments for the get_population_summary tool
