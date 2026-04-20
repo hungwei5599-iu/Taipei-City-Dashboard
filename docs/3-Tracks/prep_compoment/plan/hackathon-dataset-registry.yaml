@@ -1,0 +1,378 @@
+version: 1
+scope: hackathon-track
+generated_from:
+  - docs/2-Data-Strategy/Technical-Mapping.md
+  - docs/3-Tracks/prep_compoment/review/validation-results.md
+  - docs/3-Tracks/prep_compoment/execute/validation-reports/component-1-quickval.md
+  - docs/3-Tracks/prep_compoment/execute/validation-reports/component-3-quickval.md
+  - docs/3-Tracks/prep_compoment/execute/validation-reports/component-6-quickval.md
+  - docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md
+  - .agents/skills/component-quick-validator/SKILL.md
+records:
+  - component_id: 1
+    component_name: 雙北藝文活動即時地圖
+    tool_name: summarize_events
+    city_scope: Metro-Taipei
+    source_name: cloud.culture.tw 全國活動 API
+    source_platform: cloud.culture.tw
+    source_id_or_rid: category=1
+    endpoint: https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=1
+    transport_type: json_api
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-1-quickval.md
+    update_cadence: realtime
+    coordinate_mode: WGS84
+    key_fields:
+      - title
+      - showInfo.latitude
+      - showInfo.longitude
+      - showInfo.time
+      - showInfo.locationName
+      - category
+      - onSales
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_1_event_map_ready
+    ready_contract_ref: de-handoff-spec.md#3-rog-5-資料集註冊表合約-dataset-registry-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 2
+    component_name: 景點人潮即時燈號
+    tool_name: analyze_crowd
+    city_scope: Taipei
+    source_name: 景點人潮燈號
+    source_platform: travel.taipei
+    source_id_or_rid: https://travel.taipei/stream/alert-of-crowds/json
+    endpoint: https://travel.taipei/stream/alert-of-crowds/json
+    transport_type: json_api
+    validation_status: verified_with_proxy_required
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: near-realtime
+    coordinate_mode: WGS84
+    key_fields:
+      - mocked_from_validator
+      - crowd_status
+      - location_context
+    fallback_mode: real_with_proxy
+    proxy_required: true
+    ready_dataset_name: hackathon_component_2_crowd_light_ready
+    ready_contract_ref: de-handoff-spec.md#3-資料集註冊表合約-dataset-registry-contract
+    next_action: build_be_proxy
+
+  - component_id: 3
+    component_name: 雙北文化設施密度比較
+    tool_name: compare_cultural_density
+    city_scope: Metro-Taipei
+    source_name: cloud.culture.tw 文化活動 API（設施密度代理）
+    source_platform: cloud.culture.tw
+    source_id_or_rid: category=6
+    endpoint: https://cloud.culture.tw/frontsite/trans/SearchShowAction.do?method=doFindTypeJ&category=6
+    transport_type: json_api
+    validation_status: verified_with_mapping_required
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-3-quickval.md
+    update_cadence: realtime
+    coordinate_mode: WGS84
+    key_fields:
+      - title
+      - showInfo.latitude
+      - showInfo.longitude
+      - showInfo.locationName
+      - category
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_3_cultural_density_ready
+    ready_contract_ref: de-handoff-spec.md#3-rog-5-資料集註冊表合約-dataset-registry-contract
+    next_action: define_field_mapping
+
+  - component_id: 4
+    component_name: AED 急救地圖
+    tool_name: analyze_aed_coverage
+    city_scope: Taipei
+    source_name: 臺北 AED 設置地點
+    source_platform: data.taipei
+    source_id_or_rid: cd050577-0f57-410a-9d95-885141040339
+    endpoint: https://data.taipei/api/v1/dataset/cd050577-0f57-410a-9d95-885141040339?scope=resourceAquire
+    transport_type: json_api
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: dataset-updated
+    coordinate_mode: WGS84
+    key_fields:
+      - 場所名稱
+      - 地址
+      - 經度
+      - 緯度
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_4_aed_coverage_ready
+    ready_contract_ref: de-handoff-spec.md#3-資料集註冊表合約-dataset-registry-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 4
+    component_name: AED 急救地圖
+    tool_name: analyze_aed_coverage
+    city_scope: NewTaipei
+    source_name: 新北 AED 設置資訊
+    source_platform: data.ntpc
+    source_id_or_rid: B6B0E055-62D1-424E-8314-24B65B7AB492
+    endpoint: https://data.ntpc.gov.tw/api/datasets/B6B0E055-62D1-424E-8314-24B65B7AB492/json
+    transport_type: json_api
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: dataset-updated
+    coordinate_mode: WGS84
+    key_fields:
+      - name
+      - address
+      - lat
+      - lon
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_4_aed_coverage_ready
+    ready_contract_ref: de-handoff-spec.md#3-資料集註冊表合約-dataset-registry-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 5
+    component_name: 急診即時壅塞度
+    tool_name: analyze_er_status
+    city_scope: Metro-Taipei
+    source_name: 全國急診即時資訊
+    source_platform: NHI
+    source_id_or_rid: https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002
+    endpoint: https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002
+    transport_type: json_post
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: 15-minute-jump
+    coordinate_mode: join
+    key_fields:
+      - hosP_NAME
+      - waiT_SEE_CNT
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_5_er_status_ready
+    ready_contract_ref: de-handoff-spec.md#3-資料集註冊表合約-dataset-registry-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 6
+    component_name: 食品稽查安全指數
+    tool_name: analyze_food_safety
+    city_scope: Taipei
+    source_name: 臺北市衛生局食品抽驗不合格清冊
+    source_platform: data.taipei
+    source_id_or_rid: 09a917a0-0fb5-47e1-957c-5f1268fba517
+    endpoint: https://data.taipei/dataset/detail?id=09a917a0-0fb5-47e1-957c-5f1268fba517
+    transport_type: csv_detail_dataset
+    validation_status: verified_with_mapping_required
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-6-quickval.md
+    update_cadence: yearly
+    coordinate_mode: district-address
+    key_fields:
+      - 專案名稱
+      - 抽驗日期
+      - 分類
+      - 抽驗行政郵遞區號
+      - 抽驗地點
+      - 檢驗結果
+      - 不符合規定原因
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_6_food_safety_ready
+    ready_contract_ref: de-handoff-spec.md#3-rog-5-資料集註冊表合約-dataset-registry-contract
+    next_action: define_field_mapping
+
+  - component_id: 6
+    component_name: 食品稽查安全指數
+    tool_name: analyze_food_safety
+    city_scope: NewTaipei
+    source_name: 新北市市售食品抽驗合格率
+    source_platform: data.ntpc
+    source_id_or_rid: d2d69f7e-e283-406e-859b-e9e5dc98ac50
+    endpoint: https://data.ntpc.gov.tw/datasets/d2d69f7e-e283-406e-859b-e9e5dc98ac50
+    transport_type: json_csv_xml_dataset
+    validation_status: verified_with_mapping_required
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-6-quickval.md
+    update_cadence: quarterly
+    coordinate_mode: statistical
+    key_fields:
+      - seqno
+      - name
+      - filename
+      - percent
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_6_food_safety_ready
+    ready_contract_ref: de-handoff-spec.md#3-rog-5-資料集註冊表合約-dataset-registry-contract
+    next_action: define_field_mapping
+
+  - component_id: 7
+    component_name: 災害模式篩選
+    tool_name: compare_scenarios
+    city_scope: Metro-Taipei
+    source_name: 情境模式與災害上下文邏輯資料集
+    source_platform: internal_scenario_contract
+    source_id_or_rid: hackathon_component_7_scenario_context_ready
+    endpoint: internal://scenario-context
+    transport_type: logical_dataset
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/execute/component-specs.md
+    update_cadence: event-driven
+    coordinate_mode: derived
+    key_fields:
+      - scenario_id
+      - trigger_context
+      - active_overlay_set
+      - dashboard_filter_effect
+      - derived_pressure_profile
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_7_scenario_context_ready
+    ready_contract_ref: de-handoff-spec.md#7-rog-14-組件-7--10-的情境與邏輯資料集合約-scenario--logical-dataset-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 8
+    component_name: 避難收容缺口分析
+    tool_name: analyze_shelter_gap
+    city_scope: Taipei
+    source_name: 臺北避難收容處所
+    source_platform: data.taipei
+    source_id_or_rid: aaf97773-3631-40e2-b3cc-da87bf2ce1d5
+    endpoint: https://data.taipei/api/dataset/aaf97773-3631-40e2-b3cc-da87bf2ce1d5/resource/4c92dbd4-d259-495a-8390-52628119a4dd/download
+    transport_type: csv_download
+    validation_status: verified_with_address_join
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md
+    update_cadence: dataset-updated
+    coordinate_mode: address
+    key_fields:
+      - 名稱
+      - 門牌地址
+      - 容納人數
+      - 水災
+      - 震災
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_8_shelter_gap_ready
+    ready_contract_ref: de-handoff-spec.md#5-組件-8-就緒資料合約-component-8-ready-data-contract
+    next_action: define_address_normalization
+
+  - component_id: 8
+    component_name: 避難收容缺口分析
+    tool_name: analyze_shelter_gap
+    city_scope: NewTaipei
+    source_name: 新北避難收容處所
+    source_platform: data.ntpc
+    source_id_or_rid: 25E439AB-49E7-4E5E-85CE-A25C13FD2770
+    endpoint: https://data.ntpc.gov.tw/api/datasets/25E439AB-49E7-4E5E-85CE-A25C13FD2770/json
+    transport_type: json_api
+    validation_status: verified_with_address_join
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md
+    update_cadence: dataset-updated
+    coordinate_mode: address
+    key_fields:
+      - name
+      - district
+      - address
+      - person
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_8_shelter_gap_ready
+    ready_contract_ref: de-handoff-spec.md#5-組件-8-就緒資料合約-component-8-ready-data-contract
+    next_action: define_address_normalization
+
+  - component_id: 8
+    component_name: 避難收容缺口分析
+    tool_name: analyze_shelter_gap
+    city_scope: Taipei
+    source_name: 臺北各區人口年齡
+    source_platform: data.taipei
+    source_id_or_rid: 64c8a3a0-3b9a-4f49-a13a-fb1eb2ffa4b1
+    endpoint: https://data.taipei/api/dataset/64c8a3a0-3b9a-4f49-a13a-fb1eb2ffa4b1/resource/edf9a589-7095-4f18-995f-f8657c0d8c1a/download
+    transport_type: csv_download
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md
+    update_cadence: dataset-updated
+    coordinate_mode: statistical
+    key_fields:
+      - 區域別
+      - 總計
+      - 65歲以上數量
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_8_shelter_gap_ready
+    ready_contract_ref: de-handoff-spec.md#5-組件-8-就緒資料合約-component-8-ready-data-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 8
+    component_name: 避難收容缺口分析
+    tool_name: analyze_shelter_gap
+    city_scope: NewTaipei
+    source_name: 新北現住人口年齡分配
+    source_platform: data.ntpc
+    source_id_or_rid: 8308AB58-62D1-424E-8314-24B65B7AB492
+    endpoint: https://data.ntpc.gov.tw/api/datasets/8308AB58-62D1-424E-8314-24B65B7AB492/json
+    transport_type: json_api
+    validation_status: verified_with_mapping_required
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: dataset-updated
+    coordinate_mode: statistical
+    key_fields:
+      - field1
+      - percent2
+      - percent28
+      - percent33
+    fallback_mode: real_with_normalization
+    proxy_required: false
+    ready_dataset_name: hackathon_component_8_shelter_gap_ready
+    ready_contract_ref: de-handoff-spec.md#5-組件-8-就緒資料合約-component-8-ready-data-contract
+    next_action: define_field_mapping
+
+  - component_id: 9
+    component_name: 即時淹水與跨區影響監測
+    tool_name: analyze_flood_risk
+    city_scope: Taipei
+    source_name: 即時淹水感測
+    source_platform: data.taipei
+    source_id_or_rid: 192f155c-15ba-4122-863a-23743f553a1c
+    endpoint: https://data.taipei/api/v1/dataset/192f155c-15ba-4122-863a-23743f553a1c?scope=resourceAquire
+    transport_type: json_api
+    validation_status: verified
+    validation_source: docs/3-Tracks/prep_compoment/review/validation-results.md
+    update_cadence: realtime
+    coordinate_mode: WGS84
+    key_fields:
+      - event_list
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_9_flood_risk_ready
+    ready_contract_ref: de-handoff-spec.md#6-rog-13-組件-8--9-的後端消費合約-be-consume-contract
+    next_action: ready_for_pipeline
+
+  - component_id: 10
+    component_name: 決策副作用與外溢分析
+    tool_name: generate_decisions
+    city_scope: Metro-Taipei
+    source_name: 決策卡片與副作用視覺化邏輯資料集
+    source_platform: internal_decision_contract
+    source_id_or_rid: hackathon_component_10_decision_effects_ready
+    endpoint: internal://decision-effects
+    transport_type: logical_dataset
+    validation_status: verified
+    validation_source: Taipei-City-Dashboard-BE/app/services/ai/tools/hackathon.go
+    update_cadence: event-driven
+    coordinate_mode: derived
+    key_fields:
+      - scenario_id
+      - decision_id
+      - action
+      - evidence
+      - expected_effect
+      - side_effects
+      - positive_effects
+      - confidence
+      - source_trace
+      - overlay_payload
+    fallback_mode: real
+    proxy_required: false
+    ready_dataset_name: hackathon_component_10_decision_effects_ready
+    ready_contract_ref: de-handoff-spec.md#7-rog-14-組件-7--10-的情境與邏輯資料集合約-scenario--logical-dataset-contract
+    next_action: ready_for_pipeline

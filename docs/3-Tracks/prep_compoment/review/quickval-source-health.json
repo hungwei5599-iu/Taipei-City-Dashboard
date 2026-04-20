@@ -1,0 +1,248 @@
+[
+  {
+    "source_key": "component1_cloud_culture_events",
+    "component_ids": [1],
+    "source_name": "cloud.culture.tw 全國活動 API",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": "677 total / 262 metro-taipei",
+    "key_fields": ["title", "showInfo.latitude", "showInfo.longitude", "showInfo.time", "showInfo.locationName", "category", "onSales"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-16",
+    "observed_update_time": "2026-04-16",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "low",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-1-quickval.md",
+      "docs/3-Tracks/prep_compoment/review/validation-results.md"
+    ]
+  },
+  {
+    "source_key": "component2_travel_taipei_crowd_light",
+    "component_ids": [2],
+    "source_name": "景點人潮即時燈號",
+    "http_status": "403 CF",
+    "access_state": "proxy_required",
+    "sample_count": 0,
+    "key_fields": ["mocked_from_validator", "crowd_status", "location_context"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-16",
+    "observed_update_time": "2026-04-16",
+    "fallback_reason": "臺北旅遊網 JSON 端點受到 Cloudflare 保護；前端演示可使用紀錄的模擬備援方案，但生產環境存取需要後端代理。",
+    "de_action": "build_be_proxy",
+    "risk_level": "high",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-2-quickval.md"
+    ]
+  },
+  {
+    "source_key": "component3_cloud_culture_proxy_density",
+    "component_ids": [3],
+    "source_name": "cloud.culture.tw 文化活動 API（設施密度代理）",
+    "http_status": "200",
+    "access_state": "schema_join_required",
+    "sample_count": "817 total / 34 metro-taipei",
+    "key_fields": ["title", "showInfo.latitude", "showInfo.longitude", "showInfo.locationName", "category"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-19",
+    "observed_update_time": "2026-04-19",
+    "fallback_reason": "No direct public facility registry API was validated; current real-source path is to use culture activity data as a district-level density proxy until a formal facility source is available.",
+    "de_action": "define_field_mapping",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-3-quickval.md"
+    ]
+  },
+  {
+    "source_key": "component4_taipei_aed",
+    "component_ids": [4],
+    "source_name": "臺北 AED 設置地點",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": "2000+",
+    "key_fields": ["場所名稱", "地址", "經度", "緯度"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-20",
+    "observed_update_time": "2026-04-20",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "low",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/2-Data-Strategy/Technical-Mapping.md"
+    ]
+  },
+  {
+    "source_key": "component4_newtaipei_aed",
+    "component_ids": [4],
+    "source_name": "新北 AED 設置資訊",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": 1,
+    "key_fields": ["name", "address", "lat", "lon"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-15",
+    "observed_update_time": "2026-04-15",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "low",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md"
+    ]
+  },
+  {
+    "source_key": "component5_nhi_er_status",
+    "component_ids": [5],
+    "source_name": "全國急診即時資訊",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": "100+",
+    "key_fields": ["hosP_NAME", "waiT_SEE_CNT"],
+    "coordinate_mode": "join",
+    "last_validated_at": "2026-04-20",
+    "observed_update_time": "2026-04-20",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/2-Data-Strategy/Technical-Mapping.md"
+    ]
+  },
+  {
+    "source_key": "component6_taipei_food_safety",
+    "component_ids": [6],
+    "source_name": "臺北市衛生局食品抽驗不合格清冊",
+    "http_status": "200 detail",
+    "access_state": "schema_join_required",
+    "sample_count": "yearly csv series",
+    "key_fields": ["專案名稱", "抽驗日期", "分類", "抽驗行政郵遞區號", "抽驗地點", "檢驗結果", "不符合規定原因"],
+    "coordinate_mode": "district-address",
+    "last_validated_at": "2026-04-20",
+    "observed_update_time": "2025-12-16",
+    "fallback_reason": "Taipei source is usable for food-safety risk scoring, but district aggregation and normalization rules still need to be defined before production integration.",
+    "de_action": "define_field_mapping",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-6-quickval.md",
+      "docs/3-Tracks/prep_compoment/execute/component-specs.md"
+    ]
+  },
+  {
+    "source_key": "component6_newtaipei_food_safety",
+    "component_ids": [6],
+    "source_name": "新北市市售食品抽驗合格率",
+    "http_status": "200 detail",
+    "access_state": "schema_join_required",
+    "sample_count": 4,
+    "key_fields": ["seqno", "name", "filename", "percent"],
+    "coordinate_mode": "statistical",
+    "last_validated_at": "2026-04-20",
+    "observed_update_time": "quarterly",
+    "fallback_reason": "New Taipei source is suitable as a city-level compliance indicator, but needs field mapping before it can be merged with Taipei inspection data.",
+    "de_action": "define_field_mapping",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-6-quickval.md",
+      "docs/3-Tracks/prep_compoment/execute/component-specs.md"
+    ]
+  },
+  {
+    "source_key": "component8_taipei_shelters",
+    "component_ids": [8],
+    "source_name": "臺北避難收容處所",
+    "http_status": "200",
+    "access_state": "address_geocode_required",
+    "sample_count": "100+",
+    "key_fields": ["名稱", "門牌地址", "容納人數", "水災", "震災"],
+    "coordinate_mode": "address",
+    "last_validated_at": "2026-04-19",
+    "observed_update_time": "04-15",
+    "fallback_reason": "驗證過的來源可用，但具備地圖能力的輸出需要地址標準化，且可能需要地理編碼或座標查詢。",
+    "de_action": "define_address_normalization",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md",
+      "docs/3-Tracks/prep_compoment/review/validation-results.md"
+    ]
+  },
+  {
+    "source_key": "component8_newtaipei_shelters",
+    "component_ids": [8],
+    "source_name": "新北避難收容處所",
+    "http_status": "200",
+    "access_state": "address_geocode_required",
+    "sample_count": "20+",
+    "key_fields": ["name", "district", "address", "person"],
+    "coordinate_mode": "address",
+    "last_validated_at": "2026-04-19",
+    "observed_update_time": "04-15",
+    "fallback_reason": "驗證過的來源可用，但行政區對齊的地圖輸出仍取決於地址標準化和地理編碼策略。",
+    "de_action": "define_address_normalization",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md",
+      "docs/3-Tracks/prep_compoment/review/validation-results.md"
+    ]
+  },
+  {
+    "source_key": "component8_taipei_population_65p",
+    "component_ids": [8],
+    "source_name": "臺北各區人口年齡",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": 12,
+    "key_fields": ["區域別", "總計", "65歲以上數量"],
+    "coordinate_mode": "statistical",
+    "last_validated_at": "2026-04-19",
+    "observed_update_time": "04-15",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "low",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/execute/validation-reports/component-8-quickval.md",
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/2-Data-Strategy/Technical-Mapping.md"
+    ]
+  },
+  {
+    "source_key": "component8_newtaipei_population_65p",
+    "component_ids": [8],
+    "source_name": "新北現住人口年齡分配",
+    "http_status": "200",
+    "access_state": "schema_join_required",
+    "sample_count": 29,
+    "key_fields": ["field1", "percent2", "percent28", "percent33"],
+    "coordinate_mode": "statistical",
+    "last_validated_at": "2026-04-15",
+    "observed_update_time": "2026-04-15",
+    "fallback_reason": "欄位映射已過驗證，但在生產環境合併前必須明確保留；percent28 為 65 歲以上人口欄位。",
+    "de_action": "define_field_mapping",
+    "risk_level": "medium",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/2-Data-Strategy/Technical-Mapping.md"
+    ]
+  },
+  {
+    "source_key": "component9_taipei_flood_sensor",
+    "component_ids": [9],
+    "source_name": "即時淹水感測",
+    "http_status": "200",
+    "access_state": "ok",
+    "sample_count": "5+",
+    "key_fields": ["event_list"],
+    "coordinate_mode": "WGS84",
+    "last_validated_at": "2026-04-20",
+    "observed_update_time": "2026-04-20",
+    "fallback_reason": "",
+    "de_action": "ready_for_pipeline",
+    "risk_level": "low",
+    "evidence_refs": [
+      "docs/3-Tracks/prep_compoment/review/validation-results.md",
+      "docs/2-Data-Strategy/Technical-Mapping.md"
+    ]
+  }
+]
