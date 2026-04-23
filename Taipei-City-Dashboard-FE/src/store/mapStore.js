@@ -95,6 +95,12 @@ export const useMapStore = defineStore("map", {
 		layerUpdateTime: {
 			// [layerId]: Date
 		},
+		// 避災路線規劃
+		routePlannerStart: null,
+		routePlannerEnd: null,
+		routeResult: null,
+		routeDangerPoints: [],
+		disasterLayers: null,
 	}),
 	actions: {
 		/* Initialize Mapbox */
@@ -132,6 +138,13 @@ export const useMapStore = defineStore("map", {
 					this.initializeBasicLayers();
 				})
 				.on("click", (event) => {
+					// 路線規劃模式：捕捉點擊座標
+					const dialogStore = useDialogStore();
+					if (dialogStore.dialogs.routePlanner) {
+						const { lng, lat } = event.lngLat;
+						this.setRoutePlannerPoint([lng, lat]);
+						return;
+					}
 					if (this.popup) {
 						this.popup = null;
 					}
@@ -401,6 +414,74 @@ export const useMapStore = defineStore("map", {
 			// 	this.map.setLayoutProperty("tp_village", "visibility", "none");
 			// }
 		},
+		/* Route Planner */
+		setRoutePlannerPoint(lngLat) {
+			if (!this.routePlannerStart) {
+				this.routePlannerStart = lngLat;
+			} else if (!this.routePlannerEnd) {
+				this.routePlannerEnd = lngLat;
+			} else {
+				this.routePlannerStart = lngLat;
+				this.routePlannerEnd = null;
+				this.routeResult = null;
+				this.routeDangerPoints = [];
+				this._removeRouteLayers();
+			}
+		},
+		setRouteResult(routeGeojson, dangerPoints) {
+			this.routeResult = routeGeojson;
+			this.routeDangerPoints = dangerPoints;
+			this._removeRouteLayers();
+
+			this.map.addSource("route-source", {
+				type: "geojson",
+				data: routeGeojson,
+			});
+			this.map.addLayer({
+				id: "route-line",
+				type: "line",
+				source: "route-source",
+				paint: {
+					"line-color": "#2ecc71",
+					"line-width": 4,
+					"line-opacity": 0.9,
+				},
+			});
+
+			if (dangerPoints.length > 0) {
+				this.map.addSource("danger-source", {
+					type: "geojson",
+					data: { type: "FeatureCollection", features: dangerPoints },
+				});
+				this.map.addLayer({
+					id: "danger-points",
+					type: "circle",
+					source: "danger-source",
+					paint: {
+						"circle-color": "#f39c12",
+						"circle-radius": 8,
+						"circle-stroke-color": "white",
+						"circle-stroke-width": 2,
+					},
+				});
+			}
+		},
+		clearRoutePlanner() {
+			this.routePlannerStart = null;
+			this.routePlannerEnd = null;
+			this.routeResult = null;
+			this.routeDangerPoints = [];
+			this._removeRouteLayers();
+		},
+		_removeRouteLayers() {
+			["route-line", "danger-points"].forEach((id) => {
+				if (this.map.getLayer(id)) this.map.removeLayer(id);
+			});
+			["route-source", "danger-source"].forEach((id) => {
+				if (this.map.getSource(id)) this.map.removeSource(id);
+			});
+		},
+
 		// 6. Set User Location
 		setCurrentLocation() {
 			if (navigator.geolocation) {
@@ -796,15 +877,15 @@ export const useMapStore = defineStore("map", {
 			const layers = Object.keys(this.deckGlLayer).map((index) => {
 				const l = this.deckGlLayer[index];
 				switch (l.type) {
-				case "ArcLayer":
-					return new ArcLayer(l.config);
-				case "AnimatedArcLayer":
-					return new AnimatedArcLayer({
-						...l.config,
-						coef: this.step / 1000,
-					});
-				default:
-					break;
+					case "ArcLayer":
+						return new ArcLayer(l.config);
+					case "AnimatedArcLayer":
+						return new AnimatedArcLayer({
+							...l.config,
+							coef: this.step / 1000,
+						});
+					default:
+						break;
 				}
 			});
 			this.overlay.setProps({

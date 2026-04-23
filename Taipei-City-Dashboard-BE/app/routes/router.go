@@ -41,6 +41,16 @@ func ConfigureRoutes() {
 	configureContributorRoutes()
 	configureChatLogRoutes()
 	configureAIRoutes()
+	configureDisasterRoutes()
+}
+
+func configureDisasterRoutes() {
+	disasterRoutes := RouterGroup.Group("/disaster")
+	disasterRoutes.Use(middleware.LimitAPIRequests(global.ComponentLimitAPIRequestsTimes, global.LimitRequestsDuration))
+	disasterRoutes.Use(middleware.LimitTotalRequests(global.ComponentLimitTotalRequestsTimes, global.LimitRequestsDuration))
+	{
+		disasterRoutes.GET("/layers", controllers.GetDisasterLayers)
+	}
 }
 
 func configureAuthRoutes() {
