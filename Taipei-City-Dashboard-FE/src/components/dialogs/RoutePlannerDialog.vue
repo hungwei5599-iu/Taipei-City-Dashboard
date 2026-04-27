@@ -17,59 +17,59 @@ const startSet = computed(() => mapStore.routePlannerStart !== null);
 const endSet = computed(() => mapStore.routePlannerEnd !== null);
 
 async function calculateRoute() {
-  if (!startSet.value || !endSet.value) return;
-  isCalculating.value = true;
-  safeRoute.value = null;
-  dangerSegments.value = [];
-  statusMsg.value = "計算路線中...";
+	if (!startSet.value || !endSet.value) return;
+	isCalculating.value = true;
+	safeRoute.value = null;
+	dangerSegments.value = [];
+	statusMsg.value = "計算路線中...";
 
-  try {
-    const token = import.meta.env.VITE_MAPBOXTOKEN;
-    const [sLng, sLat] = mapStore.routePlannerStart;
-    const [eLng, eLat] = mapStore.routePlannerEnd;
-    const url =
+	try {
+		const token = import.meta.env.VITE_MAPBOXTOKEN;
+		const [sLng, sLat] = mapStore.routePlannerStart;
+		const [eLng, eLat] = mapStore.routePlannerEnd;
+		const url =
       `https://api.mapbox.com/directions/v5/mapbox/driving/` +
       `${sLng},${sLat};${eLng},${eLat}` +
       `?geometries=geojson&overview=full&access_token=${token}`;
 
-    const res = await fetch(url);
-    const data = await res.json();
-    const routeGeojson = data.routes?.[0]?.geometry;
-    if (!routeGeojson) throw new Error("無法取得路線");
+		const res = await fetch(url);
+		const data = await res.json();
+		const routeGeojson = data.routes?.[0]?.geometry;
+		if (!routeGeojson) throw new Error("無法取得路線");
 
-    // 偵測危險段（與淹水 polygon 交叉）
-    const floodFeatures = mapStore.disasterLayers?.features?.filter(
-      (f) => f.properties?.layer_kind === "flood_polygon"
-    ) ?? [];
+		// 偵測危險段（與淹水 polygon 交叉）
+		const floodFeatures = mapStore.disasterLayers?.features?.filter(
+			(f) => f.properties?.layer_kind === "flood_polygon"
+		) ?? [];
 
-    const pts = [];
-    for (const poly of floodFeatures) {
-      try {
-        const hit = turf.lineIntersect(routeGeojson, poly);
-        pts.push(...hit.features);
-      } catch (_) {}
-    }
+		const pts = [];
+		for (const poly of floodFeatures) {
+			try {
+				const hit = turf.lineIntersect(routeGeojson, poly);
+				pts.push(...hit.features);
+			} catch (_) {}
+		}
 
-    safeRoute.value = routeGeojson;
-    dangerSegments.value = pts;
-    mapStore.setRouteResult(routeGeojson, pts);
+		safeRoute.value = routeGeojson;
+		dangerSegments.value = pts;
+		mapStore.setRouteResult(routeGeojson, pts);
 
-    statusMsg.value =
+		statusMsg.value =
       pts.length > 0
-        ? `⚠️ 路線經過 ${pts.length} 個淹水危險點，請注意`
-        : "✅ 路線安全，未穿越已知淹水區";
-  } catch (e) {
-    statusMsg.value = `計算失敗：${e.message}`;
-  } finally {
-    isCalculating.value = false;
-  }
+      	? `⚠️ 路線經過 ${pts.length} 個淹水危險點，請注意`
+      	: "✅ 路線安全，未穿越已知淹水區";
+	} catch (e) {
+		statusMsg.value = `計算失敗：${e.message}`;
+	} finally {
+		isCalculating.value = false;
+	}
 }
 
 function clearRoute() {
-  mapStore.clearRoutePlanner();
-  safeRoute.value = null;
-  dangerSegments.value = [];
-  statusMsg.value = "";
+	mapStore.clearRoutePlanner();
+	safeRoute.value = null;
+	dangerSegments.value = [];
+	statusMsg.value = "";
 }
 </script>
 
@@ -78,7 +78,6 @@ function clearRoute() {
     <div
       v-if="dialogStore.dialogs.routePlanner"
       class="route-planner-overlay"
-      @click.self="dialogStore.hideDialog('routePlanner')"
     >
       <div class="route-planner-drawer">
         <div class="route-planner-header">
@@ -96,11 +95,23 @@ function clearRoute() {
           <div class="point-status">
             <div :class="['point-item', { set: startSet }]">
               <span class="dot start" />
-              <span>{{ startSet ? `起點已設定` : "點擊地圖設定起點" }}</span>
+              <div class="point-info">
+                <span>{{ startSet ? `起點已設定` : "點擊地圖設定起點" }}</span>
+                <span
+                  v-if="startSet"
+                  class="coords"
+                >({{ mapStore.routePlannerStart[0].toFixed(4) }}, {{ mapStore.routePlannerStart[1].toFixed(4) }})</span>
+              </div>
             </div>
             <div :class="['point-item', { set: endSet }]">
               <span class="dot end" />
-              <span>{{ endSet ? `終點已設定` : "點擊地圖設定終點" }}</span>
+              <div class="point-info">
+                <span>{{ endSet ? `終點已設定` : "點擊地圖設定終點" }}</span>
+                <span
+                  v-if="endSet"
+                  class="coords"
+                >({{ mapStore.routePlannerEnd[0].toFixed(4) }}, {{ mapStore.routePlannerEnd[1].toFixed(4) }})</span>
+              </div>
             </div>
           </div>
 
@@ -112,19 +123,33 @@ function clearRoute() {
             >
               {{ isCalculating ? "計算中..." : "計算避災路徑" }}
             </button>
-            <button class="btn-clear" @click="clearRoute">清除</button>
+            <button
+              class="btn-clear"
+              @click="clearRoute"
+            >
+              清除
+            </button>
           </div>
 
-          <div v-if="statusMsg" :class="['status-msg', dangerSegments.length > 0 ? 'danger' : 'safe']">
+          <div
+            v-if="statusMsg"
+            :class="['status-msg', dangerSegments.length > 0 ? 'danger' : 'safe']"
+          >
             {{ statusMsg }}
           </div>
 
-          <div v-if="safeRoute" class="route-legend">
+          <div
+            v-if="safeRoute"
+            class="route-legend"
+          >
             <div class="legend-item">
               <span class="line safe-line" />
               <span>建議路線</span>
             </div>
-            <div v-if="dangerSegments.length > 0" class="legend-item">
+            <div
+              v-if="dangerSegments.length > 0"
+              class="legend-item"
+            >
               <span class="dot-warn" />
               <span>淹水危險交叉點 ({{ dangerSegments.length }})</span>
             </div>
@@ -201,7 +226,7 @@ function clearRoute() {
 
 .point-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   font-size: 0.82rem;
   color: var(--color-complement-text);
@@ -211,11 +236,24 @@ function clearRoute() {
   &.set { opacity: 1; }
 }
 
+.point-info {
+  display: flex;
+  flex-direction: column;
+
+  .coords {
+    font-size: 0.72rem;
+    font-family: monospace;
+    opacity: 0.7;
+    margin-top: 1px;
+  }
+}
+
 .dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-top: 3px;
 
   &.start { background: #2ecc71; }
   &.end   { background: #e74c3c; }

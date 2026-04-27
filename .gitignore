@@ -68,3 +68,4 @@ Taipei-City-Dashboard-DE/data
 *.tmp
 *.temp
 .ipynb_checkpointssetup_mac.sh
+.gstack/

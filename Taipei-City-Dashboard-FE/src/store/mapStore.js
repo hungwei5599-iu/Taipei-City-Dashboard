@@ -136,6 +136,7 @@ export const useMapStore = defineStore("map", {
 					});
 					this.map.addControl(this.overlay);
 					this.initializeBasicLayers();
+					this.fetchDisasterLayers();
 				})
 				.on("click", (event) => {
 					// 路線規劃模式：捕捉點擊座標
@@ -418,11 +419,25 @@ export const useMapStore = defineStore("map", {
 		setRoutePlannerPoint(lngLat) {
 			if (!this.routePlannerStart) {
 				this.routePlannerStart = lngLat;
+				if (!this._startMarker) {
+					this._startMarker = new mapboxGl.Marker({
+						color: "#2ecc71",
+					});
+				}
+				this._startMarker.setLngLat(lngLat).addTo(this.map);
 			} else if (!this.routePlannerEnd) {
 				this.routePlannerEnd = lngLat;
+				if (!this._endMarker) {
+					this._endMarker = new mapboxGl.Marker({ color: "#e74c3c" });
+				}
+				this._endMarker.setLngLat(lngLat).addTo(this.map);
 			} else {
-				this.routePlannerStart = lngLat;
-				this.routePlannerEnd = null;
+				// 已有起終點：更新終點而非重置
+				this.routePlannerEnd = lngLat;
+				if (!this._endMarker) {
+					this._endMarker = new mapboxGl.Marker({ color: "#e74c3c" });
+				}
+				this._endMarker.setLngLat(lngLat).addTo(this.map);
 				this.routeResult = null;
 				this.routeDangerPoints = [];
 				this._removeRouteLayers();
@@ -472,6 +487,8 @@ export const useMapStore = defineStore("map", {
 			this.routeResult = null;
 			this.routeDangerPoints = [];
 			this._removeRouteLayers();
+			if (this._startMarker) this._startMarker.remove();
+			if (this._endMarker) this._endMarker.remove();
 		},
 		_removeRouteLayers() {
 			["route-line", "danger-points"].forEach((id) => {
@@ -877,15 +894,15 @@ export const useMapStore = defineStore("map", {
 			const layers = Object.keys(this.deckGlLayer).map((index) => {
 				const l = this.deckGlLayer[index];
 				switch (l.type) {
-					case "ArcLayer":
-						return new ArcLayer(l.config);
-					case "AnimatedArcLayer":
-						return new AnimatedArcLayer({
-							...l.config,
-							coef: this.step / 1000,
-						});
-					default:
-						break;
+				case "ArcLayer":
+					return new ArcLayer(l.config);
+				case "AnimatedArcLayer":
+					return new AnimatedArcLayer({
+						...l.config,
+						coef: this.step / 1000,
+					});
+				default:
+					break;
 				}
 			});
 			this.overlay.setProps({
@@ -2332,7 +2349,28 @@ export const useMapStore = defineStore("map", {
 			this.viewPoints = res.data;
 			if (this.map) this.renderMarkers();
 		},
-		// 6. Render all markers
+		// 6. Fetch disaster layers used by the route planner
+		async fetchDisasterLayers() {
+			try {
+				const res = await axios.get(
+					"http://localhost:8088/api/v1/disaster/layers",
+					{
+						params: {
+							scenario: "130mm",
+							kinds: "flood_polygon",
+						},
+					},
+				);
+				this.disasterLayers = res.data;
+			} catch (error) {
+				console.error("Failed to fetch disaster layers", error);
+				this.disasterLayers = {
+					type: "FeatureCollection",
+					features: [],
+				};
+			}
+		},
+		// 7. Render all markers
 		renderMarkers() {
 			if (!this.viewPoints.length) return;
 

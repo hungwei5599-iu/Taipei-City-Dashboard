@@ -1,9 +1,18 @@
+import {
+	AI_INSIGHT_PROXY_ENDPOINT,
+	buildHeatFamilyWorkerModule,
+	heatFamilyWorkerFeatures,
+} from "./heatFamilyWorker";
+
+export { AI_INSIGHT_PROXY_ENDPOINT, heatFamilyWorkerFeatures };
+
 export const cityOptions = [
 	{ value: "taipei", label: "台北" },
 	{ value: "metrotaipei", label: "雙北" },
 ];
 
 export const hackathonModules = [
+	buildHeatFamilyWorkerModule(),
 	{
 		id: 1,
 		theme: "SYS.06",

@@ -6,6 +6,8 @@
 	"scripts": {
 		"start": "vite",
 		"dev": "vite",
+		"test": "node tests/components/HeatFamilyWorker.spec.js",
+		"test:unit": "node tests/components/HeatFamilyWorker.spec.js",
 		"build": "eslint . --fix && vite build",
 		"build:test": "eslint . --fix && vite build --mode test",
 		"lint": "eslint . --fix",

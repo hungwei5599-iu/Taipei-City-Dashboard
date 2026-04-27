@@ -10,7 +10,11 @@
   >
     <div class="card-header">
       <div class="hazards">
-        <span v-for="hazard in scenario.hazards" :key="hazard" class="hazard-badge">
+        <span
+          v-for="hazard in scenario.hazards"
+          :key="hazard"
+          class="hazard-badge"
+        >
           {{ hazard }}
         </span>
       </div>
@@ -19,7 +23,9 @@
       </div>
     </div>
     
-    <h3 class="card-title">{{ scenario.title }}</h3>
+    <h3 class="card-title">
+      {{ scenario.title }}
+    </h3>
     
     <div class="card-details">
       <div class="detail-row">
@@ -34,7 +40,10 @@
     
     <div class="card-footer">
       <span class="action-text">點選查看 &rarr;</span>
-      <span v-if="isActive" class="active-check">✓</span>
+      <span
+        v-if="isActive"
+        class="active-check"
+      >✓</span>
     </div>
   </div>
 </template>
@@ -43,29 +52,29 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  scenario: {
-    type: Object,
-    required: true
-  },
-  isActive: {
-    type: Boolean,
-    default: false
-  },
-  anyActive: {
-    type: Boolean,
-    default: false
-  }
+	scenario: {
+		type: Object,
+		required: true
+	},
+	isActive: {
+		type: Boolean,
+		default: false
+	},
+	anyActive: {
+		type: Boolean,
+		default: false
+	}
 });
 
 defineEmits(['select']);
 
 const riskLabel = computed(() => {
-  const map = {
-    critical: '極高',
-    high: '高',
-    medium: '中'
-  };
-  return map[props.scenario.riskLevel] || props.scenario.riskLevel;
+	const map = {
+		critical: '極高',
+		high: '高',
+		medium: '中'
+	};
+	return map[props.scenario.riskLevel] || props.scenario.riskLevel;
 });
 </script>
 

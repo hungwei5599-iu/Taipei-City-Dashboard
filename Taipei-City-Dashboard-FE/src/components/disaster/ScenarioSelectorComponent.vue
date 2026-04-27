@@ -1,7 +1,10 @@
 <template>
   <div class="scenario-selector-container">
     <!-- Top Banner -->
-    <div v-if="store.isFallback" class="fallback-banner">
+    <div
+      v-if="store.isFallback"
+      class="fallback-banner"
+    >
       ⚠ 離線模式 — 使用預存資料
       <div class="city-switch">
         <label>
@@ -29,35 +32,41 @@
 
     <!-- Main Layout -->
     <div class="layout-main">
-      
       <!-- Left Panel: Scenarios -->
       <div class="panel-left">
-        <h2 class="panel-title">災難情境劇本</h2>
+        <h2 class="panel-title">
+          災難情境劇本
+        </h2>
         <div class="scenario-list">
           <ScenarioCard 
             v-for="scen in store.scenarios" 
             :key="scen.id" 
             :scenario="scen"
-            :isActive="store.activeScenarioId === scen.id"
-            :anyActive="store.activeScenarioId !== null"
+            :is-active="store.activeScenarioId === scen.id"
+            :any-active="store.activeScenarioId !== null"
             @select="store.selectScenario"
           />
         </div>
       </div>
 
       <!-- Right Panel: Details (Only visible when scenario selected) -->
-      <div class="panel-right" v-if="store.activeScenarioId && !store.isLoading">
+      <div
+        v-if="store.activeScenarioId && !store.isLoading"
+        class="panel-right"
+      >
         <div class="right-content-wrapper">
           <BriefingPanel :briefing="store.briefing" />
           <KpiPanel :kpi="store.kpi" />
           
           <div class="decisions-list">
-            <h3 class="decisions-title">決策建議</h3>
+            <h3 class="decisions-title">
+              決策建議
+            </h3>
             <DecisionCard 
               v-for="dec in store.decisions" 
               :key="dec.id" 
               :decision="dec"
-              :isActive="store.activeDecisionId === dec.id"
+              :is-active="store.activeDecisionId === dec.id"
               @hover="store.activeDecisionId = $event"
               @leave="store.activeDecisionId = null"
               @select="store.selectDecision"
@@ -67,30 +76,46 @@
       </div>
 
       <!-- Empty State -->
-      <div class="panel-right empty-state" v-else-if="!store.isLoading">
+      <div
+        v-else-if="!store.isLoading"
+        class="panel-right empty-state"
+      >
         <p>請從左側點選情境查看決策建議</p>
       </div>
 
       <!-- Loading State -->
-      <div class="panel-right loading-state" v-else>
-        <div class="skeleton-box title"></div>
-        <div class="skeleton-box kpi"></div>
-        <div class="skeleton-box card"></div>
-        <div class="skeleton-box card"></div>
+      <div
+        v-else
+        class="panel-right loading-state"
+      >
+        <div class="skeleton-box title" />
+        <div class="skeleton-box kpi" />
+        <div class="skeleton-box card" />
+        <div class="skeleton-box card" />
       </div>
 
       <!-- Bottom Panel: Timeline -->
-      <div class="panel-bottom" v-if="store.activeScenarioId && !store.isLoading">
+      <div
+        v-if="store.activeScenarioId && !store.isLoading"
+        class="panel-bottom"
+      >
         <div class="timeline-container">
           <div class="timeline-track">
-            <div class="timeline-step">T-72h <br><span>預警</span></div>
-            <div class="timeline-step">T-24h <br><span>整備</span></div>
-            <div class="timeline-step active">T-6h <br><span>即將發生</span></div>
-            <div class="timeline-step">T+應變中 <br><span>災害進行</span></div>
+            <div class="timeline-step">
+              T-72h <br><span>預警</span>
+            </div>
+            <div class="timeline-step">
+              T-24h <br><span>整備</span>
+            </div>
+            <div class="timeline-step active">
+              T-6h <br><span>即將發生</span>
+            </div>
+            <div class="timeline-step">
+              T+應變中 <br><span>災害進行</span>
+            </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>

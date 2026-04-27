@@ -36,6 +36,23 @@ The MVP should answer only:
 3. Where are the resource gaps?
 4. Which areas should be prioritized first?
 
+## Data gate
+Before implementation, this topic must pass three data gates:
+
+1. **Heat exposure gate**
+   - Use official CWA observation or temperature-distribution data.
+   - Join by station/grid coordinates to district or village.
+   - If this cannot be proven, do not claim heat-island prioritization.
+
+2. **Resource gate**
+   - Taipei cooling resources can use `臺北市涼適點`.
+   - New Taipei currently has no confirmed equivalent cooling-point dataset; use only clearly labeled public-resource or shelter proxy data.
+   - Do not call New Taipei proxy data "cooling spots" unless the source says so.
+
+3. **Vulnerability gate**
+   - Use district/village population and aging structure from official Taipei/New Taipei datasets.
+   - Keep any vulnerability score rule-based and explainable.
+
 ## Core dashboard views
 1. **Risk map**
    - show heat exposure + vulnerability proxy
@@ -69,4 +86,3 @@ The smallest reusable module should be something like:
 - or a map layer + legend + explanation component.
 
 If the module cannot be reused in a city dashboard repo, it is too big.
-

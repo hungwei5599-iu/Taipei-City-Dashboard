@@ -1,26 +1,38 @@
 <template>
   <div class="kpi-panel">
     <div class="kpi-item">
-      <div class="kpi-label">報案</div>
-      <div class="kpi-value text-red">{{ kpi?.reports || 0 }}</div>
+      <div class="kpi-label">
+        報案
+      </div>
+      <div class="kpi-value text-red">
+        {{ kpi?.reports || 0 }}
+      </div>
     </div>
     <div class="kpi-item">
-      <div class="kpi-label">警戒</div>
-      <div class="kpi-value text-orange">{{ kpi?.alerts || 0 }}</div>
+      <div class="kpi-label">
+        警戒
+      </div>
+      <div class="kpi-value text-orange">
+        {{ kpi?.alerts || 0 }}
+      </div>
     </div>
     <div class="kpi-item">
-      <div class="kpi-label">空位</div>
-      <div class="kpi-value text-green">{{ kpi?.shelterCapacity || '0%' }}</div>
+      <div class="kpi-label">
+        空位
+      </div>
+      <div class="kpi-value text-green">
+        {{ kpi?.shelterCapacity || '0%' }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 defineProps({
-  kpi: {
-    type: Object,
-    default: () => ({ reports: 0, alerts: 0, shelterCapacity: '0%' })
-  }
+	kpi: {
+		type: Object,
+		default: () => ({ reports: 0, alerts: 0, shelterCapacity: '0%' })
+	}
 });
 </script>
 

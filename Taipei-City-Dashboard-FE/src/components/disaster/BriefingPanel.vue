@@ -5,7 +5,10 @@
     </div>
     <div class="panel-body">
       <ul class="highlight-list">
-        <li v-for="(highlight, idx) in briefing?.highlights" :key="idx">
+        <li
+          v-for="(highlight, idx) in briefing?.highlights"
+          :key="idx"
+        >
           {{ highlight }}
         </li>
       </ul>
@@ -15,10 +18,10 @@
 
 <script setup>
 defineProps({
-  briefing: {
-    type: Object,
-    default: () => ({ highlights: [] })
-  }
+	briefing: {
+		type: Object,
+		default: () => ({ highlights: [] })
+	}
 });
 </script>
 

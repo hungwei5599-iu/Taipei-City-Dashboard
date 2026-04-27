@@ -70,6 +70,10 @@ export const useDialogStore = defineStore("dialog", {
 		showDialog(dialog) {
 			this.dialogs[dialog] = true;
 		},
+		// Hide a specific dialog
+		hideDialog(dialog) {
+			this.dialogs[dialog] = false;
+		},
 		// Will hide all dialogs currently active
 		hideAllDialogs() {
 			const keys = Object.keys(this.dialogs);

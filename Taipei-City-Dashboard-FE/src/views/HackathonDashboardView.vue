@@ -4,20 +4,24 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import VueApexCharts from "vue3-apexcharts";
 import {
+	AI_INSIGHT_PROXY_ENDPOINT,
 	cityOptions,
 	demoScript,
 	hackathonModules,
+	heatFamilyWorkerFeatures,
 } from "../assets/configs/hackathon/modules";
 
 import ScenarioSelectorComponent from "../components/disaster/ScenarioSelectorComponent.vue";
 
-const activeModuleId = ref(10);
+const activeModuleId = ref(11);
 const activeCity = ref("metrotaipei");
 const mapEl = ref(null);
 const mapLoaded = ref(false);
 const features = ref([]);
 const selectedFeature = ref(null);
 const insightOpen = ref(true);
+const insightText = ref("");
+const insightStatus = ref("static");
 const hoveredDecisionId = ref(null);
 const executedIds = ref([]);
 const expandedAlternatives = ref([]);
@@ -34,12 +38,16 @@ const filteredFeatureCount = computed(
 	() => visibleFeatures().features.length
 );
 
-const chartOptions = computed(() => ({
-	theme: { mode: "dark" },
-	grid: { borderColor: "#494b4e" },
-	tooltip: { theme: "dark" },
-	...activeModule.value.chart.options,
-}));
+const activeCharts = computed(() => activeModule.value?.charts || [activeModule.value.chart]);
+
+function chartOptionsFor(chart) {
+	return {
+		theme: { mode: "dark" },
+		grid: { borderColor: "#494b4e" },
+		tooltip: { theme: "dark" },
+		...chart.options,
+	};
+}
 
 function selectModule(module) {
 	activeModuleId.value = module.id;
@@ -112,6 +120,35 @@ function isExecuted(decisionId) {
 
 function isAlternativeOpen(decisionId) {
 	return expandedAlternatives.value.includes(decisionId);
+}
+
+async function requestAIInsight() {
+	insightText.value = activeModule.value.aiInsight;
+	insightStatus.value = "static";
+	if (!activeModule.value.aiProxyEndpoint) return;
+
+	try {
+		const response = await fetch(AI_INSIGHT_PROXY_ENDPOINT, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				stream: false,
+				messages: [
+					{
+						role: "user",
+						content: `請用兩句話解釋 ${activeModule.value.title}，city=${activeCity.value}，tool=${activeModule.value.aiTool || "none"}。`,
+					},
+				],
+			}),
+		});
+		if (!response.ok) throw new Error(`AI proxy ${response.status}`);
+		const data = await response.json();
+		insightText.value = data.answer || data.content || data.message || activeModule.value.aiInsight;
+		insightStatus.value = "go-proxy";
+	} catch {
+		insightStatus.value = "fallback";
+		insightText.value = activeModule.value.aiInsight;
+	}
 }
 
 function initMap() {
@@ -220,9 +257,10 @@ function initMap() {
 onMounted(async () => {
 	const response = await fetch("/mapData/hackathon_metrotaipei_demo.geojson");
 	const data = await response.json();
-	features.value = data.features || [];
+	features.value = [...(data.features || []), ...heatFamilyWorkerFeatures];
 	await nextTick();
 	initMap();
+	requestAIInsight();
 });
 
 onBeforeUnmount(() => {
@@ -234,6 +272,7 @@ onBeforeUnmount(() => {
 
 watch([activeModuleId, activeCity], () => {
 	updateVisibleFeatures();
+	requestAIInsight();
 });
 </script>
 
@@ -313,13 +352,24 @@ watch([activeModuleId, activeCity], () => {
         </section>
 
         <section class="insight-panel">
-          <div class="chart-shell">
+          <div
+            v-for="chart in activeCharts"
+            :key="chart.id || chart.type"
+            class="chart-shell"
+          >
+            <header
+              v-if="chart.title"
+              class="chart-title"
+            >
+              <strong>{{ chart.title }}</strong>
+              <span>{{ chart.dataFormat }}</span>
+            </header>
             <VueApexCharts
-              :key="`${activeModule.id}-${activeCity}`"
+              :key="`${activeModule.id}-${activeCity}-${chart.id || chart.type}`"
               height="260"
-              :type="activeModule.chart.type"
-              :options="chartOptions"
-              :series="activeModule.chart.series"
+              :type="chart.type"
+              :options="chartOptionsFor(chart)"
+              :series="chart.series"
             />
           </div>
 
@@ -330,8 +380,9 @@ watch([activeModuleId, activeCity], () => {
             <div>
               <span>auto_awesome</span>
               <strong>AI 洞察</strong>
+              <small>{{ insightStatus }}</small>
             </div>
-            <p>{{ activeModule.aiInsight }}</p>
+            <p>{{ insightText }}</p>
           </div>
 
           <div
@@ -597,8 +648,8 @@ watch([activeModuleId, activeCity], () => {
 
 .insight-panel {
 	min-width: 0;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: 1fr;
 	gap: 12px;
 	padding: 12px;
 	overflow-y: auto;
@@ -607,6 +658,21 @@ watch([activeModuleId, activeCity], () => {
 .chart-shell {
 	min-height: 280px;
 	padding: 10px;
+}
+
+.chart-title {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+
+	span {
+		padding: 2px 6px;
+		border-radius: 4px;
+		background: #22334a;
+		color: #bad7ff;
+		font-size: var(--font-s);
+	}
 }
 
 .ai-box {
@@ -622,6 +688,12 @@ watch([activeModuleId, activeCity], () => {
 	span {
 		font-family: var(--font-icon);
 		color: #f9a03f;
+	}
+
+	small {
+		margin-left: auto;
+		color: var(--color-complement-text);
+		font-size: var(--font-s);
 	}
 
 	p {
