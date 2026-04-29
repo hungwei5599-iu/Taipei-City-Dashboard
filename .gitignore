@@ -18,6 +18,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
+.omc/
 
 # --- Javascript / Node ---
 node_modules/

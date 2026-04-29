@@ -48,6 +48,15 @@ func init() {
 		},
 		Handler: GetPopulationSummary,
 	})
+
+	// Register hackathon tools
+	Register("query_aed_overview", QueryAEDOverview)
+	Register("query_food_inspection_trend", QueryFoodInspectionTrend)
+	Register("query_death_cause_ranking", QueryDeathCauseRanking)
+	Register("query_cultural_facilities", QueryCulturalFacilities)
+	Register("query_library_map", QueryLibraryMap)
+	Register("query_shelter_gap", QueryShelterGap)
+	Register("query_cultural_events", QueryCulturalEvents)
 }
 
 // Register adds a function-only tool to the registry.

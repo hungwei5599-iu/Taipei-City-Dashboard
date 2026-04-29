@@ -223,6 +223,15 @@ export const useContentStore = defineStore("content", {
 				(item) => item.index === this.currentDashboard.index,
 			);
 
+			// Special case for hackathon components validation
+			if (this.currentDashboard.index === 'hackathon') {
+				this.currentDashboard.name = 'Hackathon Showcase';
+				this.currentDashboard.icon = 'star';
+				this.cityDashboard.components = [];
+				this.loading = false;
+				return;
+			}
+
 			// If the current dashboard is not found, redirect to the first available dashboard
 			if (!currentDashboardInfo) {
 				// Find the first available dashboard

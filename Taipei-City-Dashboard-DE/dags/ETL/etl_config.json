@@ -317,5 +317,117 @@
     "source_type": "data.taipei API",
     "RID": "192f155c-15ba-4122-863a-23743f553a1c",
     "PAGE_ID": ""
+  },
+
+  "D1_雙北AED急救": {
+    "dag_id": "D1_雙北AED急救",
+    "output_table": "hackathon_component_d1_aed_ready",
+    "source_type": "merged",
+    "sources": [
+      "D1_台北AED",
+      "D1_新北AED"
+    ]
+  },
+  "D1_台北AED": {
+    "dag_id": "D1_台北AED",
+    "output_table": "D1_台北AED_raw",
+    "source_dept": "消防局",
+    "source_type": "data.taipei API",
+    "RID": "cd050577-0f57-410a-9d95-885141040339",
+    "PAGE_ID": ""
+  },
+  "D1_新北AED": {
+    "dag_id": "D1_新北AED",
+    "output_table": "D1_新北AED_raw",
+    "source_dept": "新北市消防局",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "61B29F27-A0C2-4D8D-A4E2-3E91B5E1A9FA"
+  },
+
+  "D2_雙北食品抽驗": {
+    "dag_id": "D2_雙北食品抽驗",
+    "output_table": "hackathon_component_d2_food_inspect_ready",
+    "source_type": "merged",
+    "sources": [
+      "D2_台北食品抽驗",
+      "D2_新北食品抽驗"
+    ]
+  },
+  "D2_台北食品抽驗": {
+    "dag_id": "D2_台北食品抽驗",
+    "output_table": "D2_台北食品抽驗_raw",
+    "source_dept": "臺北市政府衛生局",
+    "source_type": "data.taipei API",
+    "RID": "b9e65d04-4f2c-4847-ba82-0a4e8e3c553a",
+    "PAGE_ID": "c9a34b3e-7d1b-470c-af7c-7bc700fae08e"
+  },
+  "D2_新北食品抽驗": {
+    "dag_id": "D2_新北食品抽驗",
+    "output_table": "D2_新北食品抽驗_raw",
+    "source_dept": "新北市政府衛生局",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "ea61b3b0-3d6f-4ae3-abf0-dd45f048c1c8"
+  },
+
+  "D3_雙北主要死因": {
+    "dag_id": "D3_雙北主要死因",
+    "output_table": "hackathon_component_d3_death_cause_ready",
+    "source_type": "merged",
+    "sources": [
+      "D3_台北死因",
+      "D3_新北死因"
+    ]
+  },
+  "D3_台北死因": {
+    "dag_id": "D3_台北死因",
+    "output_table": "D3_台北死因_raw",
+    "source_dept": "臺北市政府主計處",
+    "source_type": "data.taipei API",
+    "RID": "b78a56b2-84eb-4f41-9a38-e9ea6c0d5edc",
+    "PAGE_ID": "78c4ddff-1e05-4f22-9c6c-2d5ef15e56ac"
+  },
+  "D3_新北死因": {
+    "dag_id": "D3_新北死因",
+    "output_table": "D3_新北死因_raw",
+    "source_dept": "新北市政府主計處",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "e3e2b399-5f4b-4d3d-a3e4-93c2e4d6f4b2"
+  },
+
+  "C5_雙北圖書館與閱讀資源地圖": {
+    "dag_id": "C5_雙北圖書館與閱讀資源地圖",
+    "output_table": "hackathon_component_c5_library_ready",
+    "source_type": "merged",
+    "sources": [
+      "C5_台北圖書館基本資料",
+      "C5_台北圖書館座位",
+      "C5_新北圖書館"
+    ]
+  },
+  "C5_台北圖書館基本資料": {
+    "dag_id": "C5_台北圖書館基本資料",
+    "output_table": "C5_台北圖書館基本資料_raw",
+    "source_dept": "臺北市立圖書館",
+    "source_type": "data.taipei API",
+    "RID": "f76eeeb9-b7e2-4a55-a87e-cf97f8b6cbbc",
+    "PAGE_ID": "d79c0508-b854-4e89-b305-ee98b1b61ddb"
+  },
+  "C5_台北圖書館座位": {
+    "dag_id": "C5_台北圖書館座位",
+    "output_table": "C5_台北圖書館座位_raw",
+    "source_dept": "臺北市立圖書館",
+    "source_type": "open_api",
+    "api_url": "https://seat.tpml.edu.tw/sm/service/getAllLibrary"
+  },
+  "C5_新北圖書館": {
+    "dag_id": "C5_新北圖書館",
+    "output_table": "C5_新北圖書館_raw",
+    "source_dept": "新北市立圖書館",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "2c7c4cd0-e8a9-4a2f-a9c1-3e3c3e8a2c2a"
   }
 }

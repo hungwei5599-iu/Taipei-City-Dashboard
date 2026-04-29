@@ -19,6 +19,15 @@ import { useAuthStore } from "../store/authStore";
 import MoreInfo from "../components/dialogs/MoreInfo.vue";
 import ReportIssue from "../components/dialogs/ReportIssue.vue";
 
+// Hackathon Custom Components
+import CulturalDensityBoxPlot from "../components/custom/CulturalDensityBoxPlot.vue";
+import EventMapHeatmap from "../components/custom/EventMapHeatmap.vue";
+import DeathCauseBubble from "../components/custom/DeathCauseBubble.vue";
+import ShelterGapWaterfall from "../components/custom/ShelterGapWaterfall.vue";
+import FoodInspectDonut from "../components/custom/FoodInspectDonut.vue";
+import LibraryIsochroneMap from "../components/custom/LibraryIsochroneMap.vue";
+import AedIsochroneMap from "../components/custom/AedIsochroneMap.vue";
+
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
 const authStore = useAuthStore();
@@ -70,9 +79,37 @@ function handleMoreInfo(item) {
 </script>
 
 <template>
+  <!-- 0. Hackathon Showcase -->
+  <div
+    v-if="$route.query.index === 'hackathon'"
+    class="dashboard hackathon-dashboard"
+  >
+    <div class="hackathon-card">
+      <CulturalDensityBoxPlot />
+    </div>
+    <div class="hackathon-card">
+      <EventMapHeatmap />
+    </div>
+    <div class="hackathon-card">
+      <DeathCauseBubble />
+    </div>
+    <div class="hackathon-card">
+      <ShelterGapWaterfall />
+    </div>
+    <div class="hackathon-card">
+      <FoodInspectDonut />
+    </div>
+    <div class="hackathon-card hackathon-card-map">
+      <LibraryIsochroneMap />
+    </div>
+    <div class="hackathon-card hackathon-card-map">
+      <AedIsochroneMap />
+    </div>
+  </div>
+
   <!-- 1. If the dashboard is map-layers -->
   <div
-    v-if="contentStore.currentDashboard.index?.includes('map-layers')"
+    v-else-if="contentStore.currentDashboard.index?.includes('map-layers')"
     class="dashboard"
   >
     <DashboardComponent
@@ -281,6 +318,56 @@ function handleMoreInfo(item) {
 				animation: spin 0.7s ease-in-out infinite;
 			}
 		}
+	}
+}
+
+.hackathon-dashboard {
+	grid-template-columns: 1fr;
+	align-items: stretch;
+	row-gap: var(--font-m);
+	column-gap: var(--font-m);
+	padding-bottom: var(--font-m);
+}
+
+.hackathon-card {
+	display: flex;
+	min-height: 520px;
+}
+
+.hackathon-card > * {
+	width: 100%;
+	min-width: 0;
+}
+
+.hackathon-dashboard :deep(.custom-component-container) {
+	height: 100%;
+	min-height: inherit;
+	box-sizing: border-box;
+	background: var(--color-component-background);
+}
+
+.hackathon-dashboard :deep(.control-bar) {
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.hackathon-dashboard :deep(.visualization-area) {
+	min-height: 390px;
+}
+
+.hackathon-dashboard :deep(.map-container),
+.hackathon-dashboard :deep(.map-fallback) {
+	height: 390px;
+	min-height: 390px;
+}
+
+@media (min-width: 1100px) {
+	.hackathon-dashboard {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.hackathon-card-map {
+		min-height: 560px;
 	}
 }
 
