@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資料庫說明 - 台北城市儀表板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+  .topbar { background: #0d1f3c; border-bottom: 1px solid #1e3a5f; padding: 16px 40px; display: flex; align-items: center; gap: 16px; }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #5599cc; }
+  .topbar .sep { color: #3a5a7f; }
+  .hero { background: linear-gradient(135deg, #001428, #0a1628); padding: 60px 40px; border-bottom: 1px solid #1e3a5f; }
+  .hero h1 { font-size: 2.4rem; color: #5599cc; margin-bottom: 12px; }
+  .hero p { color: #7ea8cf; font-size: 1.1rem; line-height: 1.8; max-width: 700px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 60px 40px; }
+  h2 { font-size: 1.5rem; color: #5599cc; margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid #1e3a5f; }
+  h3 { font-size: 1.1rem; color: #e0e6f0; margin: 20px 0 10px; }
+  p { color: #9ab5cf; line-height: 1.8; margin-bottom: 16px; }
+  code { background: rgba(85,153,204,0.1); border: 1px solid rgba(85,153,204,0.2); color: #5599cc; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; }
+  .highlight { color: #5599cc; font-weight: bold; }
+  .analogy { background: linear-gradient(135deg, rgba(85,153,204,0.08), rgba(0,112,243,0.03)); border-left: 3px solid #5599cc; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; font-style: italic; color: #7aa8c8; }
+  .code-block { background: #060d1a; border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; font-family: monospace; font-size: 0.83rem; line-height: 1.7; margin: 16px 0; overflow-x: auto; }
+  .code-block .keyword { color: #5599cc; }
+  .code-block .string { color: #ffaa44; }
+  .code-block .comment { color: #3a5a7f; }
+  .code-block .type { color: #c084fc; }
+  .code-block .green { color: #42b883; }
+  .db-diagram {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin: 32px 0;
+  }
+  .db-box {
+    background: #0d1f3c;
+    border: 2px solid #1e3a5f;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .db-header {
+    padding: 16px 20px;
+    font-weight: bold;
+    font-size: 1rem;
+  }
+  .db-header.manager { background: rgba(85,153,204,0.15); color: #5599cc; border-bottom: 1px solid #1e3a5f; }
+  .db-header.data { background: rgba(66,184,131,0.1); color: #42b883; border-bottom: 1px solid #1e3a5f; }
+  .db-table {
+    padding: 12px 20px;
+    border-bottom: 1px solid #0a1628;
+  }
+  .db-table h4 { color: #e0e6f0; font-size: 0.9rem; margin-bottom: 6px; }
+  .db-table .cols { font-size: 0.78rem; color: #5a7a9f; }
+  .db-table .cols span { display: inline-block; margin: 2px 4px 2px 0; }
+  .pk { color: #ffaa44; }
+  .fk { color: #c084fc; }
+  .col { color: #7ea8cf; }
+  .table-view {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  .table-view .th { background: rgba(85,153,204,0.1); padding: 10px 16px; font-size: 0.85rem; display: grid; grid-template-columns: 1.5fr 1.5fr 2fr 3fr; gap: 8px; color: #5599cc; }
+  .table-view .tr { padding: 10px 16px; font-size: 0.82rem; display: grid; grid-template-columns: 1.5fr 1.5fr 2fr 3fr; gap: 8px; border-top: 1px solid #0a1628; }
+  .table-view .tr:hover { background: rgba(85,153,204,0.03); }
+  .col-name { color: #e0e6f0; font-family: monospace; }
+  .col-type { color: #c084fc; }
+  .col-key { }
+  .col-desc { color: #7ea8cf; }
+  .key-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.72rem; }
+  .key-pk { background: rgba(255,170,0,0.15); color: #ffaa44; border: 1px solid rgba(255,170,0,0.3); }
+  .key-fk { background: rgba(192,132,252,0.15); color: #c084fc; border: 1px solid rgba(192,132,252,0.3); }
+  .key-idx { background: rgba(66,184,131,0.1); color: #42b883; border: 1px solid rgba(66,184,131,0.2); }
+  .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .card h4 { color: #5599cc; margin-bottom: 12px; font-size: 1rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .note { background: rgba(255,180,0,0.05); border: 1px solid rgba(255,180,0,0.2); border-radius: 10px; padding: 16px 20px; margin: 16px 0; color: #c0a060; font-size: 0.9rem; }
+  .postgis-box { background: linear-gradient(135deg, rgba(66,184,131,0.08), rgba(0,150,50,0.05)); border: 1px solid rgba(66,184,131,0.2); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .postgis-box h4 { color: #42b883; margin-bottom: 12px; }
+  .nav-bottom { display: flex; justify-content: space-between; padding: 40px 0 0; border-top: 1px solid #1e3a5f; }
+  .nav-btn { background: rgba(85,153,204,0.1); border: 1px solid rgba(85,153,204,0.3); color: #5599cc; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+  .nav-btn:hover { background: rgba(85,153,204,0.2); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">🏠 首頁</a>
+  <span class="sep">/</span>
+  <a href="01-overview.html">整體架構</a>
+  <span class="sep">/</span>
+  <span style="color:#5599cc;">資料庫</span>
+</div>
+
+<div class="hero">
+  <h1>🗄️ 資料庫 (Database)</h1>
+  <p>為什麼用兩個 PostgreSQL、PostGIS 地理擴充如何讓地圖功能成真、資料表如何設計來支撐整個系統。</p>
+</div>
+
+<div class="container">
+
+  <h2>為什麼用兩個資料庫？</h2>
+  <p>這個系統有<span class="highlight">兩個完全獨立的 PostgreSQL 資料庫</span>，這是整個架構最關鍵的設計決策之一：</p>
+
+  <div class="db-diagram">
+    <div class="db-box">
+      <div class="db-header manager">🔧 postgres-manager（設定資料庫）</div>
+      <div class="db-table">
+        <h4>auth_users</h4>
+        <div class="cols">使用者帳號、密碼、權限</div>
+      </div>
+      <div class="db-table">
+        <h4>dashboards</h4>
+        <div class="cols">儀表板名稱、圖標、元件列表</div>
+      </div>
+      <div class="db-table">
+        <h4>components</h4>
+        <div class="cols">元件名稱、描述、更新頻率</div>
+      </div>
+      <div class="db-table">
+        <h4>query_charts</h4>
+        <div class="cols">★ 圖表的 SQL 查詢語句、圖表類型</div>
+      </div>
+      <div class="db-table">
+        <h4>chat_logs</h4>
+        <div class="cols">AI 對話紀錄</div>
+      </div>
+      <div style="padding:12px 20px;font-size:0.8rem;color:#3a5a7f;">
+        特性：資料量小、結構穩定、設定類資料
+      </div>
+    </div>
+
+    <div class="db-box">
+      <div class="db-header data">📊 postgres-data（資料庫）</div>
+      <div class="db-table">
+        <h4>各種資料表（由 DE 建立）</h4>
+        <div class="cols">不固定，每個元件對應一個或多個表</div>
+      </div>
+      <div class="db-table">
+        <h4>範例：population_by_district</h4>
+        <div class="cols">district_name, population, updated_at</div>
+      </div>
+      <div class="db-table">
+        <h4>範例：air_quality_hourly</h4>
+        <div class="cols">station_id, pm25, timestamp, geometry</div>
+      </div>
+      <div class="db-table">
+        <h4>範例：mrt_ridership</h4>
+        <div class="cols">station_name, count, date</div>
+      </div>
+      <div style="padding:12px 20px;font-size:0.8rem;color:#3a5a7f;">
+        特性：資料量大、頻繁更新（Airflow 寫入）
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy">
+    💡 <strong>類比：</strong>postgres-manager 是「辦公室的員工手冊和組織圖」（穩定、很少改變），postgres-data 是「每天更新的業績報表」（資料多、頻繁變動）。分開管理讓兩者互不干擾。
+  </div>
+
+  <div class="note">
+    💡 <strong>為什麼要分開？</strong><br>
+    1. <strong>效能隔離</strong>：Airflow 大量寫入資料時，不會影響到使用者登入或設定的查詢速度<br>
+    2. <strong>獨立備份</strong>：可以對資料庫用不同頻率備份（設定庫一天一次，資料庫每小時一次）<br>
+    3. <strong>獨立擴展</strong>：資料庫需要更大空間時，只擴展它，不影響設定庫<br>
+    4. <strong>安全隔離</strong>：即使資料庫被攻破，設定庫（含帳號密碼）還是安全的
+  </div>
+
+  <h2>postgres-manager 核心資料表</h2>
+
+  <h3>🔑 使用者表（auth_users）</h3>
+  <div class="table-view">
+    <div class="th"><span>欄位名稱</span><span>資料型態</span><span>鍵</span><span>說明</span></div>
+    <div class="tr"><span class="col-name">id</span><span class="col-type">BIGINT</span><span><span class="key-badge key-pk">PK</span></span><span class="col-desc">主鍵，自動遞增</span></div>
+    <div class="tr"><span class="col-name">name</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">使用者名稱</span></div>
+    <div class="tr"><span class="col-name">email</span><span class="col-type">VARCHAR</span><span><span class="key-badge key-idx">UNIQUE</span></span><span class="col-desc">電子信箱（登入帳號）</span></div>
+    <div class="tr"><span class="col-name">password</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">雜湊後的密碼</span></div>
+    <div class="tr"><span class="col-name">tp_uuid</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">台北通 UUID（OAuth 登入用）</span></div>
+    <div class="tr"><span class="col-name">is_admin</span><span class="col-type">BOOLEAN</span><span></span><span class="col-desc">是否為管理員</span></div>
+    <div class="tr"><span class="col-name">is_active</span><span class="col-type">BOOLEAN</span><span></span><span class="col-desc">帳號是否啟用</span></div>
+    <div class="tr"><span class="col-name">is_whitelist</span><span class="col-type">BOOLEAN</span><span></span><span class="col-desc">是否在白名單（台北市府員工）</span></div>
+    <div class="tr"><span class="col-name">is_blacked</span><span class="col-type">BOOLEAN</span><span></span><span class="col-desc">是否被封鎖</span></div>
+    <div class="tr"><span class="col-name">login_at</span><span class="col-type">TIMESTAMP</span><span></span><span class="col-desc">最後登入時間</span></div>
+  </div>
+
+  <h3>📋 儀表板表（dashboards）</h3>
+  <div class="table-view">
+    <div class="th"><span>欄位名稱</span><span>資料型態</span><span>鍵</span><span>說明</span></div>
+    <div class="tr"><span class="col-name">index</span><span class="col-type">VARCHAR</span><span><span class="key-badge key-pk">PK</span></span><span class="col-desc">儀表板唯一識別碼（如："taipei-01"）</span></div>
+    <div class="tr"><span class="col-name">name</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">儀表板顯示名稱</span></div>
+    <div class="tr"><span class="col-name">icon</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">圖示名稱</span></div>
+    <div class="tr"><span class="col-name">components</span><span class="col-type">INT[]</span><span></span><span class="col-desc">★ 包含的元件 ID 陣列（PostgreSQL 陣列型別）</span></div>
+  </div>
+
+  <h3>⭐ 最重要：query_charts 表（圖表查詢設定）</h3>
+  <p>這是整個系統的核心設定表。它告訴後端：<strong style="color:#e0e6f0;">每個元件要執行哪個 SQL、圖表長什麼樣子</strong>。</p>
+  <div class="table-view">
+    <div class="th"><span>欄位名稱</span><span>資料型態</span><span>鍵</span><span>說明</span></div>
+    <div class="tr"><span class="col-name">id</span><span class="col-type">BIGINT</span><span><span class="key-badge key-fk">FK</span></span><span class="col-desc">關聯到 components.id</span></div>
+    <div class="tr"><span class="col-name">query_type</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">資料類型：two_d / three_d / time_series / map_legend</span></div>
+    <div class="tr"><span class="col-name">query</span><span class="col-type">TEXT</span><span></span><span class="col-desc">★ 要在 postgres-data 執行的 SQL 語句</span></div>
+    <div class="tr"><span class="col-name">chart_type</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">圖表元件名稱（BarChart / DonutChart 等）</span></div>
+    <div class="tr"><span class="col-name">color</span><span class="col-type">TEXT[]</span><span></span><span class="col-desc">圖表顏色設定陣列</span></div>
+    <div class="tr"><span class="col-name">unit</span><span class="col-type">VARCHAR</span><span></span><span class="col-desc">資料單位（人、輛、%等）</span></div>
+    <div class="tr"><span class="col-name">history_config</span><span class="col-type">JSONB</span><span></span><span class="col-desc">歷史資料設定（時間範圍、SQL等）</span></div>
+    <div class="tr"><span class="col-name">map_config</span><span class="col-type">JSONB[]</span><span></span><span class="col-desc">地圖圖層設定（類型、顏色、篩選等）</span></div>
+  </div>
+
+  <div class="note">
+    💡 <strong>聰明的設計：「資料」和「如何顯示資料」分開儲存</strong><br>
+    query_charts 存的是「規則」（要用哪個 SQL 查詢、用哪種圖表顯示），不是資料本身。這樣管理員可以隨時修改圖表樣式或查詢語句，不需要改後端程式碼。
+  </div>
+
+  <h2>postgres-data 的資料格式</h2>
+  <p>後端查詢資料後，根據 <code>query_type</code> 返回不同格式：</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>two_d（二維資料）</h4>
+      <p style="color:#7ea8cf;font-size:0.85rem;margin-bottom:8px;">用於長條圖、圓餅圖、甜甜圈圖</p>
+      <div class="code-block" style="margin:0;">
+[<br>
+&nbsp;&nbsp;{ "x_axis": <span class="string">"大安區"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": 312000 },<br>
+&nbsp;&nbsp;{ "x_axis": <span class="string">"信義區"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": 228000 }<br>
+]
+      </div>
+    </div>
+    <div class="card">
+      <h4>three_d（三維資料）</h4>
+      <p style="color:#7ea8cf;font-size:0.85rem;margin-bottom:8px;">用於分組長條圖、百分比堆疊圖</p>
+      <div class="code-block" style="margin:0;">
+[<br>
+&nbsp;&nbsp;{ "x_axis": <span class="string">"大安區"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"y_axis": <span class="string">"男性"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"icon": <span class="string">"male"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": 155000 },<br>
+&nbsp;&nbsp;...<br>
+]
+      </div>
+    </div>
+    <div class="card">
+      <h4>time_series（時間序列）</h4>
+      <p style="color:#7ea8cf;font-size:0.85rem;margin-bottom:8px;">用於折線圖、面積圖</p>
+      <div class="code-block" style="margin:0;">
+[<br>
+&nbsp;&nbsp;{ "timestamp": <span class="string">"2024-01-01"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"series_name": <span class="string">"大安區"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"value": 312000 },<br>
+&nbsp;&nbsp;...<br>
+]
+      </div>
+    </div>
+    <div class="card">
+      <h4>map_legend（地圖圖例）</h4>
+      <p style="color:#7ea8cf;font-size:0.85rem;margin-bottom:8px;">用於地圖圖層，含地理資訊</p>
+      <div class="code-block" style="margin:0;">
+[<br>
+&nbsp;&nbsp;{ "name": <span class="string">"大安區"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"value": 312000,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"geometry": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"type"</span>: <span class="string">"Polygon"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"coordinates"</span>: [...]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;} }<br>
+]
+      </div>
+    </div>
+  </div>
+
+  <h2>PostGIS：讓資料庫懂得「地理」</h2>
+  <div class="postgis-box">
+    <h4>🌍 什麼是 PostGIS？</h4>
+    <p style="color:#7ea8cf;font-size:0.9rem;line-height:1.7;margin-bottom:12px;">
+      PostGIS 是 PostgreSQL 的擴充套件，讓資料庫能夠儲存和查詢<strong style="color:#e0e6f0;">地理空間資料</strong>（如多邊形、點位、線段）。
+    </p>
+    <div class="code-block" style="margin:0;">
+<span class="comment">-- 儲存行政區邊界（Polygon 多邊形）</span><br>
+<span class="keyword">SELECT</span> name, ST_AsGeoJSON(geometry) <span class="comment">-- 輸出 GeoJSON</span><br>
+<span class="keyword">FROM</span> district_boundaries<br>
+<span class="keyword">WHERE</span> ST_Contains(geometry, ST_Point(<span class="string">121.5, 25.04</span>)) <span class="comment">-- 點在多邊形內？</span><br>
+<br>
+<span class="comment">-- 計算兩點距離（公尺）</span><br>
+<span class="keyword">SELECT</span> ST_Distance(<br>
+&nbsp;&nbsp;ST_Point(<span class="string">121.5, 25.04</span>)::geography,<br>
+&nbsp;&nbsp;ST_Point(<span class="string">121.52, 25.06</span>)::geography<br>
+) <span class="keyword">AS</span> distance_meters
+    </div>
+    <p style="color:#7ea8cf;font-size:0.85rem;margin-top:12px;margin-bottom:0;">
+      系統用 PostGIS 儲存台北市各行政區的邊界多邊形，讓地圖可以顯示「區域著色圖」。
+    </p>
+  </div>
+
+  <h2>資料庫連線如何管理</h2>
+  <div class="code-block">
+<span class="comment">// global/global.go - 全局資料庫連線</span><br>
+<span class="keyword">var</span> (<br>
+&nbsp;&nbsp;MANAGER_DB *gorm.DB  <span class="comment">// 設定資料庫連線</span><br>
+&nbsp;&nbsp;DASHBOARD_DB *gorm.DB <span class="comment">// 資料資料庫連線</span><br>
+)<br>
+<br>
+<span class="comment">// app/models/database.go - 建立連線</span><br>
+<span class="keyword">func</span> <span class="green">ConnectToDB</span>() {<br>
+&nbsp;&nbsp;managerDSN := <span class="keyword">fmt</span>.Sprintf(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;os.Getenv(<span class="string">"DB_MANAGER_HOST"</span>),  <span class="comment">// postgres-manager</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;os.Getenv(<span class="string">"DB_MANAGER_USER"</span>),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;os.Getenv(<span class="string">"DB_MANAGER_PASSWORD"</span>),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;global.MANAGER_DB, _ = gorm.<span class="green">Open</span>(postgres.<span class="green">Open</span>(managerDSN))<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="comment">// 資料庫連線同理...</span><br>
+}
+  </div>
+
+  <div class="nav-bottom">
+    <a href="03-backend.html" class="nav-btn">← 後端說明</a>
+    <a href="05-redis.html" class="nav-btn">Redis 說明 →</a>
+  </div>
+
+</div>
+</body>
+</html>

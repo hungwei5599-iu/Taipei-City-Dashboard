@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>postgres-manager 資料庫完全解析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+
+  .topbar {
+    background: #0d1f3c;
+    border-bottom: 1px solid #1e3a5f;
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #00b4ff; }
+  .topbar .sep { color: #3a5a7f; }
+
+  .hero {
+    background: linear-gradient(135deg, #0d1f3c, #0a1628);
+    padding: 60px 40px;
+    border-bottom: 1px solid #1e3a5f;
+  }
+  .hero h1 { font-size: 2.4rem; color: #00b4ff; margin-bottom: 12px; }
+  .hero p { color: #7ea8cf; font-size: 1.1rem; line-height: 1.8; max-width: 800px; }
+  .hero .badge {
+    display: inline-block;
+    background: rgba(0,180,255,0.15);
+    border: 1px solid rgba(0,180,255,0.4);
+    color: #00b4ff;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-top: 16px;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 60px 40px; }
+
+  h2 { font-size: 1.6rem; color: #00b4ff; margin: 56px 0 20px; padding-bottom: 12px; border-bottom: 2px solid #1e3a5f; }
+  h3 { font-size: 1.15rem; color: #e0e6f0; margin: 28px 0 12px; }
+  p { color: #9ab5cf; line-height: 1.8; margin-bottom: 16px; }
+
+  .callout {
+    background: linear-gradient(135deg, rgba(0,112,243,0.1), rgba(0,180,255,0.06));
+    border-left: 3px solid #00b4ff;
+    border-radius: 0 12px 12px 0;
+    padding: 18px 24px;
+    margin: 24px 0;
+    color: #a0c0df;
+    line-height: 1.8;
+  }
+  .callout.orange { border-left-color: #ff8c42; background: linear-gradient(135deg, rgba(255,140,66,0.1), rgba(255,140,66,0.05)); }
+  .callout.green  { border-left-color: #3ec87a; background: linear-gradient(135deg, rgba(62,200,122,0.1), rgba(62,200,122,0.05)); }
+  .callout.purple { border-left-color: #a855f7; background: linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.05)); }
+
+  /* Location card */
+  .loc-card {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    padding: 28px;
+    margin: 24px 0;
+  }
+  .loc-row { display: flex; align-items: baseline; gap: 16px; margin: 10px 0; }
+  .loc-label { color: #5a8ab0; font-size: 0.85rem; width: 140px; flex-shrink: 0; }
+  .loc-val   { color: #e0e6f0; font-family: 'Courier New', monospace; font-size: 0.95rem; }
+
+  /* ER Diagram */
+  .er-wrap {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 16px;
+    padding: 40px 20px;
+    margin: 32px 0;
+    overflow-x: auto;
+  }
+  .er-diagram {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-width: 800px;
+  }
+  .er-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .er-group-label {
+    font-size: 0.75rem;
+    color: #5a8ab0;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .er-table {
+    background: #091525;
+    border-radius: 10px;
+    min-width: 160px;
+    overflow: hidden;
+  }
+  .er-table-head {
+    padding: 10px 14px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  .er-table-head.blue   { background: rgba(0,180,255,0.2); color: #00b4ff; border-bottom: 1px solid rgba(0,180,255,0.3); }
+  .er-table-head.orange { background: rgba(255,140,66,0.2); color: #ff8c42; border-bottom: 1px solid rgba(255,140,66,0.3); }
+  .er-table-head.green  { background: rgba(62,200,122,0.2); color: #3ec87a; border-bottom: 1px solid rgba(62,200,122,0.3); }
+  .er-table-head.purple { background: rgba(168,85,247,0.2); color: #a855f7; border-bottom: 1px solid rgba(168,85,247,0.3); }
+  .er-table-head.gray   { background: rgba(120,130,150,0.2); color: #8a9ab0; border-bottom: 1px solid rgba(120,130,150,0.3); }
+  .er-row {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    color: #7a9ab8;
+    font-family: monospace;
+    border-bottom: 1px solid #0f2035;
+  }
+  .er-row:last-child { border-bottom: none; }
+  .er-row .pk { color: #ffd700; }
+  .er-row .fk { color: #ff8c42; }
+
+  /* Table docs */
+  .table-card {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 14px;
+    margin: 32px 0;
+    overflow: hidden;
+  }
+  .table-card-header {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid #1e3a5f;
+  }
+  .table-name {
+    font-family: 'Courier New', monospace;
+    font-size: 1.05rem;
+    font-weight: bold;
+  }
+  .table-name.blue   { color: #00b4ff; }
+  .table-name.orange { color: #ff8c42; }
+  .table-name.green  { color: #3ec87a; }
+  .table-name.purple { color: #a855f7; }
+  .table-name.gray   { color: #8a9ab0; }
+  .table-desc { color: #7a9ab8; font-size: 0.9rem; }
+  .table-card-body { padding: 24px 28px; }
+  .col-table { width: 100%; border-collapse: collapse; }
+  .col-table th {
+    text-align: left;
+    color: #5a8ab0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #1e3a5f;
+  }
+  .col-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #0f2035;
+    font-size: 0.88rem;
+    vertical-align: top;
+  }
+  .col-table tr:last-child td { border-bottom: none; }
+  .col-name { font-family: monospace; color: #e0e6f0; }
+  .col-type { font-family: monospace; color: #a855f7; }
+  .col-pk   { background: rgba(255,215,0,0.1); color: #ffd700; font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; font-family: monospace; }
+  .col-fk   { background: rgba(255,140,66,0.1); color: #ff8c42; font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; font-family: monospace; }
+  .col-desc { color: #7a9ab8; }
+
+  /* Why box */
+  .why-box {
+    background: rgba(0,180,255,0.06);
+    border: 1px solid rgba(0,180,255,0.2);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 16px;
+  }
+  .why-box h4 { color: #00b4ff; font-size: 0.85rem; margin-bottom: 8px; }
+  .why-box p  { color: #7a9ab8; font-size: 0.88rem; margin: 0; }
+
+  /* Code block */
+  pre {
+    background: #060e1a;
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    margin: 16px 0;
+    color: #a0c8e8;
+  }
+  .kw  { color: #00b4ff; }
+  .str { color: #3ec87a; }
+  .cm  { color: #4a6a84; font-style: italic; }
+  .fn  { color: #ff8c42; }
+  .num { color: #a855f7; }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 24px 0;
+  }
+  .flow-box {
+    background: rgba(0,180,255,0.1);
+    border: 1px solid rgba(0,180,255,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 0.88rem;
+    color: #a0c8e8;
+    text-align: center;
+    min-width: 130px;
+  }
+  .flow-box.orange { background: rgba(255,140,66,0.1); border-color: rgba(255,140,66,0.3); color: #ffb87a; }
+  .flow-box.green  { background: rgba(62,200,122,0.1); border-color: rgba(62,200,122,0.3); color: #80e0a8; }
+  .flow-box.purple { background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.3); color: #c890f8; }
+  .flow-arrow { color: #3a5a7f; font-size: 1.4rem; padding: 0 8px; }
+
+  /* Steps */
+  .step-list { counter-reset: step; list-style: none; margin: 20px 0; }
+  .step-list li {
+    counter-increment: step;
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+    align-items: flex-start;
+  }
+  .step-list li::before {
+    content: counter(step);
+    background: #00b4ff;
+    color: #000;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-list li .content { color: #9ab5cf; line-height: 1.8; }
+  .step-list li .content strong { color: #e0e6f0; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* Relation lines label */
+  .rel-label {
+    display: inline-block;
+    background: rgba(255,140,66,0.1);
+    border: 1px solid rgba(255,140,66,0.3);
+    color: #ff8c42;
+    font-family: monospace;
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* Tag */
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .tag.core { background: rgba(0,180,255,0.15); color: #00b4ff; border: 1px solid rgba(0,180,255,0.3); }
+  .tag.auth { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+  .tag.meta { background: rgba(62,200,122,0.15); color: #3ec87a; border: 1px solid rgba(62,200,122,0.3); }
+  .tag.log  { background: rgba(120,130,150,0.15); color: #8a9ab0; border: 1px solid rgba(120,130,150,0.3); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">首頁</a>
+  <span class="sep">›</span>
+  <span style="color:#e0e6f0">postgres-manager 資料庫解析</span>
+</div>
+
+<div class="hero">
+  <h1>postgres-manager 完全解析</h1>
+  <p>這個資料庫是整個台北儀表板的「控制中心」—— 它不存放實際圖表數據，而是儲存所有的<strong style="color:#e0e6f0">設定、結構、權限</strong>，決定儀表板長什麼樣、誰可以看到什麼、組件要怎麼呈現。</p>
+  <div class="badge">Go Model: <code>DBManager</code> → <code>dashboardmanager</code> 資料庫</div>
+</div>
+
+<div class="container">
+
+  <!-- ===== WHERE IS IT ===== -->
+  <h2>它在哪裡？</h2>
+
+  <div class="loc-card">
+    <div class="loc-row">
+      <span class="loc-label">Docker 服務名稱</span>
+      <span class="loc-val">postgres-manager</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">定義檔案</span>
+      <span class="loc-val">docker/docker-compose-db.yaml</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">對外 Port</span>
+      <span class="loc-val">5432:5432（本機 5432 對應容器 5432）</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">Image</span>
+      <span class="loc-val">postgis/postgis:16-3.4-alpine（支援地理空間運算）</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">資料庫名稱</span>
+      <span class="loc-val">dashboardmanager（由 DB_MANAGER_DBNAME 設定）</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">資料持久化</span>
+      <span class="loc-val">Docker Volume: postgres_manager_data</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">Go 全域變數</span>
+      <span class="loc-val">models.DBManager（在 models/database.go 定義）</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">BE Schema 初始化</span>
+      <span class="loc-val">models.MigrateManagerSchema() 使用 GORM AutoMigrate</span>
+    </div>
+    <div class="loc-row">
+      <span class="loc-label">Sample Data 載入</span>
+      <span class="loc-val">db-sample-data/dashboardmanager-demo.sql（由 docker-compose-init.yaml 執行）</span>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>與 postgres-data 的根本差異：</strong><br>
+    <code>postgres-data</code>（5433）存放<strong>圖表的業務數據</strong>（YouBike 站點、人口統計、空污數值...），由 DE/Airflow 定期更新。<br>
+    <code>postgres-manager</code>（5432）存放<strong>系統設定與組件定義</strong>，由管理者手動維護。兩者完全獨立，職責分明。
+  </div>
+
+  <!-- ===== ER DIAGRAM ===== -->
+  <h2>資料表關係圖（ER Diagram）</h2>
+
+  <div class="er-wrap">
+    <div style="text-align:center; margin-bottom: 28px; color: #5a8ab0; font-size: 0.85rem;">
+      🟡 PK = Primary Key &nbsp;&nbsp;&nbsp; 🟠 FK = Foreign Key
+    </div>
+    <div class="er-diagram">
+
+      <!-- 組件核心 -->
+      <div class="er-group">
+        <span class="er-group-label">組件設定核心</span>
+        <div class="er-table">
+          <div class="er-table-head blue">components</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">index varchar</div>
+          <div class="er-row">name varchar</div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕ index 關聯</div>
+        <div class="er-table">
+          <div class="er-table-head blue">component_charts</div>
+          <div class="er-row"><span class="pk">🟡 index</span> varchar</div>
+          <div class="er-row">color varchar[]</div>
+          <div class="er-row">types varchar[]</div>
+          <div class="er-row">unit varchar</div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕</div>
+        <div class="er-table">
+          <div class="er-table-head blue">query_charts</div>
+          <div class="er-row"><span class="pk">🟡 index+city</span></div>
+          <div class="er-row">query_chart text</div>
+          <div class="er-row">query_type varchar</div>
+          <div class="er-row">map_config_ids int[]</div>
+          <div class="er-row">source/desc... text</div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕ map_config_ids[]</div>
+        <div class="er-table">
+          <div class="er-table-head blue">component_maps</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">index varchar</div>
+          <div class="er-row">type/source varchar</div>
+          <div class="er-row">paint json</div>
+          <div class="er-row">property json</div>
+        </div>
+      </div>
+
+      <!-- 儀表板 -->
+      <div class="er-group">
+        <span class="er-group-label">儀表板結構</span>
+        <div class="er-table">
+          <div class="er-table-head orange">dashboards</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">index varchar</div>
+          <div class="er-row">name varchar</div>
+          <div class="er-row">components int[]</div>
+          <div class="er-row">icon varchar</div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕ N:M</div>
+        <div class="er-table">
+          <div class="er-table-head orange">dashboard_groups</div>
+          <div class="er-row"><span class="fk">🟠 dashboard_id</span></div>
+          <div class="er-row"><span class="fk">🟠 group_id</span></div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕</div>
+        <div class="er-table">
+          <div class="er-table-head orange">groups</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">name varchar</div>
+          <div class="er-row">is_personal boolean</div>
+          <div class="er-row"><span class="fk">🟠 create_by</span></div>
+        </div>
+      </div>
+
+      <!-- 使用者權限 -->
+      <div class="er-group">
+        <span class="er-group-label">使用者 / 權限</span>
+        <div class="er-table">
+          <div class="er-table-head purple">auth_users</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">name / email varchar</div>
+          <div class="er-row">is_admin boolean</div>
+          <div class="er-row">is_active boolean</div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕ 3-way junction</div>
+        <div class="er-table">
+          <div class="er-table-head purple">auth_user_group_roles</div>
+          <div class="er-row"><span class="fk">🟠 auth_user_id</span></div>
+          <div class="er-row"><span class="fk">🟠 group_id</span></div>
+          <div class="er-row"><span class="fk">🟠 role_id</span></div>
+        </div>
+        <div style="text-align:center;color:#3a5a7f;font-size:1.2rem;">↕</div>
+        <div class="er-table">
+          <div class="er-table-head purple">roles</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">name varchar</div>
+          <div class="er-row">access_control bool</div>
+          <div class="er-row">modify bool</div>
+          <div class="er-row">read bool</div>
+        </div>
+      </div>
+
+      <!-- 其他 -->
+      <div class="er-group">
+        <span class="er-group-label">功能輔助</span>
+        <div class="er-table">
+          <div class="er-table-head green">contributors</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">user_id varchar</div>
+          <div class="er-row">user_name varchar</div>
+          <div class="er-row">link text</div>
+        </div>
+        <div class="er-table" style="margin-top:12px">
+          <div class="er-table-head green">view_points</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row"><span class="fk">🟠 user_id</span></div>
+          <div class="er-row">center_x/y float</div>
+          <div class="er-row">zoom/pitch/bearing</div>
+        </div>
+        <div class="er-table" style="margin-top:12px">
+          <div class="er-table-head green">issues</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">title / status varchar</div>
+          <div class="er-row">description text</div>
+        </div>
+        <div class="er-table" style="margin-top:12px">
+          <div class="er-table-head gray">chat_logs</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">session varchar</div>
+          <div class="er-row">question / answer</div>
+        </div>
+        <div class="er-table" style="margin-top:12px">
+          <div class="er-table-head gray">incidents</div>
+          <div class="er-row"><span class="pk">🟡 id</span> integer</div>
+          <div class="er-row">latitude / longitude</div>
+          <div class="er-row">type / status</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== TABLE BY TABLE ===== -->
+  <h2>每張資料表詳細說明</h2>
+
+  <!-- components -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">components <span class="tag core">核心</span></div>
+        <div class="table-desc">組件的「名牌」— 只記最基本的識別資訊</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> id</td><td class="col-type">integer</td><td class="col-desc">自動遞增主鍵，FE 和 dashboard 用這個 id 來引用組件</td></tr>
+        <tr><td class="col-name">index</td><td class="col-type">varchar</td><td class="col-desc">組件的英文唯一代號，例如 <code>youbike_availability</code>，其他表用 index 來 JOIN</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">varchar</td><td class="col-desc">組件的中文顯示名稱，例如「YouBike使用情況」</td></tr>
+      </table>
+      <div class="why-box">
+        <h4>為什麼只有三個欄位？</h4>
+        <p>故意設計成最薄的一層，只作為「索引節點」。圖表外觀設定放 component_charts，地圖設定放 component_maps，查詢 SQL 放 query_charts。分開存放讓同一個組件可以跨城市重複使用，只需要在 query_charts 裡加入不同城市的 SQL 即可。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- component_charts -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">component_charts <span class="tag core">核心</span></div>
+        <div class="table-desc">圖表視覺設定 — 顏色、圖表類型、單位</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> index</td><td class="col-type">varchar</td><td class="col-desc">對應 components.index，1對1關係</td></tr>
+        <tr><td class="col-name">color</td><td class="col-type">varchar[]</td><td class="col-desc">圖表顏色陣列，例如 <code>{"#FF5733","#33FF57"}</code>，多系列圖表各自一個顏色</td></tr>
+        <tr><td class="col-name">types</td><td class="col-type">varchar[]</td><td class="col-desc">圖表類型陣列，例如 <code>{"bar","line"}</code>，對應 FE 的圖表元件</td></tr>
+        <tr><td class="col-name">unit</td><td class="col-type">varchar</td><td class="col-desc">數值單位，例如 <code>輛</code>、<code>%</code>、<code>人</code>，顯示在圖表旁</td></tr>
+      </table>
+      <div class="why-box">
+        <h4>為什麼圖表設定要獨立一張表？</h4>
+        <p>同一個組件的圖表外觀設定（顏色、類型）與城市無關，不論臺北或雙北版本，視覺呈現一樣。獨立成一張表可以避免在 query_charts 的每個城市版本都重複儲存相同的視覺設定。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- query_charts -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">query_charts <span class="tag core">核心</span></div>
+        <div class="table-desc">組件的 SQL 查詢設定 + 元資料（最重要的表之一）</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> index + city</td><td class="col-type">varchar</td><td class="col-desc">複合主鍵：同一個組件 index，針對不同城市（taipei / metrotaipei）可以有不同的 SQL 查詢</td></tr>
+        <tr><td class="col-name">query_type</td><td class="col-type">varchar</td><td class="col-desc">查詢類型，例如 <code>three_d</code>（3D圖表）、<code>map_legend</code>（地圖圖例）等，決定 BE 如何處理回傳結果</td></tr>
+        <tr><td class="col-name">query_chart</td><td class="col-type">text</td><td class="col-desc">實際的 SQL 語句，BE 執行這個 SQL 來從 postgres-data 取資料</td></tr>
+        <tr><td class="col-name">query_history</td><td class="col-type">text</td><td class="col-desc">查詢歷史時間序列資料的 SQL（可選）</td></tr>
+        <tr><td class="col-name">history_config</td><td class="col-type">json</td><td class="col-desc">歷史資料的時間軸設定（時間格式、間隔等）</td></tr>
+        <tr><td class="col-name">map_config_ids</td><td class="col-type">integer[]</td><td class="col-desc">關聯到 component_maps 的 id 陣列，一個組件可以有多個地圖圖層</td></tr>
+        <tr><td class="col-name">map_filter</td><td class="col-type">json</td><td class="col-desc">地圖篩選設定（例如只顯示某個行政區的資料）</td></tr>
+        <tr><td class="col-name">time_from</td><td class="col-type">varchar</td><td class="col-desc">資料的起始時間，<code>static</code> 表示靜態資料無時間範圍</td></tr>
+        <tr><td class="col-name">update_freq</td><td class="col-type">integer</td><td class="col-desc">更新頻率數字（配合 update_freq_unit 使用）</td></tr>
+        <tr><td class="col-name">update_freq_unit</td><td class="col-type">varchar</td><td class="col-desc">更新頻率單位，例如 <code>minute</code>、<code>hour</code>、<code>day</code></td></tr>
+        <tr><td class="col-name">source</td><td class="col-type">varchar</td><td class="col-desc">資料來源名稱，例如「交通局」、「主計處」，顯示在組件資訊欄</td></tr>
+        <tr><td class="col-name">short_desc</td><td class="col-type">text</td><td class="col-desc">組件的短介紹（FE hover 顯示）</td></tr>
+        <tr><td class="col-name">long_desc</td><td class="col-type">text</td><td class="col-desc">組件的詳細說明（FE 展開資訊面板顯示）</td></tr>
+        <tr><td class="col-name">use_case</td><td class="col-type">text</td><td class="col-desc">使用情境說明，說明這個組件適合用在什麼決策場景</td></tr>
+        <tr><td class="col-name">links</td><td class="col-type">text[]</td><td class="col-desc">資料來源的原始連結陣列</td></tr>
+        <tr><td class="col-name">contributors</td><td class="col-type">text[]</td><td class="col-desc">貢獻者 user_id 陣列，對應 contributors 表的 user_id 欄位</td></tr>
+        <tr><td class="col-name">city</td><td class="col-type">text</td><td class="col-desc">城市識別：<code>taipei</code> 或 <code>metrotaipei</code>（雙北）</td></tr>
+      </table>
+      <div class="why-box">
+        <h4>為什麼同一個組件要有多個 query_charts 記錄？</h4>
+        <p>台北市（taipei）和雙北（metrotaipei）的資料表結構可能不同，需要不同的 SQL。這個設計讓同一個組件只需要維護一份視覺設定（component_charts），但可以用不同 SQL 對應不同城市的資料來源，非常靈活。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- component_maps -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">component_maps <span class="tag core">核心</span></div>
+        <div class="table-desc">Mapbox 地圖圖層設定 — 你要新增的組件會用到這裡</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> id</td><td class="col-type">integer</td><td class="col-desc">自動遞增，被 query_charts.map_config_ids[] 引用</td></tr>
+        <tr><td class="col-name">index</td><td class="col-type">varchar</td><td class="col-desc">對應 components.index（但一個 index 可以有多個地圖圖層）</td></tr>
+        <tr><td class="col-name">title</td><td class="col-type">varchar</td><td class="col-desc">圖層的顯示標題，例如「自行車路網」</td></tr>
+        <tr><td class="col-name">type</td><td class="col-type">varchar</td><td class="col-desc">Mapbox 圖層類型：<code>circle</code>（點）、<code>line</code>（線）、<code>fill</code>（面）、<code>symbol</code>（圖示）</td></tr>
+        <tr><td class="col-name">source</td><td class="col-type">varchar</td><td class="col-desc">Mapbox source 類型或名稱，例如 <code>geojson</code>、<code>vector</code></td></tr>
+        <tr><td class="col-name">size</td><td class="col-type">varchar</td><td class="col-desc">（可選）圖層大小設定</td></tr>
+        <tr><td class="col-name">icon</td><td class="col-type">varchar</td><td class="col-desc">（可選）Symbol 圖層使用的圖示名稱</td></tr>
+        <tr><td class="col-name">paint</td><td class="col-type">json</td><td class="col-desc">Mapbox paint 屬性，控制顏色、透明度等視覺樣式</td></tr>
+        <tr><td class="col-name">property</td><td class="col-type">json</td><td class="col-desc">其他圖層屬性（layout、filter 等）</td></tr>
+      </table>
+      <div class="why-box">
+        <h4>你的新組件需要在這裡新增一筆</h4>
+        <p>要加 Mapbox 地圖組件，必須在這裡建立一筆設定，定義圖層類型（通常是 <code>circle</code> 顯示點位）和 paint 樣式。然後把這筆記錄的 id 放到 query_charts.map_config_ids[] 裡。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- dashboards -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name orange">dashboards <span class="tag core">核心</span></div>
+        <div class="table-desc">儀表板定義 — 組合多個組件成一個頁面</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> id</td><td class="col-type">integer</td><td class="col-desc">自動遞增主鍵</td></tr>
+        <tr><td class="col-name">index</td><td class="col-type">varchar</td><td class="col-desc">唯一識別碼，用於 URL 路由，例如 <code>ltc_care_tpe</code></td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">varchar</td><td class="col-desc">儀表板的中文名稱，例如「長照關懷」</td></tr>
+        <tr><td class="col-name">components</td><td class="col-type">integer[]</td><td class="col-desc">包含的組件 id 陣列，例如 <code>{214,215,216,218}</code>，順序決定顯示順序</td></tr>
+        <tr><td class="col-name">icon</td><td class="col-type">varchar</td><td class="col-desc">Material Icons 圖示名稱，例如 <code>elderly</code>、<code>directions_car</code></td></tr>
+        <tr><td class="col-name">updated_at</td><td class="col-type">timestamp</td><td class="col-desc">最後更新時間</td></tr>
+      </table>
+      <div class="why-box">
+        <h4>components 為什麼用陣列而不用 JOIN 表？</h4>
+        <p>使用 PostgreSQL 的 <code>integer[]</code> 陣列有個好處：陣列的順序就是組件在儀表板上的排列順序。如果改用中間表，要額外維護 order 欄位。這是一個以可讀性換取彈性的取捨，適合儀表板這種順序重要的場景。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- dashboard_groups -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name orange">dashboard_groups</div>
+        <div class="table-desc">儀表板與群組的多對多關聯表</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span><span class="col-fk">FK</span> dashboard_id</td><td class="col-type">integer</td><td class="col-desc">關聯到 dashboards.id</td></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span><span class="col-fk">FK</span> group_id</td><td class="col-type">integer</td><td class="col-desc">關聯到 groups.id</td></tr>
+      </table>
+      <div class="callout" style="margin-top:16px">
+        這張表決定「哪個儀表板屬於哪個群組」，進而控制哪些使用者能看到哪些儀表板。<br>
+        例如：group_id=1 是 <code>public</code> 公開群組 → 所有人都能看到。<br>
+        group_id=2 是 <code>taipei</code> 臺北群組 → 顯示在「臺北儀表板」分類下。<br>
+        group_id=3 是 <code>metrotaipei</code> 雙北群組 → 顯示在「雙北儀表板」分類下。
+      </div>
+    </div>
+  </div>
+
+  <!-- groups -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name orange">groups <span class="tag auth">權限</span></div>
+        <div class="table-desc">群組定義 — 公開群組 + 個人群組</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>型別</th><th>說明</th></tr>
+        <tr><td class="col-name"><span class="col-pk">PK</span> id</td><td class="col-type">integer</td><td class="col-desc">主鍵（1=public, 2=taipei, 3=metrotaipei 是系統預設）</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">varchar</td><td class="col-desc">群組名稱</td></tr>
+        <tr><td class="col-name">is_personal</td><td class="col-type">boolean</td><td class="col-desc">false=公開群組，true=個人群組（每個使用者有一個）</td></tr>
+        <tr><td class="col-name">create_by</td><td class="col-type">integer</td><td class="col-desc">FK → auth_users.id，建立者（公開群組此欄位為 null）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- auth_users -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name purple">auth_users <span class="tag auth">權限</span></div>
+        <div class="table-desc">使用者帳號資料</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">id / name / email</td><td class="col-desc">基本識別資訊</td></tr>
+        <tr><td class="col-name">password</td><td class="col-desc">bcrypt 加密密碼（本地帳號用）</td></tr>
+        <tr><td class="col-name">idno</td><td class="col-desc">身分證字號 hash（台北通登入用）</td></tr>
+        <tr><td class="col-name">uuid / tp_account</td><td class="col-desc">台北通（ISSO）帳號資訊</td></tr>
+        <tr><td class="col-name">is_admin</td><td class="col-desc">是否為系統管理員（可存取管理後台）</td></tr>
+        <tr><td class="col-name">is_active / is_whitelist / is_blacked</td><td class="col-desc">帳號狀態控制</td></tr>
+        <tr><td class="col-name">expired_at</td><td class="col-desc">帳號停用時間</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- roles -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name purple">roles <span class="tag auth">權限</span></div>
+        <div class="table-desc">角色定義（系統預設三種角色）</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>id</th><th>name</th><th>access_control</th><th>modify</th><th>read</th><th>說明</th></tr>
+        <tr><td class="col-name">1</td><td class="col-name">admin</td><td style="color:#3ec87a">✓</td><td style="color:#3ec87a">✓</td><td style="color:#3ec87a">✓</td><td class="col-desc">管理者：可管理群組成員、編輯、讀取</td></tr>
+        <tr><td class="col-name">2</td><td class="col-name">editor</td><td style="color:#ff5555">✗</td><td style="color:#3ec87a">✓</td><td style="color:#3ec87a">✓</td><td class="col-desc">編輯者：可編輯和讀取</td></tr>
+        <tr><td class="col-name">3</td><td class="col-name">viewer</td><td style="color:#ff5555">✗</td><td style="color:#ff5555">✗</td><td style="color:#3ec87a">✓</td><td class="col-desc">讀者：只能讀取（預設公開權限）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- auth_user_group_roles -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name purple">auth_user_group_roles <span class="tag auth">權限</span></div>
+        <div class="table-desc">三方關聯：使用者 × 群組 × 角色</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <p>這張表是整個權限系統的核心，回答「某個使用者，在某個群組裡，擁有什麼角色？」的問題。</p>
+      <div class="callout orange">
+        <strong>範例：</strong><br>
+        user_id=5, group_id=2(taipei), role_id=2(editor) → 使用者5是臺北儀表板群組的編輯者<br>
+        user_id=5, group_id=1(public), role_id=3(viewer) → 同一個使用者5在公開群組只有讀取權限
+      </div>
+      <p>當使用者登入後，BE 會查這張表取得所有 (group_id, role_id) 對，打包進 JWT token 的 <code>permissions</code> 欄位，前端每次 API 請求都會帶著這份權限清單。</p>
+    </div>
+  </div>
+
+  <!-- contributors -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name green">contributors <span class="tag meta">元資料</span></div>
+        <div class="table-desc">資料提供者的資訊（顯示在組件說明頁）</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">user_id</td><td class="col-desc">識別碼，例如 <code>doit</code>（資訊局）、<code>ntpc</code>（新北市）。這個值對應 query_charts.contributors[] 陣列裡的字串</td></tr>
+        <tr><td class="col-name">user_name</td><td class="col-desc">顯示名稱，例如「臺北市政府資訊局」</td></tr>
+        <tr><td class="col-name">image</td><td class="col-desc">貢獻者 LOGO 圖片檔名</td></tr>
+        <tr><td class="col-name">link</td><td class="col-desc">官方網站連結</td></tr>
+        <tr><td class="col-name">include</td><td class="col-desc">是否顯示在前端貢獻者頁面</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- view_points -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name green">view_points <span class="tag meta">元資料</span></div>
+        <div class="table-desc">使用者儲存的地圖視角書籤</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">user_id</td><td class="col-desc">FK → auth_users.id</td></tr>
+        <tr><td class="col-name">center_x / center_y</td><td class="col-desc">地圖中心點的經緯度</td></tr>
+        <tr><td class="col-name">zoom / pitch / bearing</td><td class="col-desc">Mapbox 的縮放、俯仰角、方位角</td></tr>
+        <tr><td class="col-name">name</td><td class="col-desc">使用者自訂的書籤名稱</td></tr>
+        <tr><td class="col-name">point_type</td><td class="col-desc">視角類型（例如 2D / 3D）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- issues -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name green">issues <span class="tag meta">元資料</span></div>
+        <div class="table-desc">使用者回報的問題或意見</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">title / description</td><td class="col-desc">問題標題和內容</td></tr>
+        <tr><td class="col-name">context</td><td class="col-desc">問題的情境描述</td></tr>
+        <tr><td class="col-name">decision_desc</td><td class="col-desc">管理員的處理說明</td></tr>
+        <tr><td class="col-name">status</td><td class="col-desc">處理狀態：<code>待處理</code>、<code>處理中</code>、<code>不處理</code>、<code>已完成</code></td></tr>
+        <tr><td class="col-name">updated_by</td><td class="col-desc">最後更新者的 user_id</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- incidents -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name gray">incidents <span class="tag log">日誌</span></div>
+        <div class="table-desc">事件通報（有地理位置資訊）</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">type</td><td class="col-desc">事件類型（自訂字串）</td></tr>
+        <tr><td class="col-name">latitude / longitude</td><td class="col-desc">事件發生的經緯度</td></tr>
+        <tr><td class="col-name">place</td><td class="col-desc">由國土測繪 API 反查的地址（縣市+鄉鎮+段+村）</td></tr>
+        <tr><td class="col-name">distance</td><td class="col-desc">相關距離資訊</td></tr>
+        <tr><td class="col-name">status</td><td class="col-desc">事件狀態</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- chat_logs / ai_chat_logs -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name gray">chat_logs &amp; ai_chat_logs <span class="tag log">日誌</span></div>
+        <div class="table-desc">AI 對話紀錄</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>欄位</th><th>說明</th></tr>
+        <tr><td class="col-name">session</td><td class="col-desc">對話 session UUID，同一個 session 的所有問答屬於同一段對話</td></tr>
+        <tr><td class="col-name">question / answer</td><td class="col-desc">使用者的問題與 AI 的回答</td></tr>
+        <tr><td class="col-name">user_id</td><td class="col-desc">FK → auth_users.id</td></tr>
+        <tr><td class="col-name">ip_address</td><td class="col-desc">請求來源 IP（用於防濫用分析）</td></tr>
+      </table>
+      <p style="margin-top:12px">系統設有自動清理機制（<code>DeleteOldChatLogs</code>），超過指定月數的記錄會被定期刪除。</p>
+    </div>
+  </div>
+
+  <!-- ===== QUERY TYPE TABLE ===== -->
+  <h2>query_type 完整對照表</h2>
+
+  <p><code>query_type</code> 是 query_charts 裡最重要的欄位之一，它決定 BE 用哪個函式解析 SQL 結果，進而決定 FE 能顯示什麼圖表類型。</p>
+
+  <div class="table-card">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">GET /api/v1/components/:id/chart</div>
+        <div class="table-desc">BE controller 根據 query_type 分派到不同的資料處理函式（componentData.go）</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <table class="col-table">
+        <tr><th>query_type 值</th><th>BE 處理函式</th><th>SQL 必須回傳的欄位</th><th>適合的圖表</th><th>說明</th></tr>
+        <tr>
+          <td><code class="col-name" style="color:#00b4ff">two_d</code></td>
+          <td class="col-type">GetTwoDimensionalData</td>
+          <td class="col-name"><code>x_axis</code>, <code>data</code></td>
+          <td class="col-desc">長條圖、折線圖、面積圖</td>
+          <td class="col-desc">最基本的二維資料，一個 x 對應一個 y 值</td>
+        </tr>
+        <tr>
+          <td><code class="col-name" style="color:#00b4ff">three_d</code></td>
+          <td class="col-type">GetThreeDimensionalData</td>
+          <td class="col-name"><code>x_axis</code>, <code>y_axis</code>, <code>data</code>, <code>icon</code></td>
+          <td class="col-desc">分組長條圖、堆疊圖</td>
+          <td class="col-desc">三維：x 是類別、y 是系列名稱（分組）、data 是數值</td>
+        </tr>
+        <tr>
+          <td><code class="col-name" style="color:#00b4ff">percent</code></td>
+          <td class="col-type">GetThreeDimensionalData</td>
+          <td class="col-name"><code>x_axis</code>, <code>y_axis</code>, <code>data</code>, <code>icon</code></td>
+          <td class="col-desc">圓餅圖、百分比圖</td>
+          <td class="col-desc">與 three_d 共用同一個 BE 函式，FE 用不同方式渲染</td>
+        </tr>
+        <tr>
+          <td><code class="col-name" style="color:#00b4ff">time</code></td>
+          <td class="col-type">GetTimeSeriesData</td>
+          <td class="col-name"><code>x_axis</code> (timestamp), <code>y_axis</code>, <code>data</code></td>
+          <td class="col-desc">時間序列折線圖</td>
+          <td class="col-desc">x_axis 必須是時間戳記格式，BE 自動轉成 ISO 8601</td>
+        </tr>
+        <tr>
+          <td><code class="col-name" style="color:#00b4ff">map_legend</code></td>
+          <td class="col-type">GetMapLegendData</td>
+          <td class="col-name"><code>name</code>, <code>type</code>, <code>icon</code>, <code>value</code></td>
+          <td class="col-desc">地圖圖例面板</td>
+          <td class="col-desc">搭配 component_maps 地圖圖層使用，SQL 回傳圖例清單</td>
+        </tr>
+      </table>
+
+      <div class="callout" style="margin-top:16px">
+        <strong>時間篩選的魔法：</strong> 如果 SQL 裡包含兩個 <code>%s</code> 佔位符，BE 會自動把 FE 傳來的 <code>time_from</code> 和 <code>time_to</code> 填進去，讓組件支援時間範圍篩選。如果 SQL 裡沒有 <code>%s</code>，則每次都回傳完整資料（靜態組件）。
+      </div>
+
+      <h3 style="margin-top:24px">SQL 回傳格式範例</h3>
+      <div class="grid-2">
+        <div>
+          <p style="color:#5a8ab0;font-size:0.85rem;margin-bottom:8px">two_d 查詢範例</p>
+          <pre><span class="cm">-- query_type = 'two_d'</span>
+<span class="kw">SELECT</span>
+  district <span class="kw">AS</span> x_axis,
+  population <span class="kw">AS</span> data
+<span class="kw">FROM</span> public.population_tpe
+<span class="kw">ORDER BY</span> population <span class="kw">DESC</span></pre>
+        </div>
+        <div>
+          <p style="color:#5a8ab0;font-size:0.85rem;margin-bottom:8px">map_legend 查詢範例（地圖組件用）</p>
+          <pre><span class="cm">-- query_type = 'map_legend'</span>
+<span class="kw">SELECT</span>
+  unnest(array[<span class="str">'設施位置'</span>]) <span class="kw">AS</span> name,
+  <span class="str">'circle'</span> <span class="kw">AS</span> type,
+  <span class="str">''</span> <span class="kw">AS</span> icon,
+  <span class="num">0</span> <span class="kw">AS</span> value</pre>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <p style="color:#5a8ab0;font-size:0.85rem;margin-bottom:8px">three_d 查詢範例</p>
+          <pre><span class="cm">-- query_type = 'three_d'</span>
+<span class="kw">SELECT</span>
+  year <span class="kw">AS</span> x_axis,
+  age_group <span class="kw">AS</span> y_axis,
+  count <span class="kw">AS</span> data,
+  <span class="str">''</span> <span class="kw">AS</span> icon
+<span class="kw">FROM</span> public.age_structure
+<span class="kw">ORDER BY</span> year, age_group</pre>
+        </div>
+        <div>
+          <p style="color:#5a8ab0;font-size:0.85rem;margin-bottom:8px">time 時間序列查詢範例（含時間篩選）</p>
+          <pre><span class="cm">-- query_type = 'time', 含 %s 支援時間篩選</span>
+<span class="kw">SELECT</span>
+  recorded_at <span class="kw">AS</span> x_axis,
+  station_name <span class="kw">AS</span> y_axis,
+  aqi <span class="kw">AS</span> data
+<span class="kw">FROM</span> public.air_quality
+<span class="kw">WHERE</span> recorded_at
+  BETWEEN <span class="str">'%s'</span> AND <span class="str">'%s'</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HOW DATA FLOWS ===== -->
+  <h2>資料流：FE 拿到一個組件的過程</h2>
+
+  <div class="flow">
+    <div class="flow-box">FE 開啟儀表板<br><small>index: <code>ltc_care_tpe</code></small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box orange">GET /api/dashboard/<br>ltc_care_tpe</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">查 dashboards<br>取得 components[]</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">JOIN components<br>+ component_charts<br>+ query_charts</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box green">回傳組件清單<br>（含 SQL 設定）</div>
+  </div>
+
+  <div class="flow" style="margin-top:24px">
+    <div class="flow-box">FE 要顯示圖表資料<br><small>組件 id: 214</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box orange">GET /api/component/<br>214/chart</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">從 query_charts 取<br><code>query_chart</code> SQL</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box purple">在 postgres-data<br>執行該 SQL</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box green">回傳圖表數據</div>
+  </div>
+
+  <div class="callout" style="margin-top:24px">
+    <strong>關鍵洞察：</strong> query_charts 裡的 SQL 是在 <strong>postgres-data</strong> 執行的，而不是 postgres-manager。postgres-manager 只是「存放 SQL 字串」，真正的計算在 postgres-data 上跑。所以兩個 DB 缺一不可。
+  </div>
+
+  <!-- ===== createTempComponentDB JOIN LOGIC ===== -->
+  <h2>BE 核心查詢：五張表如何拼在一起</h2>
+
+  <p>每次 FE 開啟儀表板，BE 會執行 <code>createTempComponentDB()</code>（位於 <code>Taipei-City-Dashboard-BE/app/models/componentConfig.go</code>），這個函式把五張表串在一起，一次回傳完整的組件資料。</p>
+
+  <pre><span class="cm">// createTempComponentDB 的邏輯（簡化版）</span>
+
+<span class="cm">-- Step 1: 把 components 和 component_charts 合併</span>
+subQuery1 = <span class="kw">SELECT</span>
+  components.id, components.index, components.name,
+  row_to_json(component_charts.*) <span class="kw">AS</span> chart_config
+<span class="kw">FROM</span> components
+<span class="kw">JOIN</span> component_charts <span class="kw">ON</span> components.index = component_charts.index
+
+<span class="cm">-- Step 2: 把 query_charts 和 component_maps 合併（地圖設定可能有多個）</span>
+subQuery2 = <span class="kw">SELECT</span>
+  query_charts.index,
+  query_charts.city,
+  json_agg(row_to_json(component_maps.*)) <span class="kw">AS</span> map_config
+<span class="kw">FROM</span> query_charts
+<span class="kw">LEFT JOIN unnest</span>(query_charts.map_config_ids) <span class="kw">AS</span> id_value <span class="kw">ON true</span>
+<span class="kw">LEFT JOIN</span> component_maps <span class="kw">ON</span> id_value = component_maps.id
+<span class="kw">GROUP BY</span> query_charts.index, query_charts.city
+
+<span class="cm">-- Step 3: 把以上兩個子查詢再和 query_charts 合併，取得所有欄位</span>
+final = <span class="kw">SELECT</span> *
+<span class="kw">FROM</span> subQuery1 <span class="kw">AS</span> components
+<span class="kw">LEFT JOIN</span> subQuery2 <span class="kw">AS</span> qc
+  <span class="kw">ON</span> components.index = qc.index
+<span class="kw">LEFT JOIN</span> query_charts
+  <span class="kw">ON</span> components.index = query_charts.index
+  <span class="kw">AND</span> qc.city = query_charts.city</pre>
+
+  <div class="callout orange">
+    <strong>為什麼 map_config_ids 要用 <code>unnest()</code>？</strong><br>
+    因為一個組件可以有<strong>多個地圖圖層</strong>（例如：底圖 + 標記點 + 行政區邊界），這些圖層的 id 以陣列形式存在 query_charts.map_config_ids[] 裡。<code>unnest()</code> 把陣列展開成多行，再用 <code>json_agg()</code> 把所有展開的圖層資料重新收集成一個 JSON 陣列回傳給 FE。
+  </div>
+
+  <div class="table-card" style="margin-top:24px">
+    <div class="table-card-header">
+      <div>
+        <div class="table-name blue">最終回傳給 FE 的 CityComponent 結構</div>
+        <div class="table-desc">這是 FE 呼叫 /api/v1/dashboard/:index 後收到的每個組件物件</div>
+      </div>
+    </div>
+    <div class="table-card-body">
+      <pre>{
+  <span class="str">"id"</span>: <span class="num">214</span>,
+  <span class="str">"index"</span>: <span class="str">"dependency_aging"</span>,
+  <span class="str">"name"</span>: <span class="str">"扶養比及老化指數"</span>,
+  <span class="str">"chart_config"</span>: {                  <span class="cm">← 來自 component_charts</span>
+    <span class="str">"index"</span>: <span class="str">"dependency_aging"</span>,
+    <span class="str">"color"</span>: [<span class="str">"#5B8AD5"</span>, <span class="str">"#E4A42C"</span>],
+    <span class="str">"types"</span>: [<span class="str">"bar"</span>],
+    <span class="str">"unit"</span>: <span class="str">"%"</span>
+  },
+  <span class="str">"map_config"</span>: [                    <span class="cm">← 來自 component_maps（可能是空陣列）</span>
+    {
+      <span class="str">"id"</span>: <span class="num">100</span>,
+      <span class="str">"index"</span>: <span class="str">"dependency_aging"</span>,
+      <span class="str">"title"</span>: <span class="str">"扶老比"</span>,
+      <span class="str">"type"</span>: <span class="str">"circle"</span>,
+      <span class="str">"paint"</span>: { <span class="str">"circle-color"</span>: <span class="str">"#FF6B6B"</span>, <span class="str">"circle-radius"</span>: <span class="num">6</span> }
+    }
+  ],
+  <span class="str">"query_type"</span>: <span class="str">"three_d"</span>,            <span class="cm">← 來自 query_charts</span>
+  <span class="str">"time_from"</span>: <span class="str">"static"</span>,
+  <span class="str">"source"</span>: <span class="str">"主計處"</span>,
+  <span class="str">"short_desc"</span>: <span class="str">"顯示臺北長照關懷各項指標..."</span>,
+  <span class="str">"city"</span>: <span class="str">"taipei"</span>
+}</pre>
+    </div>
+  </div>
+
+  <!-- ===== HOW TO ADD A COMPONENT ===== -->
+  <h2>實戰：新增一個帶 Mapbox 地圖的組件</h2>
+
+  <p>你要加的是一個顯示經緯度點位的地圖組件（例如某個設施的位置）。需要依序在這幾張表寫入資料：</p>
+
+  <ol class="step-list">
+    <li>
+      <div class="content">
+        <strong>先在 postgres-data 建立資料表</strong>（存放實際的點位資料）
+        <pre><span class="kw">CREATE TABLE</span> public.my_locations (
+  id      serial <span class="kw">PRIMARY KEY</span>,
+  name    varchar(<span class="num">100</span>),
+  lat     float8,   <span class="cm">-- 緯度</span>
+  lng     float8,   <span class="cm">-- 經度</span>
+  address varchar(<span class="num">200</span>)
+);</pre>
+      </div>
+    </li>
+    <li>
+      <div class="content">
+        <strong>在 component_maps 新增地圖圖層設定</strong>（postgres-manager）
+        <pre><span class="kw">INSERT INTO</span> component_maps (index, title, type, source, paint, property)
+<span class="kw">VALUES</span> (
+  <span class="str">'my_location_map'</span>,
+  <span class="str">'設施位置'</span>,
+  <span class="str">'circle'</span>,                 <span class="cm">-- 點狀圖層</span>
+  <span class="str">'geojson'</span>,
+  <span class="str">'{"circle-radius": 6, "circle-color": "#00b4ff", "circle-opacity": 0.8}'</span>,
+  <span class="str">'null'</span>
+);
+<span class="cm">-- 記住回傳的 id，假設是 120</span></pre>
+      </div>
+    </li>
+    <li>
+      <div class="content">
+        <strong>在 components 新增組件識別</strong>（postgres-manager）
+        <pre><span class="kw">INSERT INTO</span> components (index, name)
+<span class="kw">VALUES</span> (<span class="str">'my_location_map'</span>, <span class="str">'我的設施位置'</span>);
+<span class="cm">-- 記住回傳的 id，假設是 300</span></pre>
+      </div>
+    </li>
+    <li>
+      <div class="content">
+        <strong>在 component_charts 新增圖表設定</strong>（postgres-manager，即使是地圖組件也需要這筆）
+        <pre><span class="kw">INSERT INTO</span> component_charts (index, color, types, unit)
+<span class="kw">VALUES</span> (
+  <span class="str">'my_location_map'</span>,
+  <span class="str">'{"#00b4ff"}'</span>,
+  <span class="str">'{"map"}'</span>,               <span class="cm">-- 類型設為 map</span>
+  <span class="str">''</span>
+);</pre>
+      </div>
+    </li>
+    <li>
+      <div class="content">
+        <strong>在 query_charts 新增 SQL 查詢</strong>（postgres-manager，查詢 postgres-data 的語法，需要回傳 GeoJSON 格式）
+        <pre><span class="kw">INSERT INTO</span> query_charts (
+  index, city, query_type, query_chart,
+  map_config_ids, time_from, source, short_desc, long_desc, use_case,
+  links, contributors
+) <span class="kw">VALUES</span> (
+  <span class="str">'my_location_map'</span>,
+  <span class="str">'taipei'</span>,
+  <span class="str">'map_legend'</span>,
+  <span class="str">'SELECT name, lat AS y, lng AS x, address FROM public.my_locations'</span>,
+  <span class="str">'{120}'</span>,                  <span class="cm">-- 對應剛才 component_maps 的 id</span>
+  <span class="str">'static'</span>,
+  <span class="str">'自訂資料'</span>,
+  <span class="str">'顯示設施位置分布'</span>,
+  <span class="str">'詳細說明...'</span>,
+  <span class="str">'使用情境...'</span>,
+  <span class="str">'{}'</span>,
+  <span class="str">'{}'</span>
+);</pre>
+      </div>
+    </li>
+    <li>
+      <div class="content">
+        <strong>建立新儀表板並把組件放進去</strong>（postgres-manager）
+        <pre><span class="cm">-- 建立儀表板</span>
+<span class="kw">INSERT INTO</span> dashboards (index, name, components, icon)
+<span class="kw">VALUES</span> (
+  <span class="str">'my_new_dashboard'</span>,
+  <span class="str">'我的新地圖儀表板'</span>,
+  <span class="str">'{300}'</span>,                  <span class="cm">-- 組件 id 300</span>
+  <span class="str">'map'</span>                    <span class="cm">-- Material icon 名稱</span>
+);
+
+<span class="cm">-- 把儀表板加入 taipei 群組（讓它出現在臺北儀表板分類）</span>
+<span class="kw">INSERT INTO</span> dashboard_groups (dashboard_id, group_id)
+<span class="kw">VALUES</span> (
+  (SELECT id FROM dashboards WHERE index = <span class="str">'my_new_dashboard'</span>),
+  <span class="num">2</span>                       <span class="cm">-- group_id=2 是 taipei 群組</span>
+);</pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="callout green">
+    <strong>完成以上 6 步後：</strong> 重新整理前端，你的新儀表板就會出現在「臺北儀表板」分類下，點進去會看到地圖組件，地圖上會顯示 postgres-data 裡的點位資料。
+  </div>
+
+  <!-- ===== CONNECT ===== -->
+  <h2>如何連線查看這個資料庫</h2>
+
+  <div class="grid-2">
+    <div>
+      <h3>方法一：pgAdmin（已包含在 docker-compose-db.yaml）</h3>
+      <p>啟動後開啟 <code>http://localhost:8889</code>，登入後新增一個 Server：</p>
+      <div class="loc-card">
+        <div class="loc-row"><span class="loc-label">Host</span><span class="loc-val">postgres-manager（Docker 網路內部名稱）</span></div>
+        <div class="loc-row"><span class="loc-label">Port</span><span class="loc-val">5432</span></div>
+        <div class="loc-row"><span class="loc-label">Database</span><span class="loc-val">dashboardmanager</span></div>
+        <div class="loc-row"><span class="loc-label">Username</span><span class="loc-val">${DB_MANAGER_USER}（.env 裡設的）</span></div>
+        <div class="loc-row"><span class="loc-label">Password</span><span class="loc-val">${DB_MANAGER_PASSWORD}</span></div>
+      </div>
+    </div>
+    <div>
+      <h3>方法二：從本機直接 psql 連線</h3>
+      <p>因為 docker-compose-db.yaml 把 5432 對外開放，可以直接從本機連：</p>
+      <pre><span class="fn">psql</span> -h localhost -p <span class="num">5432</span> \
+     -U postgres \
+     -d dashboardmanager</pre>
+      <h3>方法三：進入容器</h3>
+      <pre><span class="fn">docker exec</span> -it postgres-manager \
+  psql -U postgres -d dashboardmanager</pre>
+    </div>
+  </div>
+
+  <div style="height: 60px"></div>
+</div>
+</body>
+</html>

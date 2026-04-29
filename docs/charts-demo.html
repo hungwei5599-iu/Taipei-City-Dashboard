@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>23 種圖表 Demo - 台北城市儀表板</title>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+
+  .topbar { background: #0d1f3c; border-bottom: 1px solid #1e3a5f; padding: 16px 40px; display: flex; align-items: center; gap: 16px; }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #42b883; }
+
+  .hero { background: linear-gradient(135deg, #0a1a10, #0a1628); padding: 48px 40px 32px; border-bottom: 1px solid #1e3a5f; }
+  .hero h1 { font-size: 2rem; color: #42b883; margin-bottom: 10px; }
+  .hero p { color: #7ea8cf; font-size: 1rem; line-height: 1.7; max-width: 800px; }
+
+  .legend { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #9ab5cf; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-apex { background: #42b883; }
+  .dot-custom { background: #e96c42; }
+  .dot-ui { background: #7ea8cf; }
+
+  .notice {
+    background: rgba(0,112,243,0.07);
+    border: 1px solid rgba(0,180,255,0.2);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin: 24px 40px 0;
+    color: #7ea8cf;
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .notice strong { color: #00b4ff; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 40px; }
+
+  .section-title {
+    font-size: 1.1rem;
+    color: #42b883;
+    margin: 40px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1e3a5f;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-badge { font-size: 0.75rem; padding: 2px 10px; border-radius: 10px; font-weight: normal; }
+  .badge-apex { background: rgba(66,184,131,0.15); color: #42b883; border: 1px solid rgba(66,184,131,0.3); }
+  .badge-custom { background: rgba(233,108,66,0.1); color: #e96c42; border: 1px solid rgba(233,108,66,0.3); }
+  .badge-ui { background: rgba(126,168,207,0.1); color: #7ea8cf; border: 1px solid rgba(126,168,207,0.3); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px; margin-bottom: 16px; }
+  .grid-wide { display: grid; grid-template-columns: repeat(auto-fill, minmax(500px, 1fr)); gap: 24px; margin-bottom: 16px; }
+
+  .chart-card {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .chart-card:hover { border-color: rgba(66,184,131,0.3); }
+  .chart-card.custom:hover { border-color: rgba(233,108,66,0.3); }
+  .chart-card.ui-comp:hover { border-color: rgba(126,168,207,0.3); }
+
+  .card-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #0a1628;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .card-name { font-size: 0.95rem; font-weight: bold; color: #e0e6f0; }
+  .card-file { font-size: 0.75rem; color: #3a5a7f; font-family: monospace; margin-top: 3px; }
+  .card-use { font-size: 0.8rem; color: #7ea8cf; margin-top: 4px; }
+
+  .type-badge {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .type-apex { background: rgba(66,184,131,0.12); color: #42b883; border: 1px solid rgba(66,184,131,0.25); }
+  .type-custom { background: rgba(233,108,66,0.1); color: #e96c42; border: 1px solid rgba(233,108,66,0.25); }
+  .type-ui { background: rgba(126,168,207,0.08); color: #7ea8cf; border: 1px solid rgba(126,168,207,0.2); }
+
+  .card-body { padding: 16px 20px 20px; }
+  .chart-container { width: 100%; }
+
+  /* Custom chart styles */
+  .text-unit-demo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px 0;
+  }
+  .tud-item { text-align: center; }
+  .tud-value { font-size: 2rem; font-weight: bold; color: #42b883; }
+  .tud-label { font-size: 0.8rem; color: #7ea8cf; margin-top: 4px; }
+  .tud-unit { font-size: 0.85rem; color: #5a7a9f; }
+
+  .indicator-demo { padding: 12px 0; }
+  .ind-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #0a1628; }
+  .ind-label { font-size: 0.85rem; color: #9ab5cf; }
+  .ind-value { font-size: 1.1rem; font-weight: bold; color: #42b883; }
+  .ind-change { font-size: 0.75rem; }
+  .change-up { color: #42b883; }
+  .change-down { color: #ff6b6b; }
+
+  .tag-demo { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 0; }
+  .demo-tag {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    border: 1px solid;
+  }
+
+  .icon-percent-demo { padding: 12px 0; }
+  .ip-label { font-size: 0.85rem; color: #9ab5cf; margin-bottom: 8px; }
+  .ip-icons { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .ip-icon { font-size: 1rem; }
+  .ip-icon.active { opacity: 1; }
+  .ip-icon.inactive { opacity: 0.2; }
+
+  .speedometer-demo { display: flex; justify-content: center; padding: 8px 0; }
+  svg.speedo { width: 200px; height: 130px; }
+
+  .metro-demo { padding: 8px 0; overflow-x: auto; }
+  .metro-line { display: flex; align-items: center; gap: 0; margin: 6px 0; }
+  .metro-station { width: 22px; height: 22px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; flex-shrink: 0; }
+  .metro-track { height: 4px; flex: 1; min-width: 12px; }
+
+  .metro-car-demo { padding: 8px 0; }
+  .car-train { display: flex; gap: 3px; margin: 6px 0; }
+  .car-wagon { width: 40px; height: 24px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; border: 1px solid rgba(255,255,255,0.2); }
+
+  .district-demo { display: flex; justify-content: center; padding: 8px 0; }
+  .district-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; width: 200px; }
+  .d-cell { padding: 8px 4px; border-radius: 4px; text-align: center; font-size: 0.68rem; }
+
+  .map-legend-demo { padding: 12px 0; }
+  .ml-item { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .ml-color { width: 16px; height: 16px; border-radius: 3px; }
+  .ml-label { font-size: 0.82rem; color: #9ab5cf; }
+  .ml-range { font-size: 0.75rem; color: #5a7a9f; margin-left: auto; }
+
+  .tag-tooltip-demo { position: relative; padding: 20px 0; display: flex; gap: 12px; flex-wrap: wrap; }
+  .tt-item { position: relative; display: inline-block; }
+  .tt-trigger { background: rgba(66,184,131,0.1); border: 1px solid rgba(66,184,131,0.3); color: #42b883; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; cursor: default; }
+  .tt-box { position: absolute; bottom: calc(100% + 6px); left: 0; background: #1a2f4a; border: 1px solid #1e3a5f; border-radius: 6px; padding: 8px 12px; font-size: 0.78rem; color: #9ab5cf; white-space: nowrap; z-index: 10; }
+  .tt-box::after { content: ''; position: absolute; top: 100%; left: 10px; border: 5px solid transparent; border-top-color: #1e3a5f; }
+
+  .apexcharts-tooltip { background: #1a2f4a !important; border: 1px solid #1e3a5f !important; color: #e0e6f0 !important; }
+  .apexcharts-tooltip-title { background: #0d1f3c !important; border-bottom: 1px solid #1e3a5f !important; color: #42b883 !important; }
+  .apexcharts-xaxislabel, .apexcharts-yaxislabel { fill: #7ea8cf !important; }
+  .apexcharts-gridline { stroke: #1e3a5f !important; }
+
+  .note-box { background: rgba(0,180,255,0.05); border: 1px solid rgba(0,180,255,0.15); border-radius: 10px; padding: 14px 20px; margin-top: 32px; color: #7ea8cf; font-size: 0.88rem; line-height: 1.7; }
+  .note-box strong { color: #00b4ff; }
+  .apex-more { background: rgba(66,184,131,0.06); border: 1px solid rgba(66,184,131,0.2); border-radius: 10px; padding: 16px 20px; margin-top: 16px; font-size: 0.88rem; line-height: 1.8; color: #7ea8cf; }
+  .apex-more strong { color: #42b883; }
+  .more-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .more-tag { background: rgba(66,184,131,0.08); border: 1px solid rgba(66,184,131,0.2); color: #42b883; padding: 4px 12px; border-radius: 8px; font-size: 0.8rem; }
+  .more-tag.used { background: rgba(66,184,131,0.18); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">🏠 首頁</a>
+  <span style="color:#3a5a7f;">/</span>
+  <span style="color:#42b883;">23 種圖表 Demo</span>
+</div>
+
+<div class="hero">
+  <h1>📊 23 種圖表 Demo</h1>
+  <p>專案目前已有的所有圖表元件，附上實際 Demo 和用途說明。看看哪個符合你的需求，或你需要另外新增。</p>
+  <div class="legend">
+    <div class="legend-item"><div class="dot dot-apex"></div> ApexCharts 套件包裝（直接使用套件渲染）</div>
+    <div class="legend-item"><div class="dot dot-custom"></div> 客製化圖表（開發者自製，非 ApexCharts）</div>
+    <div class="legend-item"><div class="dot dot-ui"></div> UI 元件（非圖表，顯示資訊用）</div>
+  </div>
+</div>
+
+<div class="notice">
+  <strong>關於 ApexCharts：</strong>
+  這個套件本身支援 <strong>20+ 種</strong>基礎圖表類型。這個專案<strong>選用並包裝了其中幾種</strong>，另外還有一些是開發者完全自製的。
+  你之後新增元件時，<strong>不限於這 23 種</strong>——ApexCharts 支援但專案還沒用過的類型（如 Scatter 散點圖、Candlestick K線圖等），你都可以自己加一個新的 .vue 包裝即可使用。
+</div>
+
+<div class="container">
+
+  <!-- ===== SECTION 1: ApexCharts ===== -->
+  <div class="section-title">
+    <span class="dot dot-apex" style="width:12px;height:12px;border-radius:50%;"></span>
+    ApexCharts 包裝元件
+    <span class="section-badge badge-apex">套件渲染</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1. BarChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">1. 水平長條圖 BarChart</div>
+          <div class="card-file">BarChart.vue</div>
+          <div class="card-use">用途：比較各類別的數量大小</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: bar</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-bar"></div></div>
+    </div>
+
+    <!-- 2. BarChartWithGoal -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">2. 帶目標長條圖 BarChartWithGoal</div>
+          <div class="card-file">BarChartWithGoal.vue</div>
+          <div class="card-use">用途：比較實際值與目標值</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: bar + marker</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-bargoal"></div></div>
+    </div>
+
+    <!-- 3. BarPercentChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">3. 百分比長條圖 BarPercentChart</div>
+          <div class="card-file">BarPercentChart.vue</div>
+          <div class="card-use">用途：顯示各類別佔比</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: bar (stacked 100%)</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-barpct"></div></div>
+    </div>
+
+    <!-- 4. ColumnChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">4. 直條圖 ColumnChart</div>
+          <div class="card-file">ColumnChart.vue</div>
+          <div class="card-use">用途：分類比較（垂直方向）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: bar (vertical)</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-column"></div></div>
+    </div>
+
+    <!-- 5. ColumnLineChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">5. 直條折線組合 ColumnLineChart</div>
+          <div class="card-file">ColumnLineChart.vue</div>
+          <div class="card-use">用途：同時顯示數量與趨勢（如：雨量+氣溫）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: mixed (column+line)</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-colline"></div></div>
+    </div>
+
+    <!-- 6. DonutChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">6. 甜甜圈圖 DonutChart</div>
+          <div class="card-file">DonutChart.vue</div>
+          <div class="card-use">用途：顯示各部分佔整體的比例</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: donut</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-donut"></div></div>
+    </div>
+
+    <!-- 7. GuageChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">7. 環形儀表圖 GuageChart</div>
+          <div class="card-file">GuageChart.vue</div>
+          <div class="card-use">用途：顯示單一指標的完成率或進度</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: radialBar</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-gauge"></div></div>
+    </div>
+
+    <!-- 8. HeatmapChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">8. 熱力圖 HeatmapChart</div>
+          <div class="card-file">HeatmapChart.vue</div>
+          <div class="card-use">用途：顯示二維資料的強度分布（如：各時段各地點數量）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: heatmap</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-heatmap"></div></div>
+    </div>
+
+    <!-- 9. PolarAreaChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">9. 極座標圖 PolarAreaChart</div>
+          <div class="card-file">PolarAreaChart.vue</div>
+          <div class="card-use">用途：多個類別的比例比較（像蜘蛛網的變形）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: polarArea</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-polar"></div></div>
+    </div>
+
+    <!-- 10. RadarChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">10. 雷達圖 RadarChart</div>
+          <div class="card-file">RadarChart.vue</div>
+          <div class="card-use">用途：多維度指標比較（如：各區各指標得分）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: radar</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-radar"></div></div>
+    </div>
+
+    <!-- 11. TreemapChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">11. 樹狀圖 TreemapChart</div>
+          <div class="card-file">TreemapChart.vue</div>
+          <div class="card-use">用途：用面積顯示各類別佔比（類似馬賽克）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: treemap</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-treemap"></div></div>
+    </div>
+
+    <!-- 12. TimelineSeparateChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">12. 時間序列折線圖 TimelineSeparateChart</div>
+          <div class="card-file">TimelineSeparateChart.vue</div>
+          <div class="card-use">用途：多條趨勢線分開顯示（帶時間軸）</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: line (time)</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-timeline-sep"></div></div>
+    </div>
+
+    <!-- 13. TimelineStackedChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">13. 堆疊時間序列圖 TimelineStackedChart</div>
+          <div class="card-file">TimelineStackedChart.vue</div>
+          <div class="card-use">用途：多類別隨時間變化的總量趨勢</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: area (stacked, time)</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-timeline-stack"></div></div>
+    </div>
+
+    <!-- 14. IndicatorChart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-name">14. 指標折線圖 IndicatorChart</div>
+          <div class="card-file">IndicatorChart.vue</div>
+          <div class="card-use">用途：帶目前數值顯示的時間趨勢</div>
+        </div>
+        <span class="type-badge type-apex">ApexCharts: line</span>
+      </div>
+      <div class="card-body"><div class="chart-container" id="chart-indicator"></div></div>
+    </div>
+
+  </div>
+
+  <!-- ===== SECTION 2: Custom ===== -->
+  <div class="section-title">
+    <span class="dot dot-custom" style="width:12px;height:12px;border-radius:50%;"></span>
+    客製化圖表（開發者自製）
+    <span class="section-badge badge-custom">完全自製</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- 15. SpeedometerChart -->
+    <div class="chart-card custom">
+      <div class="card-header">
+        <div>
+          <div class="card-name">15. 速度計圖 SpeedometerChart</div>
+          <div class="card-file">SpeedometerChart.vue</div>
+          <div class="card-use">用途：顯示單一數值在範圍中的位置（如交通壅塞指數）</div>
+        </div>
+        <span class="type-badge type-custom">完全自製</span>
+      </div>
+      <div class="card-body">
+        <div class="speedometer-demo">
+          <svg class="speedo" viewBox="0 0 200 130">
+            <defs>
+              <linearGradient id="speedGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#42b883"/>
+                <stop offset="50%" style="stop-color:#ffaa44"/>
+                <stop offset="100%" style="stop-color:#ff6b6b"/>
+              </linearGradient>
+            </defs>
+            <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1e3a5f" stroke-width="18" stroke-linecap="round"/>
+            <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#speedGrad)" stroke-width="18" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="0" opacity="0.8"/>
+            <circle cx="100" cy="110" r="6" fill="#e0e6f0"/>
+            <line x1="100" y1="110" x2="55" y2="50" stroke="#e0e6f0" stroke-width="3" stroke-linecap="round"/>
+            <text x="18" y="128" fill="#7ea8cf" font-size="10">低</text>
+            <text x="92" y="28" fill="#ffaa44" font-size="10">中</text>
+            <text x="172" y="128" fill="#ff6b6b" font-size="10">高</text>
+            <text x="80" y="98" fill="#e0e6f0" font-size="18" font-weight="bold">38</text>
+          </svg>
+        </div>
+        <div style="text-align:center;font-size:0.8rem;color:#5a7a9f;">目前速度：38 km/h（中等壅塞）</div>
+      </div>
+    </div>
+
+    <!-- 16. DistrictChart -->
+    <div class="chart-card custom">
+      <div class="card-header">
+        <div>
+          <div class="card-name">16. 行政區著色圖 DistrictChart</div>
+          <div class="card-file">DistrictChart.vue</div>
+          <div class="card-use">用途：按行政區上色顯示數據差異</div>
+        </div>
+        <span class="type-badge type-custom">完全自製 (SVG)</span>
+      </div>
+      <div class="card-body">
+        <div class="district-demo">
+          <div class="district-grid">
+            <div class="d-cell" style="background:rgba(66,184,131,0.7);color:white;">北投</div>
+            <div class="d-cell" style="background:rgba(66,184,131,0.5);color:white;">士林</div>
+            <div class="d-cell" style="background:rgba(255,170,0,0.6);color:white;">內湖</div>
+            <div class="d-cell" style="background:rgba(255,170,0,0.4);">南港</div>
+            <div class="d-cell" style="background:rgba(0,180,255,0.5);color:white;">大同</div>
+            <div class="d-cell" style="background:rgba(0,180,255,0.4);">中山</div>
+            <div class="d-cell" style="background:rgba(192,128,255,0.5);color:white;">松山</div>
+            <div class="d-cell" style="background:rgba(192,128,255,0.3);">信義</div>
+            <div class="d-cell" style="background:rgba(255,80,80,0.3);">萬華</div>
+            <div class="d-cell" style="background:rgba(255,80,80,0.5);color:white;">中正</div>
+            <div class="d-cell" style="background:rgba(66,184,131,0.3);">大安</div>
+            <div class="d-cell" style="background:rgba(255,170,0,0.7);color:white;">文山</div>
+          </div>
+          <div style="margin-left:16px;">
+            <div style="font-size:0.78rem;color:#5a7a9f;margin-bottom:8px;">數量</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><div style="width:12px;height:12px;border-radius:2px;background:rgba(66,184,131,0.7)"></div><span style="color:#9ab5cf;">高</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,170,0,0.6)"></div><span style="color:#9ab5cf;">中</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><div style="width:12px;height:12px;border-radius:2px;background:rgba(255,80,80,0.3)"></div><span style="color:#9ab5cf;">低</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 17. IconPercentChart -->
+    <div class="chart-card custom">
+      <div class="card-header">
+        <div>
+          <div class="card-name">17. 圖示百分比圖 IconPercentChart</div>
+          <div class="card-file">IconPercentChart.vue</div>
+          <div class="card-use">用途：用圖示數量直觀顯示比例（如男女比例）</div>
+        </div>
+        <span class="type-badge type-custom">完全自製</span>
+      </div>
+      <div class="card-body">
+        <div class="icon-percent-demo">
+          <div class="ip-label">男性 62%</div>
+          <div class="ip-icons">
+            <span class="ip-icon active">👨</span><span class="ip-icon active">👨</span><span class="ip-icon active">👨</span><span class="ip-icon active">👨</span><span class="ip-icon active">👨</span>
+            <span class="ip-icon active">👨</span><span class="ip-icon inactive">👨</span><span class="ip-icon inactive">👨</span><span class="ip-icon inactive">👨</span><span class="ip-icon inactive">👨</span>
+          </div>
+          <div class="ip-label" style="margin-top:12px;">女性 38%</div>
+          <div class="ip-icons">
+            <span class="ip-icon active">👩</span><span class="ip-icon active">👩</span><span class="ip-icon active">👩</span><span class="ip-icon active">👩</span><span class="ip-icon inactive">👩</span>
+            <span class="ip-icon inactive">👩</span><span class="ip-icon inactive">👩</span><span class="ip-icon inactive">👩</span><span class="ip-icon inactive">👩</span><span class="ip-icon inactive">👩</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 18. MetroCarDensity -->
+    <div class="chart-card custom">
+      <div class="card-header">
+        <div>
+          <div class="card-name">18. 捷運車廂密度 MetroCarDensity</div>
+          <div class="card-file">MetroCarDensity.vue</div>
+          <div class="card-use">用途：顯示捷運各節車廂的乘客密度</div>
+        </div>
+        <span class="type-badge type-custom">完全自製</span>
+      </div>
+      <div class="card-body">
+        <div class="metro-car-demo">
+          <div style="font-size:0.8rem;color:#5a7a9f;margin-bottom:8px;">🚃 板南線往西門站方向</div>
+          <div class="car-train">
+            <div class="car-wagon" style="background:rgba(255,80,80,0.6);">車廂1<br>擁擠</div>
+            <div class="car-wagon" style="background:rgba(255,170,0,0.6);">車廂2<br>普通</div>
+            <div class="car-wagon" style="background:rgba(66,184,131,0.6);">車廂3<br>寬鬆</div>
+            <div class="car-wagon" style="background:rgba(66,184,131,0.5);">車廂4<br>寬鬆</div>
+            <div class="car-wagon" style="background:rgba(255,170,0,0.5);">車廂5<br>普通</div>
+            <div class="car-wagon" style="background:rgba(255,80,80,0.5);">車廂6<br>擁擠</div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:10px;">
+            <div style="display:flex;align-items:center;gap:4px;font-size:0.75rem;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,80,80,0.6)"></div><span style="color:#9ab5cf;">擁擠</span></div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:0.75rem;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(255,170,0,0.6)"></div><span style="color:#9ab5cf;">普通</span></div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:0.75rem;"><div style="width:10px;height:10px;border-radius:2px;background:rgba(66,184,131,0.6)"></div><span style="color:#9ab5cf;">寬鬆</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 19. MetroChart -->
+    <div class="chart-card custom">
+      <div class="card-header">
+        <div>
+          <div class="card-name">19. 捷運路線圖 MetroChart</div>
+          <div class="card-file">MetroChart.vue</div>
+          <div class="card-use">用途：顯示捷運路線各站資料</div>
+        </div>
+        <span class="type-badge type-custom">完全自製</span>
+      </div>
+      <div class="card-body">
+        <div class="metro-demo">
+          <div style="font-size:0.8rem;color:#5a7a9f;margin-bottom:10px;">🚇 各站乘客數示意</div>
+          <div style="font-size:0.75rem;color:#5a7a9f;margin-bottom:6px;">板南線</div>
+          <div class="metro-line">
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;">頂</div>
+            <div class="metro-track" style="background:#0070c0;"></div>
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;">新</div>
+            <div class="metro-track" style="background:#0070c0;"></div>
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;width:26px;height:26px;">板橋</div>
+            <div class="metro-track" style="background:#0070c0;"></div>
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;">府</div>
+            <div class="metro-track" style="background:#0070c0;"></div>
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;width:26px;height:26px;font-size:7px;">市府</div>
+            <div class="metro-track" style="background:#0070c0;"></div>
+            <div class="metro-station" style="background:#0070c0;border-color:#0070c0;width:26px;height:26px;font-size:7px;">信義</div>
+          </div>
+          <div style="font-size:0.75rem;color:#5a7a9f;margin:8px 0 6px;">淡水信義線</div>
+          <div class="metro-line">
+            <div class="metro-station" style="background:#cc0000;border-color:#cc0000;font-size:7px;">淡水</div>
+            <div class="metro-track" style="background:#cc0000;"></div>
+            <div class="metro-station" style="background:#cc0000;border-color:#cc0000;font-size:7px;">竹圍</div>
+            <div class="metro-track" style="background:#cc0000;"></div>
+            <div class="metro-station" style="background:#cc0000;border-color:#cc0000;font-size:7px;">紅樹</div>
+            <div class="metro-track" style="background:#cc0000;"></div>
+            <div class="metro-station" style="background:#cc0000;border-color:#cc0000;font-size:7px;">台北</div>
+            <div class="metro-track" style="background:#cc0000;"></div>
+            <div class="metro-station" style="background:#cc0000;border-color:#cc0000;font-size:7px;">象山</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== SECTION 3: UI Components ===== -->
+  <div class="section-title">
+    <span class="dot dot-ui" style="width:12px;height:12px;border-radius:50%;"></span>
+    UI 顯示元件（非圖表）
+    <span class="section-badge badge-ui">資訊顯示</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- 20. TextUnitChart -->
+    <div class="chart-card ui-comp">
+      <div class="card-header">
+        <div>
+          <div class="card-name">20. 數字單位顯示 TextUnitChart</div>
+          <div class="card-file">TextUnitChart.vue</div>
+          <div class="card-use">用途：大字顯示關鍵指標數字</div>
+        </div>
+        <span class="type-badge type-ui">UI 元件</span>
+      </div>
+      <div class="card-body">
+        <div class="text-unit-demo">
+          <div class="tud-item">
+            <div class="tud-value">264<span style="font-size:1.2rem;">萬</span></div>
+            <div class="tud-unit">人</div>
+            <div class="tud-label">台北市總人口</div>
+          </div>
+          <div class="tud-item">
+            <div class="tud-value" style="color:#00b4ff;">38.5</div>
+            <div class="tud-unit">°C</div>
+            <div class="tud-label">今日最高溫</div>
+          </div>
+          <div class="tud-item">
+            <div class="tud-value" style="color:#ffaa44;">87</div>
+            <div class="tud-unit">%</div>
+            <div class="tud-label">停車場使用率</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 21. IndicatorChart (simple) -->
+    <div class="chart-card ui-comp">
+      <div class="card-header">
+        <div>
+          <div class="card-name">21. 多指標文字顯示 IndicatorChart</div>
+          <div class="card-file">IndicatorChart.vue</div>
+          <div class="card-use">用途：列表顯示多個指標數值和變化</div>
+        </div>
+        <span class="type-badge type-ui">ApexCharts: line + 自訂文字</span>
+      </div>
+      <div class="card-body">
+        <div class="indicator-demo">
+          <div class="ind-row">
+            <div class="ind-label">大安區 PM2.5</div>
+            <div><span class="ind-value">18.3</span><span style="font-size:0.8rem;color:#7ea8cf;"> μg/m³</span></div>
+            <div class="ind-change change-down">▼ -2.1</div>
+          </div>
+          <div class="ind-row">
+            <div class="ind-label">信義區 PM2.5</div>
+            <div><span class="ind-value" style="color:#ffaa44;">24.7</span><span style="font-size:0.8rem;color:#7ea8cf;"> μg/m³</span></div>
+            <div class="ind-change change-up">▲ +1.4</div>
+          </div>
+          <div class="ind-row">
+            <div class="ind-label">中山區 PM2.5</div>
+            <div><span class="ind-value" style="color:#ff6b6b;">31.2</span><span style="font-size:0.8rem;color:#7ea8cf;"> μg/m³</span></div>
+            <div class="ind-change change-up">▲ +5.8</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 22. ComponentTag -->
+    <div class="chart-card ui-comp">
+      <div class="card-header">
+        <div>
+          <div class="card-name">22. 標籤雲 ComponentTag</div>
+          <div class="card-file">ComponentTag.vue</div>
+          <div class="card-use">用途：用顏色標籤顯示分類資訊</div>
+        </div>
+        <span class="type-badge type-ui">UI 元件</span>
+      </div>
+      <div class="card-body">
+        <div class="tag-demo">
+          <div class="demo-tag" style="background:rgba(255,80,80,0.15);border-color:rgba(255,80,80,0.4);color:#ff8080;">🔴 紅色警戒</div>
+          <div class="demo-tag" style="background:rgba(255,170,0,0.15);border-color:rgba(255,170,0,0.4);color:#ffaa44;">🟡 黃色警示</div>
+          <div class="demo-tag" style="background:rgba(66,184,131,0.15);border-color:rgba(66,184,131,0.4);color:#42b883;">🟢 正常</div>
+          <div class="demo-tag" style="background:rgba(0,180,255,0.15);border-color:rgba(0,180,255,0.4);color:#00b4ff;">🔵 監測中</div>
+          <div class="demo-tag" style="background:rgba(192,128,255,0.15);border-color:rgba(192,128,255,0.4);color:#c080ff;">🟣 特殊事件</div>
+          <div class="demo-tag" style="background:rgba(85,153,204,0.15);border-color:rgba(85,153,204,0.4);color:#5599cc;">水災警報</div>
+          <div class="demo-tag" style="background:rgba(233,108,66,0.15);border-color:rgba(233,108,66,0.4);color:#e96c42;">地震速報</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 23. MapLegend -->
+    <div class="chart-card ui-comp">
+      <div class="card-header">
+        <div>
+          <div class="card-name">23. 地圖圖例 MapLegend</div>
+          <div class="card-file">MapLegend.vue</div>
+          <div class="card-use">用途：地圖旁邊的顏色說明（不是圖表，是 UI 說明）</div>
+        </div>
+        <span class="type-badge type-ui">UI 元件</span>
+      </div>
+      <div class="card-body">
+        <div class="map-legend-demo">
+          <div style="font-size:0.8rem;color:#5a7a9f;margin-bottom:10px;">空氣品質指數（AQI）</div>
+          <div class="ml-item"><div class="ml-color" style="background:#00b050;"></div><div class="ml-label">良好</div><div class="ml-range">0–50</div></div>
+          <div class="ml-item"><div class="ml-color" style="background:#92d050;"></div><div class="ml-label">普通</div><div class="ml-range">51–100</div></div>
+          <div class="ml-item"><div class="ml-color" style="background:#ffbf00;"></div><div class="ml-label">對敏感族群不健康</div><div class="ml-range">101–150</div></div>
+          <div class="ml-item"><div class="ml-color" style="background:#ff7e00;"></div><div class="ml-label">對所有族群不健康</div><div class="ml-range">151–200</div></div>
+          <div class="ml-item"><div class="ml-color" style="background:#7e0023;"></div><div class="ml-label">危險</div><div class="ml-range">201+</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== ApexCharts 還有哪些 ===== -->
+  <div class="apex-more">
+    <strong>ApexCharts 還支援哪些這個專案還沒用的圖表？</strong>
+    <p style="margin-top:6px;margin-bottom:12px;">你之後想新增元件時，可以直接用這些——只需要新增一個 .vue 包裝檔：</p>
+    <div class="more-types">
+      <span class="more-tag">📈 Area 面積圖</span>
+      <span class="more-tag">💧 Scatter 散點圖</span>
+      <span class="more-tag">🫧 Bubble 泡泡圖</span>
+      <span class="more-tag">📉 Candlestick K線圖</span>
+      <span class="more-tag">📊 BoxPlot 箱形圖</span>
+      <span class="more-tag">🪜 RangeBar 範圍長條</span>
+      <span class="more-tag">🏔️ RangeArea 範圍面積</span>
+      <span class="more-tag">🎯 Funnel 漏斗圖</span>
+      <span class="more-tag">🔺 Pyramid 金字塔圖</span>
+      <span class="more-tag">📊 Slope 斜率圖</span>
+    </div>
+    <p style="margin-top:14px;font-size:0.82rem;color:#5a7a9f;">以上是 ApexCharts 官方支援但這個專案還沒有包裝的類型。新增方式：仿照現有 BarChart.vue 建立新 .vue 檔，改 <code style="color:#42b883;">type="scatter"</code> 即可。</p>
+  </div>
+
+  <div class="note-box">
+    <strong>總結：</strong>這 23 個元件是這個專案開發者選擇並包裝的結果，<strong>不代表你只能有這 23 種</strong>。ApexCharts 還有 10+ 種尚未被這個專案使用的類型，加上完全自製（Canvas/SVG）的可能性，圖表類型幾乎不設限。
+  </div>
+
+</div>
+
+<script>
+// ============ ApexCharts 共用深色主題設定 ============
+const darkTheme = {
+  background: 'transparent',
+  foreColor: '#7ea8cf',
+  toolbar: { show: false }
+}
+const gridStyle = { borderColor: '#1e3a5f', strokeDashArray: 3 }
+const colors = ['#42b883', '#00b4ff', '#ffaa44', '#c080ff', '#ff6b6b', '#38ef7d']
+
+// 1. BarChart - 水平長條
+new ApexCharts(document.getElementById('chart-bar'), {
+  chart: { ...darkTheme, type: 'bar', height: 200 },
+  series: [{ name: '人口', data: [312000, 228000, 197000, 168000, 142000] }],
+  xaxis: { categories: ['大安區','信義區','中山區','中正區','松山區'] },
+  colors: colors,
+  plotOptions: { bar: { horizontal: true, distributed: true, borderRadius: 3 } },
+  grid: gridStyle, legend: { show: false },
+  dataLabels: { style: { fontSize: '11px' } }
+}).render()
+
+// 2. BarChartWithGoal - 帶目標
+new ApexCharts(document.getElementById('chart-bargoal'), {
+  chart: { ...darkTheme, type: 'bar', height: 200 },
+  series: [{ name: '實際', data: [
+    { x: '電動車比例', y: 65, goals: [{ name: '目標', value: 80, strokeColor: '#ff6b6b' }] },
+    { x: '再生能源', y: 42, goals: [{ name: '目標', value: 60, strokeColor: '#ff6b6b' }] },
+    { x: '廢棄物回收', y: 78, goals: [{ name: '目標', value: 85, strokeColor: '#ff6b6b' }] },
+  ]}],
+  colors: ['#42b883'], grid: gridStyle,
+  plotOptions: { bar: { horizontal: true, borderRadius: 3 } },
+  legend: { show: false }
+}).render()
+
+// 3. BarPercentChart - 百分比
+new ApexCharts(document.getElementById('chart-barpct'), {
+  chart: { ...darkTheme, type: 'bar', height: 180, stacked: true, stackType: '100%' },
+  series: [
+    { name: '男', data: [62, 55, 58] },
+    { name: '女', data: [38, 45, 42] },
+  ],
+  xaxis: { categories: ['大安區', '信義區', '中山區'] },
+  colors: ['#00b4ff', '#ff6b6b'], grid: gridStyle,
+  plotOptions: { bar: { horizontal: true, borderRadius: 2 } },
+}).render()
+
+// 4. ColumnChart - 直條
+new ApexCharts(document.getElementById('chart-column'), {
+  chart: { ...darkTheme, type: 'bar', height: 200 },
+  series: [{ name: '乘客數', data: [42000, 68000, 55000, 89000, 73000, 61000] }],
+  xaxis: { categories: ['週一','週二','週三','週四','週五','週六'] },
+  colors: ['#00b4ff'], grid: gridStyle,
+  plotOptions: { bar: { distributed: false, borderRadius: 3 } },
+  legend: { show: false }
+}).render()
+
+// 5. ColumnLineChart - 混合
+new ApexCharts(document.getElementById('chart-colline'), {
+  chart: { ...darkTheme, type: 'line', height: 200 },
+  series: [
+    { name: '降雨量(mm)', type: 'column', data: [22, 45, 12, 68, 30, 8, 55] },
+    { name: '溫度(°C)', type: 'line', data: [25, 23, 28, 21, 26, 30, 24] },
+  ],
+  xaxis: { categories: ['週一','週二','週三','週四','週五','週六','週日'] },
+  colors: ['#00b4ff', '#ffaa44'], grid: gridStyle,
+  stroke: { width: [0, 3] },
+  yaxis: [{ title: { text: 'mm', style: { color: '#00b4ff' } } }, { opposite: true, title: { text: '°C', style: { color: '#ffaa44' } } }],
+}).render()
+
+// 6. DonutChart
+new ApexCharts(document.getElementById('chart-donut'), {
+  chart: { ...darkTheme, type: 'donut', height: 220 },
+  series: [35, 28, 18, 12, 7],
+  labels: ['住宅用電', '商業用電', '工業用電', '交通用電', '其他'],
+  colors: colors,
+  legend: { position: 'bottom', labels: { colors: '#7ea8cf' } },
+  dataLabels: { style: { fontSize: '11px' } }
+}).render()
+
+// 7. GuageChart - radialBar
+new ApexCharts(document.getElementById('chart-gauge'), {
+  chart: { ...darkTheme, type: 'radialBar', height: 220 },
+  series: [72],
+  labels: ['空氣品質'],
+  colors: ['#42b883'],
+  plotOptions: { radialBar: {
+    hollow: { size: '60%' },
+    dataLabels: { name: { color: '#7ea8cf' }, value: { color: '#e0e6f0', fontSize: '22px' } }
+  }},
+}).render()
+
+// 8. HeatmapChart
+new ApexCharts(document.getElementById('chart-heatmap'), {
+  chart: { ...darkTheme, type: 'heatmap', height: 200 },
+  series: [
+    { name: '00:00', data: [30,20,15,10,8,12,25,40,60,72,68,55] },
+    { name: '06:00', data: [15,12,8,6,5,8,45,80,95,88,75,60] },
+    { name: '12:00', data: [50,55,60,65,70,68,62,58,55,52,48,45] },
+    { name: '18:00', data: [85,90,88,82,75,70,65,60,55,50,45,40] },
+  ],
+  xaxis: { categories: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'] },
+  colors: ['#00b4ff'], grid: gridStyle,
+  dataLabels: { enabled: false }
+}).render()
+
+// 9. PolarAreaChart
+new ApexCharts(document.getElementById('chart-polar'), {
+  chart: { ...darkTheme, type: 'polarArea', height: 230 },
+  series: [42, 38, 28, 22, 18, 15],
+  labels: ['文山區','大安區','士林區','中山區','信義區','內湖區'],
+  colors: colors,
+  legend: { position: 'bottom', labels: { colors: '#7ea8cf' } },
+  stroke: { colors: ['#0d1f3c'] }
+}).render()
+
+// 10. RadarChart
+new ApexCharts(document.getElementById('chart-radar'), {
+  chart: { ...darkTheme, type: 'radar', height: 230 },
+  series: [
+    { name: '大安區', data: [80, 75, 90, 65, 85, 70] },
+    { name: '信義區', data: [60, 88, 70, 82, 60, 95] },
+  ],
+  xaxis: { categories: ['交通', '空氣', '綠化', '安全', '教育', '商業'] },
+  colors: ['#42b883', '#00b4ff'],
+  legend: { labels: { colors: '#7ea8cf' } },
+  grid: gridStyle,
+}).render()
+
+// 11. TreemapChart
+new ApexCharts(document.getElementById('chart-treemap'), {
+  chart: { ...darkTheme, type: 'treemap', height: 200 },
+  series: [{ data: [
+    { x: '大安區', y: 312 }, { x: '信義區', y: 228 }, { x: '中山區', y: 197 },
+    { x: '士林區', y: 285 }, { x: '內湖區', y: 268 }, { x: '北投區', y: 254 },
+    { x: '文山區', y: 271 }, { x: '萬華區', y: 192 },
+  ] }],
+  colors: ['#00b4ff'],
+  dataLabels: { style: { fontSize: '12px' } }
+}).render()
+
+// 12. TimelineSeparateChart
+new ApexCharts(document.getElementById('chart-timeline-sep'), {
+  chart: { ...darkTheme, type: 'line', height: 200 },
+  series: [
+    { name: '大安區', data: [312, 315, 310, 308, 305, 303, 300] },
+    { name: '信義區', data: [228, 230, 229, 225, 222, 220, 218] },
+  ],
+  xaxis: { categories: ['1月','2月','3月','4月','5月','6月','7月'] },
+  colors: ['#42b883', '#00b4ff'], grid: gridStyle,
+  stroke: { curve: 'smooth', width: 2 },
+  legend: { labels: { colors: '#7ea8cf' } }
+}).render()
+
+// 13. TimelineStackedChart
+new ApexCharts(document.getElementById('chart-timeline-stack'), {
+  chart: { ...darkTheme, type: 'area', height: 200, stacked: true },
+  series: [
+    { name: '機車', data: [850, 870, 840, 820, 800, 790, 780] },
+    { name: '汽車', data: [320, 330, 315, 310, 305, 300, 295] },
+    { name: '公車', data: [180, 190, 175, 170, 165, 160, 158] },
+  ],
+  xaxis: { categories: ['1月','2月','3月','4月','5月','6月','7月'] },
+  colors: ['#42b883', '#00b4ff', '#ffaa44'], grid: gridStyle,
+  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.1 } },
+  legend: { labels: { colors: '#7ea8cf' } }
+}).render()
+
+// 14. IndicatorChart
+new ApexCharts(document.getElementById('chart-indicator'), {
+  chart: { ...darkTheme, type: 'line', height: 180 },
+  series: [{ name: '日均溫', data: [22, 24, 23, 26, 28, 30, 29, 27, 25, 23, 21, 20] }],
+  xaxis: { categories: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'] },
+  colors: ['#ffaa44'], grid: gridStyle,
+  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { opacityFrom: 0.3, opacityTo: 0.0 } },
+  annotations: { yaxis: [{ y: 25, borderColor: '#ff6b6b', label: { text: '高溫警戒', style: { color: '#ff6b6b', background: 'transparent' } } }] }
+}).render()
+</script>
+
+</body>
+</html>

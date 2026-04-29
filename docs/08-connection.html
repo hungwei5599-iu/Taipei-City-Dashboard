@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前後端如何連接 - 台北城市儀表板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+  .topbar { background: #0d1f3c; border-bottom: 1px solid #1e3a5f; padding: 16px 40px; display: flex; align-items: center; gap: 16px; }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #c080ff; }
+  .topbar .sep { color: #3a5a7f; }
+  .hero { background: linear-gradient(135deg, #12002a, #0a1628); padding: 60px 40px; border-bottom: 1px solid #1e3a5f; }
+  .hero h1 { font-size: 2.4rem; color: #c080ff; margin-bottom: 12px; }
+  .hero p { color: #7ea8cf; font-size: 1.1rem; line-height: 1.8; max-width: 700px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 60px 40px; }
+  h2 { font-size: 1.5rem; color: #c080ff; margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid #1e3a5f; }
+  h3 { font-size: 1.1rem; color: #e0e6f0; margin: 20px 0 10px; }
+  p { color: #9ab5cf; line-height: 1.8; margin-bottom: 16px; }
+  code { background: rgba(192,128,255,0.08); border: 1px solid rgba(192,128,255,0.2); color: #c080ff; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; }
+  .highlight { color: #c080ff; font-weight: bold; }
+  .analogy { background: linear-gradient(135deg, rgba(192,128,255,0.08), rgba(150,0,255,0.03)); border-left: 3px solid #c080ff; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; font-style: italic; color: #9070b8; }
+  .code-block { background: #060d1a; border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; font-family: monospace; font-size: 0.83rem; line-height: 1.7; margin: 16px 0; overflow-x: auto; }
+  .code-block .keyword { color: #c080ff; }
+  .code-block .string { color: #ffaa44; }
+  .code-block .comment { color: #3a5a7f; }
+  .code-block .func { color: #42b883; }
+  .code-block .url { color: #00b4ff; }
+  .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .card h4 { color: #c080ff; margin-bottom: 12px; font-size: 1rem; }
+  .note { background: rgba(255,180,0,0.05); border: 1px solid rgba(255,180,0,0.2); border-radius: 10px; padding: 16px 20px; margin: 16px 0; color: #c0a060; font-size: 0.9rem; }
+  .journey {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 16px;
+    padding: 32px;
+    margin: 24px 0;
+  }
+  .journey-step {
+    display: flex;
+    gap: 20px;
+    margin: 20px 0;
+    align-items: flex-start;
+    position: relative;
+  }
+  .journey-step::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 40px;
+    bottom: -20px;
+    width: 2px;
+    background: linear-gradient(to bottom, #c080ff, #2a4a6f);
+  }
+  .journey-step:last-child::before { display: none; }
+  .jnum {
+    background: rgba(192,128,255,0.2);
+    border: 1px solid rgba(192,128,255,0.4);
+    color: #c080ff;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; flex-shrink: 0; font-size: 0.9rem;
+  }
+  .jcontent { flex: 1; }
+  .jcontent h4 { color: #e0e6f0; margin-bottom: 6px; font-size: 0.95rem; }
+  .jcontent p { color: #7ea8cf; font-size: 0.88rem; margin: 0; line-height: 1.6; }
+  .jcontent .tag { display: inline-block; background: rgba(192,128,255,0.1); border: 1px solid rgba(192,128,255,0.2); color: #c080ff; padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; margin-top: 6px; font-family: monospace; }
+  .nginx-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+  .nginx-table th { background: rgba(192,128,255,0.08); color: #c080ff; padding: 10px 14px; text-align: left; }
+  .nginx-table td { padding: 10px 14px; border-bottom: 1px solid #0a1628; color: #9ab5cf; font-family: monospace; }
+  .nginx-table .dest { color: #42b883; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .nav-bottom { display: flex; justify-content: space-between; padding: 40px 0 0; border-top: 1px solid #1e3a5f; }
+  .nav-btn { background: rgba(192,128,255,0.08); border: 1px solid rgba(192,128,255,0.3); color: #c080ff; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+  .nav-btn:hover { background: rgba(192,128,255,0.15); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">🏠 首頁</a>
+  <span class="sep">/</span>
+  <a href="01-overview.html">整體架構</a>
+  <span class="sep">/</span>
+  <span style="color:#c080ff;">前後端連接</span>
+</div>
+
+<div class="hero">
+  <h1>🔗 前後端如何連接</h1>
+  <p>從使用者按下按鈕，到圖表出現在螢幕上——一個圖表資料的完整旅程，以及 Nginx、Axios、JWT 如何協同工作。</p>
+</div>
+
+<div class="container">
+
+  <h2>整體通訊架構</h2>
+  <p>所有通訊都透過 <span class="highlight">HTTP REST API</span>，有一個清晰的層級結構：</p>
+
+  <div class="code-block">
+<span class="comment">瀏覽器 (Vue 3)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;&nbsp;&nbsp;| HTTP/HTTPS 請求（含 JWT Token）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+<span class="url">http://localhost:80</span>  <span class="comment">(Nginx 反向代理)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;&nbsp;&nbsp;|── GET /         → 前端靜態檔案 (dashboard-fe:8080)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;|── GET /api/dev/ → 後端 API     (dashboard-be:8080)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;|── GET /api/v1/  → 後端 API     (dashboard-be:8080)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+<span class="url">Go Backend (Gin)</span>  <span class="comment">(8080 port)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;&nbsp;&nbsp;|── PostgreSQL (5432, 5433)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;|── Redis      (6379)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── Qdrant     (6333)
+  </div>
+
+  <h2>Nginx 路由規則</h2>
+  <p>Nginx 是整個系統的「大門」，根據 URL 路徑決定把請求轉發到哪裡：</p>
+
+  <table class="nginx-table">
+    <tr>
+      <th>請求 URL</th>
+      <th>轉發到</th>
+      <th>說明</th>
+    </tr>
+    <tr>
+      <td>/</td>
+      <td><span class="dest">dashboard-fe:8080</span></td>
+      <td>Vue 前端應用程式</td>
+    </tr>
+    <tr>
+      <td>/static/</td>
+      <td><span class="dest">dashboard-fe:8080</span></td>
+      <td>CSS、JS、圖片等靜態檔案</td>
+    </tr>
+    <tr>
+      <td>/api/dev/</td>
+      <td><span class="dest">dashboard-be:8080</span></td>
+      <td>後端 API（開發環境路徑）</td>
+    </tr>
+    <tr>
+      <td>/api/v1/</td>
+      <td><span class="dest">dashboard-be:8080</span></td>
+      <td>後端 API（正式環境路徑）</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    💡 <strong>為什麼需要 Nginx 做反向代理？</strong><br>
+    1. <strong>統一入口</strong>：使用者只需要記得一個網址，不需要知道後端在哪個 port<br>
+    2. <strong>跨域問題解決</strong>：前端（port 80）呼叫後端（port 8080）會有 CORS 跨域問題，Nginx 讓它們看起來是同一個 host<br>
+    3. <strong>SSL 終止</strong>：只需要在 Nginx 設定 HTTPS，後端服務不需要各自處理加密
+  </div>
+
+  <h2>圖表資料的完整旅程</h2>
+  <p>以「查詢人口長條圖資料」為例，追蹤每一步：</p>
+
+  <div class="journey">
+    <div class="journey-step">
+      <div class="jnum">1</div>
+      <div class="jcontent">
+        <h4>使用者打開儀表板頁面</h4>
+        <p>Vue Router 渲染 DashboardView.vue，元件掛載（mounted）時觸發 contentStore 的初始化方法</p>
+        <div class="tag">Vue 3 Lifecycle: onMounted()</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">2</div>
+      <div class="jcontent">
+        <h4>Pinia Store 發起 API 請求</h4>
+        <p>contentStore 調用 axios 發送請求取得儀表板資訊，以及各個元件的設定</p>
+        <div class="tag">GET /api/dev/v1/dashboard/taipei-01</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">3</div>
+      <div class="jcontent">
+        <h4>請求經過 axios 攔截器</h4>
+        <p>axios 的 request 攔截器自動在 Header 加上 JWT Token：<br>
+        <code>Authorization: Bearer eyJhbGci...</code></p>
+        <div class="tag">axios interceptors.request.use()</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">4</div>
+      <div class="jcontent">
+        <h4>Nginx 轉發請求到後端</h4>
+        <p>Nginx 看到 URL 包含 <code>/api/dev/</code>，把請求轉發到 <code>dashboard-be:8080</code></p>
+        <div class="tag">proxy_pass http://dashboard-be:8080</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">5</div>
+      <div class="jcontent">
+        <h4>Gin 路由器匹配 Handler</h4>
+        <p>後端 Gin 框架接收請求，根據路由設定匹配到對應的控制器函式</p>
+        <div class="tag">router.GET("/dashboard/:index", GetDashboard)</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">6</div>
+      <div class="jcontent">
+        <h4>JWT 中介軟體驗證身份</h4>
+        <p>從 Header 取出 Token，用 JWT_SECRET 驗證簽名，解析出 userID 和 permissions，存入 context</p>
+        <div class="tag">middleware.ValidateJWT()</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">7</div>
+      <div class="jcontent">
+        <h4>速率限制檢查</h4>
+        <p>Redis ZADD 記錄這次請求，ZCARD 計算過去60秒的請求數，超過上限就拒絕</p>
+        <div class="tag">middleware.LimitAPIRequests()</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">8</div>
+      <div class="jcontent">
+        <h4>控制器查詢資料庫</h4>
+        <p>dashboard 控制器從 context 取得 userID，查詢 postgres-manager 取得儀表板設定（包含元件 ID 列表）</p>
+        <div class="tag">global.MANAGER_DB.Where("index=?", index).First(&dashboard)</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">9</div>
+      <div class="jcontent">
+        <h4>回傳 JSON 到前端</h4>
+        <p>控制器把資料格式化成 JSON，Gin 框架設定 Content-Type，回傳 200 OK 回應</p>
+        <div class="tag">c.JSON(200, gin.H{"data": dashboard})</div>
+      </div>
+    </div>
+    <div class="journey-step">
+      <div class="jnum">10</div>
+      <div class="jcontent">
+        <h4>前端渲染圖表</h4>
+        <p>axios 收到回應，contentStore 更新狀態，圖表元件（BarChart.vue）偵測到資料變化，ApexCharts 重新渲染</p>
+        <div class="tag">computed() → watch → ApexCharts re-render</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>圖表資料的二次請求（取得實際數據）</h2>
+  <p>取得儀表板設定後，前端還需要為每個元件分別請求圖表資料：</p>
+
+  <div class="code-block">
+<span class="comment">// 前端：為每個元件請求圖表資料</span><br>
+<span class="keyword">async function</span> <span class="func">fetchChartData</span>(componentId) {<br>
+&nbsp;&nbsp;<span class="keyword">const</span> response = <span class="keyword">await</span> axios.<span class="func">get</span>(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="string">`/api/dev/v1/component/${componentId}/chart`</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ params: { city: <span class="string">'taipei'</span>, timeFrom: <span class="string">'...'</span>, timeTo: <span class="string">'...'</span> } }<br>
+&nbsp;&nbsp;)<br>
+&nbsp;&nbsp;contentStore.components[componentId].chart_data = response.data<br>
+}<br>
+<br>
+<span class="comment">// 後端：componentData 控制器</span><br>
+<span class="comment">// 1. 從 postgres-manager 的 query_charts 表查到這個元件的 SQL</span><br>
+<span class="comment">// 2. 把 SQL 送到 postgres-data 執行</span><br>
+<span class="comment">// 3. 把結果格式化成前端能用的 JSON</span>
+  </div>
+
+  <h2>定時刷新：資料怎麼保持最新</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>前端側（Polling 輪詢）</h4>
+      <p style="color:#7ea8cf;font-size:0.88rem;line-height:1.7;">contentStore 設定定時器，每隔一段時間（根據元件的更新頻率設定）自動重新呼叫 API 取得最新資料。這稱為「Short Polling」——定期問後端「有沒有新資料？」</p>
+    </div>
+    <div class="card">
+      <h4>後端側（即時查詢）</h4>
+      <p style="color:#7ea8cf;font-size:0.88ff;line-height:1.7;">後端不做快取，每次請求都直接查 postgres-data。因為 Airflow 已經把新資料寫進資料庫，後端只需要每次讀取最新的。</p>
+    </div>
+  </div>
+
+  <h2>前端狀態管理的資料流向</h2>
+  <div class="code-block">
+<span class="comment">// Vue 的單向資料流（Unidirectional Data Flow）</span><br>
+<br>
+API 回應<br>
+&nbsp;&nbsp;↓<br>
+contentStore.components[id] = data  <span class="comment">// Pinia store 更新狀態</span><br>
+&nbsp;&nbsp;↓<br>
+BarChart.vue 的 computed property 重新計算  <span class="comment">// 自動偵測響應式變化</span><br>
+&nbsp;&nbsp;↓<br>
+ApexCharts 重新渲染圖表  <span class="comment">// 畫面更新</span><br>
+<br>
+<span class="comment">// 為什麼用 Pinia 而不是直接在元件裡儲存資料？</span><br>
+<span class="comment">// → 多個元件可能需要同一份資料（避免重複請求）</span><br>
+<span class="comment">// → 資料變化時所有訂閱的元件同步更新</span>
+  </div>
+
+  <div class="analogy">
+    💡 <strong>整體類比：</strong>把這個系統想成一個「24小時新聞台」。<br>
+    - Airflow（記者）：到處採訪收集資料，定時回來交給編輯<br>
+    - PostgreSQL（新聞稿資料庫）：儲存所有新聞內容<br>
+    - 後端 API（播報員）：觀眾問什麼，就查資料庫說什麼<br>
+    - Nginx（轉播系統）：確保所有信號正確送達<br>
+    - 前端（電視螢幕）：把文字資料變成漂亮的圖表和地圖顯示
+  </div>
+
+  <div class="nav-bottom">
+    <a href="07-de.html" class="nav-btn">← 資料工程</a>
+    <a href="09-ai.html" class="nav-btn">AI 功能 →</a>
+  </div>
+
+</div>
+</body>
+</html>

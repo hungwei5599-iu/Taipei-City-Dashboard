@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); keys=list\\(d.keys\\(\\)\\)[:3]; [print\\(json.dumps\\({k:d[k]}, indent=2, ensure_ascii=False\\)\\) for k in keys]\")",
+      "Bash(curl -s \"https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002\")",
+      "Bash(curl -v -s \"https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002\")",
+      "Bash(curl -s -X POST https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002 -H 'Content-Type: application/json' -d '{}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST \"https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002\" -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}
