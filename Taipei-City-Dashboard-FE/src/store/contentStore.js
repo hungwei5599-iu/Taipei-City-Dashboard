@@ -95,7 +95,7 @@ export const useContentStore = defineStore("content", {
 			) {
 				if (
 					this.currentDashboard.mode === "/mapview" &&
-					!index.includes("map-layers")
+					index?.includes("map-layers") === false
 				) {
 					this.setMapLayers(city);
 				} else {

@@ -1,14 +1,19 @@
 package controllers
 
 import (
+	"TaipeiCityDashboardBE/app/cache"
 	"TaipeiCityDashboardBE/app/services/ai"
+	aitools "TaipeiCityDashboardBE/app/services/ai/tools"
 	"TaipeiCityDashboardBE/app/util"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -47,8 +52,19 @@ type AIChatInput struct {
 	ToolChoice interface{} `json:"tool_choice,omitempty"`
 }
 
+const aiRPMLimit = 30
+
 // ChatWithTWCC is the controller for POST /api/v1/ai/chat/twai
 func ChatWithTWCC(c *gin.Context) {
+	chatWithTWCC(c, false)
+}
+
+// ChatWithHackathonTools is the controller for POST /api/v1/ai/chat.
+func ChatWithHackathonTools(c *gin.Context) {
+	chatWithTWCC(c, true)
+}
+
+func chatWithTWCC(c *gin.Context, includeRegistryTools bool) {
 	var input AIChatInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -56,6 +72,11 @@ func ChatWithTWCC(c *gin.Context) {
 			"error_code": "INVALID_REQUEST",
 			"message": err.Error(),
 		})
+		return
+	}
+
+	cacheKey := aiCacheIdentifier(c)
+	if limited := enforceAIRateLimit(c, cacheKey); limited {
 		return
 	}
 
@@ -77,6 +98,9 @@ func ChatWithTWCC(c *gin.Context) {
 
 	// 3. Prepare Dynamic Options
 	options := input.ToCallOptions()
+	if includeRegistryTools && len(input.Tools) == 0 {
+		options = append(options, llms.WithTools(registryToolDefinitions()))
+	}
 
 	// 4. Handle Streaming Response
 	if input.Stream {
@@ -122,7 +146,7 @@ func ChatWithTWCC(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"status": "success",
 		"data": gin.H{
 			"session":     logEntry.SessionID,
@@ -136,8 +160,132 @@ func ChatWithTWCC(c *gin.Context) {
 			"latency_ms":  logEntry.LatencyMS,
 			"model":       logEntry.Model,
 			"provider":    logEntry.Provider,
+			"cached":      false,
 		},
+	}
+	cacheAIResponse(cacheKey, response)
+	c.JSON(http.StatusOK, response)
+}
+
+func GetHackathonDecisions(c *gin.Context) {
+	scenarioID := c.DefaultQuery("scenario_id", "001")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   aitools.GenerateDecisionsPayload(scenarioID),
 	})
+}
+
+func GetHackathonSideEffects(c *gin.Context) {
+	decisionID := c.DefaultQuery("decision_id", "d001")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   aitools.VisualizeSideEffectsPayload(decisionID),
+	})
+}
+
+func GenerateHackathonBriefing(c *gin.Context) {
+	var input struct {
+		ScenarioID string `json:"scenario_id"`
+		City       string `json:"city"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": "error",
+			"error_code": "INVALID_REQUEST",
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   aitools.GenerateBriefingPayload(input.ScenarioID, input.City),
+	})
+}
+
+func registryToolDefinitions() []llms.Tool {
+	definitions := aitools.Definitions()
+	output := make([]llms.Tool, 0, len(definitions))
+	for _, tool := range definitions {
+		output = append(output, llms.Tool{
+			Type: "function",
+			Function: &llms.FunctionDefinition{
+				Name:        tool.Name,
+				Description: tool.Description,
+				Parameters:  tool.InputSchema,
+			},
+		})
+	}
+	return output
+}
+
+func enforceAIRateLimit(c *gin.Context, cacheKey string) bool {
+	if cache.Redis == nil {
+		return false
+	}
+
+	now := time.Now().UnixNano()
+	rateKey := fmt.Sprintf("AI_RPM:%s", cacheKey)
+	windowStart := now - time.Minute.Nanoseconds()
+	if _, err := cache.Redis.ZRemRangeByScore(rateKey, "0", fmt.Sprint(windowStart)).Result(); err != nil {
+		return false
+	}
+
+	count, err := cache.Redis.ZCard(rateKey).Result()
+	if err != nil {
+		return false
+	}
+	if count >= aiRPMLimit {
+		if writeCachedAIResponse(c, cacheKey) {
+			return true
+		}
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"status": "error",
+			"error_code": "AI_RATE_LIMITED",
+			"message": "AI request limit exceeded and no cached response is available.",
+		})
+		return true
+	}
+
+	cache.Redis.ZAddNX(rateKey, redis.Z{Score: float64(now), Member: now})
+	cache.Redis.Expire(rateKey, time.Minute)
+	return false
+}
+
+func cacheAIResponse(cacheKey string, response gin.H) {
+	if cache.Redis == nil {
+		return
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return
+	}
+	cache.Redis.Set(fmt.Sprintf("AI_LAST_RESPONSE:%s", cacheKey), raw, 5*time.Minute)
+}
+
+func writeCachedAIResponse(c *gin.Context, cacheKey string) bool {
+	raw, err := cache.Redis.Get(fmt.Sprintf("AI_LAST_RESPONSE:%s", cacheKey)).Result()
+	if err != nil {
+		return false
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return false
+	}
+	if data, ok := payload["data"].(map[string]interface{}); ok {
+		data["cached"] = true
+		payload["data"] = data
+	}
+	c.JSON(http.StatusOK, payload)
+	return true
+}
+
+func aiCacheIdentifier(c *gin.Context) string {
+	user := c.GetString("user")
+	if user != "" {
+		return html.EscapeString(user)
+	}
+	return html.EscapeString(c.ClientIP())
 }
 
 // ToServiceMessages converts input messages to langchaingo internal format
@@ -240,4 +388,3 @@ func (input *AIChatInput) ToCallOptions() []llms.CallOption {
 
 	return options
 }
-

@@ -18,6 +18,7 @@ import MapView from "../views/MapView.vue";
 import ComponentView from "../views/ComponentView.vue";
 import ComponentInfoView from "../views/ComponentInfoView.vue";
 import EmbedView from "../views/EmbedView.vue";
+import HackathonDashboardView from "../views/HackathonDashboardView.vue";
 
 const routes = [
 	{
@@ -33,6 +34,11 @@ const routes = [
 		path: "/dashboard",
 		name: "dashboard",
 		component: DashboardView,
+	},
+	{
+		path: "/hackathon",
+		name: "hackathon",
+		component: HackathonDashboardView,
 	},
 	{
 		path: "/mapview",
@@ -121,7 +127,7 @@ router.beforeEach((to) => {
 	const authStore = useAuthStore();
 	if (authStore.isMobileDevice && authStore.isNarrowDevice) {
 		if (
-			!["dashboard", "component-info", "callback", "embed", "mapview"].includes(
+			!["dashboard", "component-info", "callback", "embed", "mapview", "hackathon"].includes(
 				to.name
 			)
 		) {

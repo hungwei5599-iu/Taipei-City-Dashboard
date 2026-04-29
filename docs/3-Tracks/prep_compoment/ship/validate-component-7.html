@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臺北城市儀表板 — 災害模式篩選</title>
+    <!-- CDN 引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0b0b;
+            --sidebar-bg: #111111;
+            --card-bg: #1e1e1e;
+            --accent-blue: #0088cc;
+            --accent-purple: #8e44ad;
+            --accent-red: #f44336;
+            --accent-orange: #ff9800;
+            --text-main: #e0e0e0;
+            --text-dim: #888;
+            --border-color: #333;
+        }
+
+        body { 
+            background: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: 'Inter', 'Noto Sans TC', sans-serif; 
+            margin: 0; 
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* --- Top Navigation --- */
+        nav.top-nav {
+            background: #000;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+        }
+
+        .nav-left { display: flex; align-items: center; gap: 20px; }
+        .logo { display:flex; align-items:center; gap:10px; font-weight:bold; font-size:16px; }
+        .logo-icon { width: 32px; height: 32px; background: #fff; border-radius: 6px; }
+
+        .tab-group { display: flex; gap: 30px; margin-left: 40px; }
+        .tab { 
+            color: var(--text-dim); 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: 500;
+            position: relative;
+            padding: 18px 0;
+            transition: color 0.3s;
+        }
+        .tab:hover { color: #fff; }
+        .tab.active { color: #fff; }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent-blue);
+        }
+
+        .nav-right { display: flex; gap: 20px; color: var(--text-dim); font-size: 18px; }
+
+        /* --- Layout Container --- */
+        .workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar --- */
+        aside.sidebar {
+            width: 240px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding-top: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--text-dim);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+        .sidebar-item:hover { background: #222; color: #fff; }
+        .sidebar-item.active { background: rgba(0, 136, 204, 0.1); color: var(--accent-blue); font-weight: bold; }
+        .icon-box { width: 22px; text-align: center; font-size: 16px; }
+
+        /* --- Content Area --- */
+        section.content {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-color);
+        }
+
+        /* --- Control Bar --- */
+        .control-bar {
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 500;
+            border-bottom: 1px solid #222;
+        }
+        .breadcrumb { font-size: 14px; color: var(--text-dim); display: flex; gap: 8px; }
+        
+        .filters { display: flex; gap: 15px; align-items: center; }
+        .selector {
+            background: #1a1a1a;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .city-switcher {
+            display: flex; background: #1a1a1a; border-radius: 20px; padding: 2px;
+        }
+        .sw-btn {
+            background: transparent; border: none; color: #666; padding: 4px 15px;
+            border-radius: 18px; cursor: pointer; font-size: 13px;
+        }
+        .sw-btn.active { background: #444; color: #fff; }
+
+        /* --- Overview Tab Content --- */
+        .page-overview {
+            padding: 25px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 340px;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .card-title { font-size: 16px; font-weight: bold; }
+        .tag-update { background: #333; color: #aaa; font-size: 10px; padding: 2px 6px; border-radius: 10px; }
+        .card-source { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+        .chart-container { flex: 1; position: relative; }
+
+        /* --- Map Tab Content --- */
+        .page-map {
+            flex: 1;
+            position: relative;
+            display: none;
+        }
+        #map { width: 100%; height: 100%; background: #000; }
+
+        .map-overlay {
+            position: absolute;
+            top: 20px; left: 20px; bottom: 20px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .float-panel {
+            background: rgba(15,15,15,0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            pointer-events: auto;
+        }
+        .float-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+
+        .layer-list { list-style: none; padding: 0; margin: 0; }
+        .layer-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 13px; }
+        .toggle { width: 34px; height: 18px; border-radius: 10px; background: #444; position: relative; cursor: pointer; }
+        .toggle.on { background: var(--accent-blue); }
+        .toggle::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition: 0.2s; }
+        .toggle.on::after { left: 18px; }
+
+        .ai-float {
+            position: absolute;
+            top: 20px; right: 20px;
+            width: 360px;
+            z-index: 1000;
+        }
+        .ai-accent { border-left: 4px solid var(--accent-purple); }
+
+        /* Mini KPI */
+        .mini-kpi { display: flex; justify-content: space-between; margin-top: 10px; }
+        .kpi-unit { text-align: center; }
+        .unit-label { font-size: 10px; color: var(--text-dim); }
+        .unit-val { font-size: 16px; font-weight: bold; color: #fff; }
+
+        /* Leaflet Overrides */
+        .leaflet-container { background: #111 !important; }
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <span>臺北城市儀表板</span>
+            </div>
+            <div class="tab-group">
+                <div class="tab active" id="tab-overview" onclick="showPage('overview')">儀表板總覽</div>
+                <div class="tab" id="tab-map" onclick="showPage('map')">地圖交叉比對</div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <span>⛶</span> <span>ⓘ</span> <span>👤</span>
+        </div>
+    </nav>
+
+    <div class="workspace">
+        <aside class="sidebar" id="main-sidebar">
+            <div class="sidebar-item"><span class="icon-box">🚇</span> 捷運系統</div>
+            <div class="sidebar-item"><span class="icon-box">🚗</span> 道路交通</div>
+            <div class="sidebar-item"><span class="icon-box">🚲</span> 共享單車</div>
+            <div class="sidebar-item"><span class="icon-box">🏢</span> 都市規劃</div>
+            <div class="sidebar-item"><span class="icon-box">🏗️</span> 城市建設</div>
+            <div class="sidebar-item"><span class="icon-box">👶</span> 婦幼資源</div>
+            <div class="sidebar-item"><span class="icon-box">🙆</span> 為民服務</div>
+            <div class="sidebar-item"><span class="icon-box">☁️</span> 氣候變遷</div>
+            <div class="sidebar-item active"><span class="icon-box">🔥</span> 防災都市</div>
+            <div class="sidebar-item"><span class="icon-box">🏥</span> 健康守護</div>
+            <div class="sidebar-item"><span class="icon-box">🛍️</span> 商圈活化</div>
+            <div class="sidebar-item"><span class="icon-box">🗺️</span> 圖資資訊</div>
+        </aside>
+
+        <section class="content">
+            <div class="control-bar">
+                <div class="breadcrumb">
+                    <span>雙北儀表板</span> / <span>防災都市</span> / <span style="color:#fff">災害模式篩選</span>
+                </div>
+                <div class="filters">
+                    <select class="selector" id="mode-selector" onchange="updateMode()">
+                        <option value="normal">正常模式</option>
+                        <option value="rain">暴雨情境 (Level 1)</option>
+                        <option value="quake">強震情境 (Level 3)</option>
+                    </select>
+                    <div class="city-switcher">
+                        <button class="sw-btn active" id="city-taipei" onclick="switchCity('taipei')">台北市</button>
+                        <button class="sw-btn" id="city-metro" onclick="switchCity('metro')">雙北生活圈</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page: Overview -->
+            <div class="page-overview" id="page-overview">
+                <!-- Card 1: Predicted Load Comparison -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">系統預期壓力 (正常 vs 情境)</div>
+                            <div class="card-source">情境模擬引擎 | 即時運算</div>
+                        </div>
+                        <span class="tag-update">情境連動</span>
+                    </div>
+                    <div class="chart-container" id="chart-load"></div>
+                </div>
+
+                <!-- Card 2: Pressure Heatmap -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">跨區外溢壓力分布 (T+0 ~ T+6)</div>
+                            <div class="card-source">外溢分析模型</div>
+                        </div>
+                        <span class="tag-update">動態預測</span>
+                    </div>
+                    <div class="chart-container" id="chart-heatmap"></div>
+                </div>
+
+                <!-- Card 3: Risk Delta by District -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">各區風險增幅 (%)</div>
+                            <div class="card-source">風險評估模型</div>
+                        </div>
+                        <span class="tag-update">情境連動</span>
+                    </div>
+                    <div class="chart-container" id="chart-risk"></div>
+                </div>
+
+                <!-- Card 4: Evolution Timeline -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">情境演變趨勢</div>
+                            <div class="card-source">時間序列分析</div>
+                        </div>
+                        <span class="tag-update">T+24H 預估</span>
+                    </div>
+                    <div class="chart-container" id="chart-timeline"></div>
+                </div>
+            </div>
+
+            <!-- Page: Map View -->
+            <div class="page-map" id="page-map">
+                <div id="map"></div>
+                
+                <div class="map-overlay">
+                    <div class="float-panel">
+                        <div class="float-title">情境圖層</div>
+                        <ul class="layer-list">
+                            <li class="layer-item">風險潛勢熱區 <div class="toggle on"></div></li>
+                            <li class="layer-item">避難收容據點 <div class="toggle on"></div></li>
+                            <li class="layer-item">資源調度流向 <div class="toggle"></div></li>
+                        </ul>
+                    </div>
+                    <div class="float-panel">
+                        <div class="float-title" id="focus-district">情境摘要 (當前模式)</div>
+                        <div id="scenario-desc" style="font-size:12px; color:var(--text-dim); line-height:1.4;">
+                            系統處於正常運作狀態，所有資源餘裕充足。
+                        </div>
+                        <div class="mini-kpi">
+                            <div class="kpi-unit"><div class="unit-label">平均壓力</div><div class="unit-val" id="kpi-pressure">12%</div></div>
+                            <div class="kpi-unit"><div class="unit-label">警戒區域</div><div class="unit-val" id="kpi-warning">0</div></div>
+                            <div class="kpi-unit"><div class="unit-label">資源餘裕</div><div class="unit-val" style="color:#4caf50">High</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="float-panel ai-float ai-accent" id="ai-panel">
+                    <div class="float-title">
+                        <span>AI 情境比較分析</span>
+                        <small style="color:var(--accent-purple); font-size:10px;">Llama 3.3</small>
+                    </div>
+                    <div id="ai-insight" style="font-size:13px; line-height:1.5; color:#ccc;">
+                        當前選定為「正常模式」。系統監測顯示雙北氣候穩定，暫無重大災害風險。建議持續監控 CWA 即時預警信號。
+                    </div>
+                    <div style="background:rgba(142,68,173,0.1); color:var(--accent-purple); font-size:11px; padding:8px; border-radius:4px; margin-top:10px;">
+                        💡 提示：您可以切換至「暴雨情境」觀察 Wanhua 區的二級外溢效應。
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const scenarioData = {
+            normal: {
+                load: [12, 15, 10, 18, 14, 11, 9, 13],
+                predicted: [13, 14, 12, 16, 15, 12, 10, 14],
+                risk: [2, 3, 1, 4, 3, 2, 1, 3],
+                heatmap: Array(8).fill(0).map(() => Array(7).fill(0).map(() => Math.floor(Math.random() * 20))),
+                timeline: [12, 11, 13, 12, 11, 12, 13],
+                desc: "系統處於正常運作狀態，所有資源餘裕充足。",
+                kpi: { pressure: "12%", warning: "0", insight: "當前選定為「正常模式」。系統監測顯示雙北氣候穩定，暫無重大災害風險。建議持續監控 CWA 即時預警信號。" },
+                zones: []
+            },
+            rain: {
+                load: [45, 52, 38, 65, 42, 35, 28, 41],
+                predicted: [68, 85, 55, 92, 75, 62, 45, 78],
+                risk: [24, 45, 18, 62, 35, 21, 12, 38],
+                heatmap: Array(8).fill(0).map(() => Array(7).fill(0).map(() => Math.floor(Math.random() * 50 + 30))),
+                timeline: [12, 45, 78, 92, 85, 72, 65],
+                desc: "豪大雨等級 (Level 1)。士林、北投與萬華區排水壓力顯著增加，需注意二級外溢風險。",
+                kpi: { pressure: "68%", warning: "3", insight: "「暴雨情境」下，主要風險集中在淡水河沿岸。萬華區排水系統預計在 T+2 小時達到負荷極限。建議提前調度移動式抽水機至中正橋周邊。" },
+                zones: [{ center: [25.03, 121.50], radius: 1500, color: '#ff9800' }, { center: [25.09, 121.52], radius: 2000, color: '#ff9800' }]
+            },
+            quake: {
+                load: [85, 92, 78, 95, 88, 82, 75, 89],
+                predicted: [98, 100, 95, 100, 99, 94, 90, 98],
+                risk: [82, 95, 74, 88, 92, 78, 65, 85],
+                heatmap: Array(8).fill(0).map(() => Array(7).fill(0).map(() => Math.floor(Math.random() * 40 + 60))),
+                timeline: [12, 95, 98, 99, 97, 95, 92],
+                desc: "強震等級 (Level 3)。全區電力與維生管網承受極端壓力，大安、中和區收容需求爆發。",
+                kpi: { pressure: "94%", warning: "8", insight: "「強震情境」觸發連鎖反應。大安區震損風險評估為最高等級（紅色），預計產生 1.2 萬名避難人口需求。跨區調度機制應立即啟動。" },
+                zones: [{ center: [25.03, 121.54], radius: 3000, color: '#f44336' }, { center: [25.00, 121.48], radius: 2500, color: '#f44336' }]
+            }
+        };
+
+        const cityLabels = {
+            taipei: ['大安', '萬華', '文山', '信義', '中正', '松山', '士林', '北投'],
+            metro: ['大安', '萬華', '板橋', '三重', '中和', '林口', '新店', '汐止']
+        };
+
+        let currentCity = 'taipei';
+        let currentMode = 'normal';
+        let charts = {};
+        let map;
+        let riskZones = [];
+
+        function initCharts() {
+            const labels = cityLabels[currentCity];
+            const data = scenarioData[currentMode];
+
+            // Chart 1: Load (Mixed)
+            charts.load = new ApexCharts(document.querySelector("#chart-load"), {
+                series: [{ name: '正常負載', type: 'column', data: data.load }, { name: '情境壓力', type: 'line', data: data.predicted }],
+                chart: { height: '100%', type: 'line', background: 'transparent', toolbar: {show:false} },
+                theme: { mode: 'dark' },
+                colors: ['#0088cc', '#f44336'],
+                stroke: { width: [0, 4] },
+                xaxis: { categories: labels },
+                grid: { borderColor: '#333' }
+            });
+
+            // Chart 2: Heatmap
+            charts.heatmap = new ApexCharts(document.querySelector("#chart-heatmap"), {
+                series: data.heatmap.map((d, i) => ({ name: labels[i], data: d })),
+                chart: { height: '100%', type: 'heatmap', background: 'transparent', toolbar: {show:false} },
+                theme: { mode: 'dark' },
+                plotOptions: { heatmap: { shadeIntensity: 0.5, colorScale: { ranges: [{ from: 0, to: 20, color: '#0088cc' }, { from: 21, to: 50, color: '#ff9800' }, { from: 51, to: 100, color: '#f44336' }] } } },
+                grid: { borderColor: '#333' }
+            });
+
+            // Chart 3: Risk Bar
+            charts.risk = new ApexCharts(document.querySelector("#chart-risk"), {
+                series: [{ name: '風險增幅', data: data.risk }],
+                chart: { height: '100%', type: 'bar', background: 'transparent', toolbar: {show:false} },
+                theme: { mode: 'dark' },
+                colors: ['#ff9800'],
+                plotOptions: { bar: { borderRadius: 4, horizontal: true } },
+                xaxis: { categories: labels },
+                grid: { borderColor: '#333' }
+            });
+
+            // Chart 4: Timeline
+            charts.timeline = new ApexCharts(document.querySelector("#chart-timeline"), {
+                series: [{ name: '壓力指數', data: data.timeline }],
+                chart: { height: '100%', type: 'area', background: 'transparent', toolbar: {show:false} },
+                theme: { mode: 'dark' },
+                stroke: { curve: 'smooth' },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 } },
+                xaxis: { categories: ['T+0', 'T+4', 'T+8', 'T+12', 'T+16', 'T+20', 'T+24'] },
+                grid: { borderColor: '#333' }
+            });
+
+            Object.values(charts).forEach(c => c.render());
+        }
+
+        function updateMode() {
+            currentMode = document.getElementById('mode-selector').value;
+            const data = scenarioData[currentMode];
+            
+            charts.load.updateSeries([{ name: '正常負載', data: data.load }, { name: '情境壓力', data: data.predicted }]);
+            charts.heatmap.updateSeries(data.heatmap.map((d, i) => ({ name: cityLabels[currentCity][i], data: d })));
+            charts.risk.updateSeries([{ name: '風險增幅', data: data.risk }]);
+            charts.timeline.updateSeries([{ name: '壓力指數', data: data.timeline }]);
+
+            document.getElementById('scenario-desc').innerText = data.desc;
+            document.getElementById('kpi-pressure').innerText = data.kpi.pressure;
+            document.getElementById('kpi-warning').innerText = data.kpi.warning;
+            document.getElementById('ai-insight').innerText = data.kpi.insight;
+
+            updateMapLayers();
+        }
+
+        function switchCity(city) {
+            currentCity = city;
+            document.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`city-${city}`).classList.add('active');
+            
+            const labels = cityLabels[city];
+            charts.load.updateOptions({ xaxis: { categories: labels } });
+            charts.risk.updateOptions({ xaxis: { categories: labels } });
+            
+            updateMode(); // Refresh series with new labels
+            
+            if (map) {
+                const centers = { taipei: [25.04, 121.53], metro: [25.01, 121.48] };
+                map.flyTo(centers[city], city === 'taipei' ? 12 : 11);
+            }
+        }
+
+        function initMap() {
+            map = L.map('map').setView([25.04, 121.53], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            updateMapLayers();
+        }
+
+        function updateMapLayers() {
+            riskZones.forEach(z => map.removeLayer(z));
+            riskZones = [];
+
+            const data = scenarioData[currentMode];
+            data.zones.forEach(z => {
+                const circle = L.circle(z.center, {
+                    color: z.color,
+                    fillColor: z.color,
+                    fillOpacity: 0.2,
+                    radius: z.radius
+                }).addTo(map);
+                riskZones.push(circle);
+            });
+        }
+
+        function showPage(page) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${page}`).classList.add('active');
+            if (page === 'overview') {
+                document.getElementById('page-overview').style.display = 'grid';
+                document.getElementById('page-map').style.display = 'none';
+            } else {
+                document.getElementById('page-overview').style.display = 'none';
+                document.getElementById('page-map').style.display = 'block';
+                setTimeout(() => map.invalidateSize(), 200);
+            }
+        }
+
+        window.onload = () => {
+            initCharts();
+            initMap();
+        };
+    </script>
+</body>
+</html>

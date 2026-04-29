@@ -1,0 +1,55 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram id="K9P1jFajtCT_FPXa-tvy" name="第 1 页">
+    <mxGraphModel dx="1718" dy="1153" grid="0" gridSize="10" guides="1" tooltips="0" connect="0" arrows="0" fold="0" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" background="#F2EFE8" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="border" parent="1" style="rounded=0;arcSize=3;fillColor=none;strokeColor=#B9B3AB;strokeWidth=1.5;pointerEvents=0;" value="" vertex="1">
+          <mxGeometry height="600" width="1614" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontStyle=1;fontSize=32;fontColor=#1F1F1C;" value="組件快速驗證 (Quick Validator) 執行流程 — 含比賽紅線檢查" vertex="1">
+          <mxGeometry height="60" width="1200" x="80" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#F8E9E1;strokeColor=#D88966;strokeWidth=1.8;fontColor=#D88966;fontSize=20;fontStyle=1;" value="Phase 0&lt;br/&gt;解析目標組件規格" vertex="1">
+          <mxGeometry height="100" width="220" x="60" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Phase 1&lt;br/&gt;資料可達性驗證&lt;br/&gt;(curl only)" vertex="1">
+          <mxGeometry height="100" width="220" x="340" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Phase 2&lt;br/&gt;產生自包含&lt;br/&gt;HTML 預覽" vertex="1">
+          <mxGeometry height="100" width="220" x="620" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Phase 3&lt;br/&gt;視覺驗證&lt;br/&gt;(Claude Preview)" vertex="1">
+          <mxGeometry height="100" width="220" x="900" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#F3E4DA;strokeColor=#C88E6A;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;fontStyle=1;" value="Phase 4&lt;br/&gt;紅線合規審視" vertex="1">
+          <mxGeometry height="100" width="220" x="1180" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="ready" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#CFE8D7;strokeColor=#71AE88;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Ready for Harness&lt;br/&gt;輸出報告" vertex="1">
+          <mxGeometry height="100" width="220" x="1380" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="red_lines" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#F8DFDA;strokeColor=#D96B63;strokeWidth=1.5;fontColor=#2D2B28;fontSize=18;align=left;" value="&lt;b&gt;⛔ 比賽紅線清單&lt;/b&gt;&lt;br/&gt;1. 限用 ApexCharts&lt;br/&gt;2. 限用 TWCC Proxy AI&lt;br/&gt;3. 嚴禁前端直接呼叫 AI&lt;br/&gt;4. 限用 5 種標準資料格式&lt;br/&gt;5. 禁止未核准 NPM 套件" vertex="1">
+          <mxGeometry height="160" width="300" x="1233" y="33" as="geometry" />
+        </mxCell>
+        <mxCell id="e01" edge="1" parent="1" source="p0" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="p1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="p1" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="p2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="p2" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="p3" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="p4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4r" edge="1" parent="1" source="p4" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="ready">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4rl" edge="1" parent="1" source="p4" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#D96B63;strokeWidth=1.8;rounded=1;dashed=1;dashPattern=6 6;" target="red_lines">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

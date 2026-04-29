@@ -41,6 +41,16 @@ func ConfigureRoutes() {
 	configureContributorRoutes()
 	configureChatLogRoutes()
 	configureAIRoutes()
+	configureDisasterRoutes()
+}
+
+func configureDisasterRoutes() {
+	disasterRoutes := RouterGroup.Group("/disaster")
+	disasterRoutes.Use(middleware.LimitAPIRequests(global.ComponentLimitAPIRequestsTimes, global.LimitRequestsDuration))
+	disasterRoutes.Use(middleware.LimitTotalRequests(global.ComponentLimitTotalRequestsTimes, global.LimitRequestsDuration))
+	{
+		disasterRoutes.GET("/layers", controllers.GetDisasterLayers)
+	}
 }
 
 func configureAuthRoutes() {
@@ -203,7 +213,11 @@ func configureAIRoutes() {
 	aiRoutes.Use(middleware.LimitTotalRequests(global.ComponentLimitTotalRequestsTimes, global.LimitRequestsDuration))
 	aiRoutes.Use(middleware.IsLoggedIn())
 	{
+		aiRoutes.POST("/chat", controllers.ChatWithHackathonTools)
 		aiRoutes.POST("/chat/twai", controllers.ChatWithTWCC)
+		aiRoutes.GET("/decisions", controllers.GetHackathonDecisions)
+		aiRoutes.GET("/side-effects", controllers.GetHackathonSideEffects)
+		aiRoutes.POST("/briefing", controllers.GenerateHackathonBriefing)
 	}
 }
 

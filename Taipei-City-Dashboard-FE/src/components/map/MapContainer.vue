@@ -13,6 +13,7 @@ import AddViewPoint from "../dialogs/AddViewPoint.vue";
 import MobileLayers from "../dialogs/MobileLayers.vue";
 import IncidentReport from "../dialogs/IncidentReport.vue";
 import FindClosestPoint from "../dialogs/FindClosestPoint.vue";
+import RoutePlannerDialog from "../dialogs/RoutePlannerDialog.vue";
 import { savedLocations } from "../../assets/configs/mapbox/savedLocations.js";
 
 const authStore = useAuthStore();
@@ -144,9 +145,19 @@ onMounted(() => {
       >
         !
       </button><!-- The key prop informs vue that the component should be updated when switching dashboards -->
+      <!-- 避災路線查詢浮動按鈕 -->
+      <button
+        class="mapcontainer-layers-routeplanner"
+        title="家人接送避災路線"
+        @click="dialogStore.showDialog('routePlanner')"
+      >
+        <span class="material-icons">directions</span>
+      </button>
+
       <MobileLayers :key="contentStore.currentDashboard.index" />
       <IncidentReport />
       <FindClosestPoint />
+      <RoutePlannerDialog />
     </div>
 
     <div class="mapcontainer-controls hide-if-mobile">
@@ -338,6 +349,32 @@ onMounted(() => {
 				border: solid 4px var(--color-border);
 				border-top: solid 4px var(--color-highlight);
 				animation: spin 0.7s ease-in-out infinite;
+			}
+		}
+
+		&-routeplanner {
+			position: absolute;
+			left: 10px;
+			bottom: 60px;
+			width: 44px;
+			height: 44px;
+			border-radius: 50%;
+			background-color: var(--color-highlight);
+			color: white;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+			transition: background-color 0.2s;
+			z-index: 1;
+
+			span {
+				font-family: var(--font-icon);
+				font-size: 1.3rem;
+			}
+
+			&:hover {
+				background-color: var(--color-complement-text);
 			}
 		}
 

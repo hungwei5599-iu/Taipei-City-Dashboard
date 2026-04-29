@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>組件 7：災難情境劇本選擇器 (v1.13.0 Fallback)</title>
+    <!-- 引用合規套件: 降級 Mapbox 至 v1.13.0 以支援免 Token 渲染 -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-body: #090909;
+            --bg-card: rgba(23, 26, 29, 0.95);
+            --bg-rail: #111315;
+            --color-border: #2d3136;
+            --color-accent: #4FA3FF;
+            --color-text-main: #dce6f2;
+            --color-text-dim: #9fb7d8;
+            --risk-critical: #F05D5E;
+            --risk-high: #FF8C00;
+            --risk-medium: #FFBB33;
+            --success: #59d987;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: var(--bg-body); color: var(--color-text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        /* 導覽列 */
+        header {
+            height: 64px; background: var(--bg-rail);
+            border-bottom: 1px solid var(--color-border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 100; position: relative;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .city-pill { background: #1b1e21; border: 1px solid var(--color-border); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 13px; }
+        .header-title h2 { margin: 0; font-size: 18px; font-weight: 600; color: #fff; }
+        .header-title p { margin: 2px 0 0 0; font-size: 12px; color: var(--color-text-dim); }
+
+        /* 主區塊 3 欄佈局 */
+        main {
+            display: grid; grid-template-columns: 320px 1fr 420px;
+            height: calc(100vh - 64px); padding: 16px; gap: 16px; box-sizing: border-box;
+        }
+
+        .panel { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 4px; z-index: 10; }
+        .panel::-webkit-scrollbar { width: 6px; }
+        .panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        
+        .card { background: var(--bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px; backdrop-filter: blur(10px); }
+        .section-title { font-size: 14px; font-weight: 600; margin: 0 0 10px 0; color: #fff; display: flex; align-items: center; gap: 8px; }
+
+        /* 左側：劇本列表 */
+        .scenario-card {
+            background: #1b1e21; border: 1px solid var(--color-border);
+            border-radius: 8px; padding: 14px; margin-bottom: 12px; cursor: pointer; transition: 0.2s;
+            position: relative; border-left: 4px solid transparent;
+        }
+        .scenario-card:hover { background: #222a32; border-color: var(--color-accent); }
+        .scenario-card.active { border-left-color: var(--color-accent); background: #17253a; border-color: var(--color-accent); }
+
+        .s-risk { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; float: right; }
+        .s-risk.critical { background: rgba(240, 93, 94, 0.2); color: var(--risk-critical); border: 1px solid var(--risk-critical); }
+        .s-risk.high { background: rgba(255, 140, 0, 0.2); color: var(--risk-high); border: 1px solid var(--risk-high); }
+
+        /* 中間：地圖 (支援 v1.13.0) */
+        .map-wrapper { position: relative; border-radius: 8px; border: 1px solid var(--color-border); overflow: hidden; background: #000; }
+        #map { width: 100%; height: 100%; }
+
+        .map-status { position: absolute; bottom: 16px; left: 16px; background: rgba(9, 9, 9, 0.85); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--color-border); font-size: 13px; backdrop-filter: blur(4px); color: #fff; }
+        .map-legend { position: absolute; bottom: 16px; right: 16px; background: rgba(9, 9, 9, 0.85); padding: 12px; border-radius: 6px; border: 1px solid var(--color-border); font-size: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* 右側：決策卡 (直觀修正：更醒目的副作用) */
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .kpi-box { background: #1b1e21; border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; text-align: center; }
+        .kpi-val { font-size: 20px; font-weight: bold; margin-bottom: 4px; font-family: monospace; }
+        
+        .ai-insight { background: #17253a; border: 1px solid #2a4365; border-radius: 6px; padding: 14px; margin-bottom: 16px; }
+        .ai-header { color: var(--color-accent); font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+
+        .decision-card { 
+            background: #1b1e21; border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; margin-bottom: 12px;
+            cursor: pointer; transition: all 0.2s ease; position: relative;
+        }
+        .decision-card:hover { border-color: var(--risk-high); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .decision-card.hovering { border-color: var(--risk-high); background: #1d1d25; }
+
+        .d-priority { font-size: 10px; font-weight: bold; color: var(--risk-critical); margin-bottom: 8px; display: block; }
+        .d-action { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 12px; display: block; }
+        
+        /* 副作用視覺強化 */
+        .side-effect-box { 
+            background: rgba(255, 140, 0, 0.08); border-left: 4px solid var(--risk-high); 
+            padding: 10px 12px; border-radius: 0 6px 6px 0; margin-top: 12px;
+        }
+        .side-effect-title { color: var(--risk-high); font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .side-effect-text { font-size: 13px; line-height: 1.4; color: #eee; }
+
+        .confidence-row { display: flex; align-items: center; gap: 10px; margin-top: 15px; font-size: 12px; }
+        .confidence-bar { flex: 1; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+        .confidence-fill { height: 100%; background: var(--color-accent); }
+
+        #timeline-chart { margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <div class="city-pill">雙北生活圈</div>
+        <div class="header-title">
+            <h2>組件 7：災難情境劇本選擇器</h2>
+            <p>v1.13.0 Fallback Renderer · 免 Token 模式</p>
+        </div>
+    </div>
+    <button class="ai-toggle">AI 洞察面板收合 ▲</button>
+</header>
+
+<main>
+    <aside class="panel">
+        <div class="card">
+            <h3 class="section-title">📂 災難情境劇本庫</h3>
+            <div id="scenario-container"></div>
+        </div>
+    </aside>
+
+    <section class="map-wrapper">
+        <div id="map"></div>
+        <div class="map-status">
+            <strong id="map-status-title">📍 請選擇情境</strong>
+            <span id="map-status-desc" style="font-size:11px; opacity:0.7">CartoDB Dark Matter 底圖已掛載</span>
+        </div>
+        <div class="map-legend">
+            <div class="legend-item"><span class="dot" style="background:#4FA3FF; opacity:0.3; border:1px solid #4FA3FF"></span> 預期影響範圍</div>
+            <div class="legend-item"><span class="dot" style="background:var(--risk-critical)"></span> 嚴重副作用 (壅塞)</div>
+            <div class="legend-item"><span class="dot" style="background:var(--risk-high)"></span> 擴散副作用區域</div>
+        </div>
+    </section>
+
+    <aside class="panel" id="right-panel" style="opacity: 0.3; pointer-events: none; transition: 0.3s;">
+        <div class="kpi-grid">
+            <div class="kpi-box"><div id="kpi-pop" class="kpi-val" style="color:var(--color-accent)">-</div><div style="font-size:11px; color:var(--color-text-dim)">影響人數</div></div>
+            <div class="kpi-box"><div id="kpi-alert" class="kpi-val" style="color:var(--risk-critical)">-</div><div style="font-size:11px; color:var(--color-text-dim)">紅燈告警</div></div>
+            <div class="kpi-box"><div id="kpi-shelter" class="kpi-val" style="color:var(--success)">-</div><div style="font-size:11px; color:var(--color-text-dim)">收容餘裕</div></div>
+        </div>
+
+        <div class="ai-insight">
+            <div class="ai-header">✨ AI 決策摘要</div>
+            <div id="ai-briefing" style="font-size:13px; line-height:1.5"></div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">⚖️ 決策建議與副作用預測</h3>
+            <div id="decision-container"></div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">⏳ 應變階段預估</h3>
+            <div id="timeline-chart"></div>
+        </div>
+    </aside>
+</main>
+
+<script>
+    // 資料集
+    const scenarios = [
+        {
+            id: "s1", title: "強颱 + 淡水河氾濫", risk: "critical", riskLabel: "極高風險",
+            pop: "82.4 萬", alert: 15, shelter: "42%",
+            center: [121.50, 25.04], zoom: 12,
+            briefing: "淡水河水位正快速上升。中正橋結構風險高，建議優先執行預防性關閉，並同步引導萬華低窪區居民往大安區撤離。",
+            decisions: [
+                {
+                    id: "d1", action: "關閉中正橋雙向車道", effect: "降低斷橋風險 (安全度 +40%)",
+                    side: "忠孝橋負荷將劇增 42%，永和端環河路預期發生嚴重回堵。",
+                    conf: 88, color: "#F05D5E",
+                    map: { type: 'FeatureCollection', features: [
+                        { type: 'Feature', geometry: { type: 'LineString', coordinates: [[121.51, 25.04], [121.49, 25.06]] }, properties: { color: '#F05D5E' } },
+                        { type: 'Feature', geometry: { type: 'Point', coordinates: [121.495, 25.05] }, properties: { color: '#F05D5E', radius: 25 } }
+                    ]}
+                },
+                {
+                    id: "d2", action: "啟動萬華區二級疏散", effect: "移轉 5,000 名脆弱族群至收容所",
+                    side: "和平西路與艋舺大道將出現 45min 以上疏散車流行程延遲。",
+                    conf: 75, color: "#FF8C00",
+                    map: { type: 'FeatureCollection', features: [
+                        { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[121.48, 25.02], [121.51, 25.02], [121.51, 25.04], [121.48, 25.04], [121.48, 25.02]]] }, properties: { color: '#FF8C00', opacity: 0.2 } }
+                    ]}
+                }
+            ]
+        }
+    ];
+
+    // 初始化地圖 (v1.13.0 Fallback)
+    // 注意：在 v1.13.0 即使不傳 token 也可以渲染第三方 Raster Tile
+    mapboxgl.accessToken = '<YOUR_MAPBOX_ACCESS_TOKEN>';
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: {
+            "version": 8,
+            "sources": {
+                "carto-dark": {
+                    "type": "raster",
+                    "tiles": [
+                        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+                        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+                    ],
+                    "tileSize": 256
+                }
+            },
+            "layers": [
+                { "id": "carto-dark-layer", "type": "raster", "source": "carto-dark", "minzoom": 0, "maxzoom": 22 }
+            ]
+        },
+        center: [121.52, 25.04],
+        zoom: 11
+    });
+
+    let mapReady = false;
+    map.on('load', () => {
+        mapReady = true;
+        // 初始化圖層
+        map.addSource('side-effect', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({ id: 'se-fill', type: 'fill', source: 'side-effect', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['coalesce', ['get', 'opacity'], 0.5] } });
+        map.addLayer({ id: 'se-line', type: 'line', source: 'side-effect', paint: { 'line-color': ['get', 'color'], 'line-width': 6 } });
+        map.addLayer({ id: 'se-point', type: 'circle', source: 'side-effect', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['get', 'radius'], 'circle-opacity': 0.6 } });
+    });
+
+    // 渲染 UI
+    const container = document.getElementById('scenario-container');
+    container.innerHTML = scenarios.map(s => `
+        <div class="scenario-card" onclick="selectScenario('${s.id}')" id="card-${s.id}">
+            <span class="s-risk ${s.risk}">${s.riskLabel}</span>
+            <div style="font-weight:bold">${s.title}</div>
+            <div style="font-size:12px; color:var(--color-text-dim); margin-top:8px">📍 ${s.pop} 人受影響</div>
+        </div>
+    `).join('');
+
+    let activeScenario = null;
+
+    function selectScenario(id) {
+        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+        document.getElementById(`card-${id}`).classList.add('active');
+        document.getElementById('right-panel').style.opacity = '1';
+        document.getElementById('right-panel').style.pointerEvents = 'auto';
+
+        const s = scenarios.find(x => x.id === id);
+        activeScenario = s;
+
+        document.getElementById('kpi-pop').innerText = s.pop;
+        document.getElementById('kpi-alert').innerText = s.alert;
+        document.getElementById('kpi-shelter').innerText = s.shelter;
+        document.getElementById('ai-briefing').innerText = s.briefing;
+
+        const dContainer = document.getElementById('decision-container');
+        dContainer.innerHTML = s.decisions.map(d => `
+            <div class="decision-card" onmouseenter="hoverD('${d.id}')" onmouseleave="leaveD()">
+                <span class="d-priority">⚠ 優先級: 極高</span>
+                <span class="d-action">${d.action}</span>
+                <div style="font-size:13px; color:var(--success)">✅ 預期效果: ${d.effect}</div>
+                
+                <div class="side-effect-box">
+                    <div class="side-effect-title">🚨 副作用與潛在風險</div>
+                    <div class="side-effect-text">${d.side}</div>
+                </div>
+
+                <div class="confidence-row">
+                    <span>AI 信心度</span>
+                    <div class="confidence-bar"><div class="confidence-fill" style="width:${d.conf}%"></div></div>
+                    <span style="font-weight:bold">${d.conf}%</span>
+                </div>
+            </div>
+        `).join('');
+
+        // 更新時間軸 (ApexCharts)
+        new ApexCharts(document.querySelector("#timeline-chart"), {
+            series: [{ data: [{x: '預警', y: [Date.now(), Date.now()+3600000]}, {x: '整備', y: [Date.now()+3600000, Date.now()+10800000]}] }],
+            chart: { type: 'rangeBar', height: 120, toolbar: {show: false} },
+            plotOptions: { bar: { horizontal: true } },
+            xaxis: { type: 'datetime' },
+            theme: { mode: 'dark' }
+        }).render();
+
+        if (mapReady) map.flyTo({ center: s.center, zoom: s.zoom });
+    }
+
+    function hoverD(id) {
+        const d = activeScenario.decisions.find(x => x.id === id);
+        if (mapReady) map.getSource('side-effect').setData(d.map);
+    }
+
+    function leaveD() {
+        if (mapReady) map.getSource('side-effect').setData({ type: 'FeatureCollection', features: [] });
+    }
+</script>
+
+</body>
+</html>

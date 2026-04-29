@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>組件 4：雙北 AED 急救地圖 Quick Validate</title>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #26262b;
+      --panel-2: #2f3036;
+      --border: rgba(255,255,255,0.08);
+      --text: #d6d7dc;
+      --muted: #9ea3af;
+      --accent: #ff6b6b;
+      --highlight: #ffd166;
+      --taipei: #57cc99;
+      --metro: #4dabf7;
+      --ring: rgba(210, 214, 220, 0.16);
+      --transport: #4dabf7;
+      --school: #57cc99;
+      --mall: #ff922b;
+      --medical: #ff6b6b;
+      --gov: #a78bfa;
+      --other: #adb5bd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, rgba(255,107,107,0.16), transparent 28%), var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    .shell {
+      height: 100vh;
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(38,38,43,0.88);
+      backdrop-filter: blur(10px);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    select, button {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .title strong { display: block; font-size: 20px; }
+    .title span { color: var(--muted); font-size: 13px; }
+    .layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
+      gap: 14px;
+    }
+    .panel {
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: rgba(38,38,43,0.92);
+      overflow: hidden;
+    }
+    .map-panel { position: relative; }
+    #map { width: 100%; height: 100%; min-height: 540px; }
+    .legend {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      z-index: 2;
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(22,23,26,0.82);
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 999px; }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .kpi {
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--panel-2);
+    }
+    .kpi .label { color: var(--muted); font-size: 12px; }
+    .kpi .value { margin-top: 6px; font-size: 22px; font-weight: 700; }
+    .chart-stack {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      min-height: 100%;
+    }
+    .chart-block { padding: 14px; border-bottom: 1px solid var(--border); }
+    .chart-block h3 { margin: 0 0 8px; font-size: 14px; }
+    .chart-block p { margin: 0; color: var(--muted); font-size: 12px; }
+    .ai-panel { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .ai-head { display: flex; align-items: center; justify-content: space-between; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,107,107,0.14);
+      color: #ffb3b3;
+      font-size: 12px;
+    }
+    .ai-copy { color: var(--text); line-height: 1.6; font-size: 14px; }
+    .ai-copy strong { color: #fff; }
+    .source-note { color: var(--muted); font-size: 12px; }
+    .collapsed .ai-copy, .collapsed .source-note { display: none; }
+    .mapboxgl-popup-content {
+      background: #18191d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .popup-title { font-weight: 700; margin-bottom: 6px; }
+    .popup-sub { color: var(--muted); font-size: 12px; }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      #map { min-height: 380px; }
+      .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="topbar-left">
+        <select id="citySelect">
+          <option value="Taipei">台北市</option>
+          <option value="Metro-Taipei">雙北</option>
+        </select>
+        <div class="title">
+          <strong>組件 4：雙北 AED 急救地圖</strong>
+          <span>FacilityCoverageMapComponent · 更新: <span id="updatedAt">--:--</span></span>
+        </div>
+      </div>
+      <button id="toggleAi">AI 洞察面板收合 ▲</button>
+    </div>
+    <div class="layout">
+      <div class="panel map-panel">
+        <div id="map"></div>
+        <div class="legend">
+          <div class="legend-row"><span class="dot" style="background: var(--gov)"></span>公共機關</div>
+          <div class="legend-row"><span class="dot" style="background: var(--transport)"></span>交通場站</div>
+          <div class="legend-row"><span class="dot" style="background: var(--mall)"></span>商場/休閒</div>
+          <div class="legend-row"><span class="dot" style="background: var(--school)"></span>學校</div>
+          <div class="legend-row"><span class="dot" style="background: var(--medical)"></span>醫療院所</div>
+          <div class="legend-row"><span class="dot" style="background: var(--other)"></span>其他</div>
+          <div class="legend-row"><span class="dot" style="background: rgba(210,214,220,0.28)"></span>500m 覆蓋圈（預覽近似）</div>
+        </div>
+      </div>
+      <div class="panel chart-stack" id="sidePanel">
+        <div class="kpis">
+          <div class="kpi"><div class="label">AED 總數</div><div class="value" id="kpiTotal">0</div></div>
+          <div class="kpi"><div class="label">最低密度區</div><div class="value" id="kpiGap">--</div></div>
+          <div class="kpi"><div class="label">最近 AED</div><div class="value" id="kpiNearest">--</div></div>
+        </div>
+        <div class="chart-block">
+          <h3>各區每萬人 AED 密度</h3>
+          <p>以 DistrictChart 規格做快速 bar 代理，確認資料可視化可行。</p>
+          <div id="districtChart"></div>
+        </div>
+        <div class="chart-block">
+          <h3>台北 vs 新北 各區 AED 密度排行</h3>
+          <p>雙城切換時同步改變資料組合與顏色。</p>
+          <div id="rankChart"></div>
+        </div>
+        <div class="ai-panel" id="aiPanel">
+          <div class="ai-head">
+            <div>
+              <div class="badge">Tool · analyze_aed_coverage</div>
+            </div>
+          </div>
+          <div class="ai-copy" id="aiCopy"></div>
+          <div class="source-note">DATA SOURCE: Taipei real / New Taipei mock fallback. Frontend 無直接 AI API 呼叫。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DATA SOURCE: real (Taipei) + mock (New Taipei fallback)
+    const taipeiAED = [
+      { name: '國立臺灣師範大學校本部', district: '大安區', lat: 25.02603, lon: 121.528283, category: 'school', categoryLabel: '學校', type: '大專院校', address: '和平東路一段162號', placement: '校本部體育館2樓', source: 'data.taipei real' },
+      { name: '國立故宮博物院', district: '士林區', lat: 25.10235, lon: 121.548432, category: 'mall', categoryLabel: '商場/休閒', type: '博物館', address: '至善路二段221號', placement: '研究大樓1樓大廳', source: 'data.taipei real' },
+      { name: '國立故宮博物院 醫務室', district: '士林區', lat: 25.10235, lon: 121.548432, category: 'medical', categoryLabel: '醫療院所', type: '醫務室', address: '至善路二段221號', placement: '地下一樓醫務室', source: 'data.taipei real' },
+      { name: '中國文化大學 大恩館', district: '士林區', lat: 25.136543, lon: 121.538749, category: 'school', categoryLabel: '學校', type: '大專院校', address: '華岡路55號', placement: '大孝館(體育館)', source: 'data.taipei real' },
+      { name: '福容大飯店台北分公司', district: '大安區', lat: 25.036628, lon: 121.53721, category: 'other', categoryLabel: '其他', type: '其他場所', address: '建國南路一段266號', placement: '一樓大廳櫃檯前方', source: 'data.taipei real' }
+    ];
+
+    const metroExtraAED = [
+      { name: '板橋車站 AED', district: '板橋區', lat: 25.0143, lon: 121.4636, category: 'transport', categoryLabel: '交通場站', type: '車站', address: '縣民大道二段7號', placement: '1F 旅客服務中心', source: 'mock fallback' },
+      { name: '林口三井 Outlet AED', district: '林口區', lat: 25.0709, lon: 121.3646, category: 'mall', categoryLabel: '商場/休閒', type: '商場', address: '文化三路一段356號', placement: '1F 北口服務台', source: 'mock fallback' },
+      { name: '淡水行政中心 AED', district: '淡水區', lat: 25.1715, lon: 121.4434, category: 'gov', categoryLabel: '公共機關', type: '公共機關', address: '中山北路二段375號', placement: '1F 大廳', source: 'mock fallback' }
+    ];
+
+    const densityData = {
+      Taipei: [
+        { district: '大安區', density: 18.6, city: 'Taipei' },
+        { district: '士林區', density: 15.2, city: 'Taipei' },
+        { district: '中正區', density: 14.1, city: 'Taipei' },
+        { district: '萬華區', density: 10.3, city: 'Taipei' },
+        { district: '北投區', density: 9.4, city: 'Taipei' }
+      ],
+      'Metro-Taipei': [
+        { district: '大安區', density: 18.6, city: 'Taipei' },
+        { district: '士林區', density: 15.2, city: 'Taipei' },
+        { district: '中正區', density: 14.1, city: 'Taipei' },
+        { district: '萬華區', density: 10.3, city: 'Taipei' },
+        { district: '板橋區', density: 9.1, city: 'New Taipei' },
+        { district: '淡水區', density: 6.4, city: 'New Taipei' },
+        { district: '林口區', density: 4.1, city: 'New Taipei' }
+      ]
+    };
+
+    const aiInsights = {
+      Taipei: '台北市目前預覽樣本顯示 <strong>大安區</strong> 與 <strong>士林區</strong> AED 密度較高，校園與大型場館是主要覆蓋來源。若以生活圈來看，<strong>北投與萬華</strong> 的住宅區覆蓋仍偏弱，正式版應補入完整 2,700+ 筆台北 AED 後再重算 500m 覆蓋率。',
+      'Metro-Taipei': '雙北 quick validate 顯示台北 AED 密度明顯高於新北。以 mock fallback 補入的新北樣本來看，<strong>林口區</strong> 是最明顯缺口，點位偏向商場，住宅區覆蓋不足。正式版可優先做 <strong>林口 / 三峽</strong> 缺口提示與增設模擬。'
+    };
+
+    const categoryColors = {
+      transport: getCss('--transport'),
+      school: getCss('--school'),
+      mall: getCss('--mall'),
+      medical: getCss('--medical'),
+      gov: getCss('--gov'),
+      other: getCss('--other')
+    };
+
+    function getCss(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    let currentCity = 'Taipei';
+    let districtChart;
+    let rankChart;
+
+    const BASEMAP_STYLE = {
+      version: 8,
+      sources: {
+        'carto-dark': {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+          ],
+          tileSize: 256,
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }
+      },
+      layers: [
+        {
+          id: 'carto-dark-layer',
+          type: 'raster',
+          source: 'carto-dark',
+          minzoom: 0,
+          maxzoom: 20
+        }
+      ]
+    };
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: BASEMAP_STYLE,
+      center: [121.536609, 25.044808],
+      zoom: 11.4,
+      hash: true
+    });
+
+    function getDataset(city) {
+      return city === 'Taipei' ? taipeiAED : taipeiAED.concat(metroExtraAED);
+    }
+
+    function toFeatureCollection(data) {
+      return {
+        type: 'FeatureCollection',
+        features: data.map((item) => ({
+          type: 'Feature',
+          properties: item,
+          geometry: { type: 'Point', coordinates: [item.lon, item.lat] }
+        }))
+      };
+    }
+
+    function renderMap(data) {
+      const fc = toFeatureCollection(data);
+      const source = map.getSource('aed-points');
+      if (source) {
+        source.setData(fc);
+        map.getSource('aed-rings').setData(fc);
+        return;
+      }
+      map.addSource('aed-points', { type: 'geojson', data: fc });
+      map.addSource('aed-rings', { type: 'geojson', data: fc });
+      map.addLayer({
+        id: 'aed-rings',
+        type: 'circle',
+        source: 'aed-rings',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            10, 18,
+            12, 36,
+            14, 72
+          ],
+          'circle-color': 'rgba(210,214,220,0.18)',
+          'circle-stroke-color': 'rgba(210,214,220,0.35)',
+          'circle-stroke-width': 1
+        }
+      });
+      map.addLayer({
+        id: 'aed-points',
+        type: 'circle',
+        source: 'aed-points',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': [
+            'match', ['get', 'category'],
+            'transport', categoryColors.transport,
+            'school', categoryColors.school,
+            'mall', categoryColors.mall,
+            'medical', categoryColors.medical,
+            'gov', categoryColors.gov,
+            categoryColors.other
+          ],
+          'circle-stroke-color': '#111',
+          'circle-stroke-width': 1.5
+        }
+      });
+
+      map.on('click', 'aed-points', (e) => {
+        const p = e.features[0].properties;
+        new mapboxgl.Popup({ offset: 8 })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="popup-title">❤️ ${p.name}</div>
+            <div class="popup-sub">${p.district} · ${p.categoryLabel} · ${p.type}</div>
+            <div>${p.address}</div>
+            <div>${p.placement}</div>
+            <div class="popup-sub">${p.source}</div>
+          `)
+          .addTo(map);
+      });
+      map.on('mouseenter', 'aed-points', () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'aed-points', () => map.getCanvas().style.cursor = '');
+    }
+
+    function buildDistrictChart(city) {
+      const items = densityData[city].slice().sort((a, b) => b.density - a.density);
+      const options = {
+        chart: { type: 'bar', height: 220, toolbar: { show: false }, background: 'transparent' },
+        series: [{ name: 'AED/萬人', data: items.map((x) => x.density) }],
+        xaxis: { categories: items.map((x) => x.district), labels: { style: { colors: '#9ea3af' } } },
+        yaxis: { labels: { style: { colors: '#9ea3af' } } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: 'rgba(255,255,255,0.08)' },
+        colors: [city === 'Taipei' ? getCss('--taipei') : getCss('--metro')],
+        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+        tooltip: { theme: 'dark' }
+      };
+      if (!districtChart) {
+        districtChart = new ApexCharts(document.querySelector('#districtChart'), options);
+        districtChart.render();
+      } else {
+        districtChart.updateOptions(options, true, true);
+      }
+    }
+
+    function buildRankChart(city) {
+      const items = densityData[city];
+      const options = {
+        chart: { type: 'bar', height: 220, toolbar: { show: false }, background: 'transparent' },
+        series: [{ name: 'AED/萬人', data: items.map((x) => x.density) }],
+        xaxis: { categories: items.map((x) => x.district), labels: { style: { colors: '#9ea3af' } } },
+        yaxis: { labels: { style: { colors: '#9ea3af' } } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: 'rgba(255,255,255,0.08)' },
+        colors: items.map((x) => x.city === 'Taipei' ? getCss('--taipei') : getCss('--metro')),
+        plotOptions: { bar: { columnWidth: '46%', borderRadius: 4, distributed: true } },
+        legend: { show: false },
+        tooltip: { theme: 'dark' }
+      };
+      if (!rankChart) {
+        rankChart = new ApexCharts(document.querySelector('#rankChart'), options);
+        rankChart.render();
+      } else {
+        rankChart.updateOptions(options, true, true);
+      }
+    }
+
+    function updateKpis(city, data) {
+      const density = densityData[city];
+      const lowest = density.reduce((min, item) => item.density < min.density ? item : min, density[0]);
+      document.getElementById('kpiTotal').textContent = data.length;
+      document.getElementById('kpiGap').textContent = `${lowest.district} ${lowest.density}`;
+      const first = data[0];
+      document.getElementById('kpiNearest').textContent = `${first.name.split(' ')[0]} · 3 分鐘`;
+      document.getElementById('aiCopy').innerHTML = aiInsights[city];
+      document.getElementById('updatedAt').textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function render(city) {
+      currentCity = city;
+      const data = getDataset(city);
+      buildDistrictChart(city);
+      buildRankChart(city);
+      updateKpis(city, data);
+      renderMap(data);
+      map.easeTo({ center: city === 'Taipei' ? [121.536609, 25.044808] : [121.45, 25.04], zoom: city === 'Taipei' ? 11.4 : 10.6, duration: 600 });
+    }
+
+    map.on('load', () => render(currentCity));
+
+    document.getElementById('citySelect').addEventListener('change', (e) => render(e.target.value));
+    document.getElementById('toggleAi').addEventListener('click', () => {
+      const panel = document.getElementById('aiPanel');
+      panel.classList.toggle('collapsed');
+      document.getElementById('toggleAi').textContent = panel.classList.contains('collapsed')
+        ? 'AI 洞察面板收合 ▼'
+        : 'AI 洞察面板收合 ▲';
+    });
+  </script>
+</body>
+</html>

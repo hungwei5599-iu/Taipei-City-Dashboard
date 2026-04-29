@@ -1,0 +1,120 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5199, 25.0421] },
+      "properties": { "name": "中正展演活動", "city": "taipei", "kinds": ["event"], "modules": [1], "color": "#4FA3FF", "status": "展覽", "value": 12 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5434, 25.0262] },
+      "properties": { "name": "大安音樂活動", "city": "taipei", "kinds": ["event"], "modules": [1], "color": "#A16EFF", "status": "音樂", "value": 10 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.4584, 25.0119] },
+      "properties": { "name": "板橋 435 親子活動", "city": "newtaipei", "kinds": ["event"], "modules": [1], "color": "#F9A03F", "status": "親子", "value": 9 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5074, 25.0421] },
+      "properties": { "name": "西門町", "city": "taipei", "kinds": ["crowd"], "modules": [2], "color": "#F05D5E", "status": "紅燈 85%", "value": 85 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5637, 25.0330] },
+      "properties": { "name": "信義商圈", "city": "taipei", "kinds": ["crowd"], "modules": [2], "color": "#F05D5E", "status": "紅燈 82%", "value": 82 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5206, 25.0528] },
+      "properties": { "name": "中山站商圈", "city": "taipei", "kinds": ["crowd"], "modules": [2], "color": "#F9A03F", "status": "黃燈 62%", "value": 62 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[121.536, 25.034], [121.552, 25.034], [121.552, 25.022], [121.536, 25.022], [121.536, 25.034]]] },
+      "properties": { "name": "大安文化高密度區", "city": "taipei", "kinds": ["culture"], "modules": [3], "color": "#59D987", "status": "每萬人 3.2 處", "value": 92 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[121.369, 25.092], [121.397, 25.092], [121.397, 25.067], [121.369, 25.067], [121.369, 25.092]]] },
+      "properties": { "name": "林口文化缺口區", "city": "newtaipei", "kinds": ["culture"], "modules": [3], "color": "#F9A03F", "status": "每萬人 0.8 處", "value": 24 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5176, 25.0463] },
+      "properties": { "name": "台北車站 B1 AED", "city": "taipei", "kinds": ["aed"], "modules": [4], "color": "#59D987", "status": "交通場站", "value": 1 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5663, 25.0338] },
+      "properties": { "name": "信義行政中心 AED", "city": "taipei", "kinds": ["aed"], "modules": [4], "color": "#59D987", "status": "公共機關", "value": 1 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.3912, 25.0707] },
+      "properties": { "name": "林口住宅 AED 缺口", "city": "newtaipei", "kinds": ["aed"], "modules": [4], "color": "#F05D5E", "status": "覆蓋不足", "value": 4.1 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5181, 25.0410] },
+      "properties": { "name": "台大醫院急診", "city": "taipei", "kinds": ["er"], "modules": [5], "color": "#F05D5E", "status": "紅燈 88%", "value": 88 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5498, 25.0377] },
+      "properties": { "name": "國泰醫院急診", "city": "taipei", "kinds": ["er"], "modules": [5], "color": "#59D987", "status": "綠燈 41%", "value": 41 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.4527, 24.9976] },
+      "properties": { "name": "亞東醫院急診", "city": "newtaipei", "kinds": ["er"], "modules": [5], "color": "#F05D5E", "status": "紅燈 83%", "value": 83 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[121.494, 25.045], [121.511, 25.045], [121.511, 25.032], [121.494, 25.032], [121.494, 25.045]]] },
+      "properties": { "name": "萬華食安關注區", "city": "taipei", "kinds": ["food"], "modules": [6], "color": "#F9A03F", "status": "合格率 90.1%", "value": 90.1 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[121.486, 25.008], [121.516, 25.008], [121.516, 24.987], [121.486, 24.987], [121.486, 25.008]]] },
+      "properties": { "name": "中和食安關注區", "city": "newtaipei", "kinds": ["food"], "modules": [6], "color": "#F05D5E", "status": "合格率 89.3%", "value": 89.3 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[121.486, 25.059], [121.548, 25.059], [121.548, 25.020], [121.486, 25.020], [121.486, 25.059]]] },
+      "properties": { "name": "劇本 001 影響範圍", "city": "metrotaipei", "kinds": ["scenario"], "modules": [7, 10], "color": "#F05D5E", "status": "強颱+淹水", "value": 92 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5432, 25.0269] },
+      "properties": { "name": "大安備援收容缺口", "city": "taipei", "kinds": ["shelter"], "modules": [8], "color": "#F05D5E", "status": "缺口率 41%", "value": 41 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5016, 24.9997] },
+      "properties": { "name": "中和備援收容缺口", "city": "newtaipei", "kinds": ["shelter"], "modules": [8], "color": "#F05D5E", "status": "缺口率 38%", "value": 38 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5718, 24.9898] },
+      "properties": { "name": "文山收容盈餘", "city": "taipei", "kinds": ["shelter"], "modules": [8], "color": "#59D987", "status": "盈餘 8%", "value": 8 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5012, 25.0339] },
+      "properties": { "name": "萬華西藏路感測", "city": "taipei", "kinds": ["flood"], "modules": [7, 9, 10], "color": "#F05D5E", "status": "8cm 上升中", "value": 8 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5352, 25.0325] },
+      "properties": { "name": "建國南路地下道", "city": "taipei", "kinds": ["flood"], "modules": [9, 10], "color": "#F9A03F", "status": "7cm 上升中", "value": 7 }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "LineString", "coordinates": [[121.501, 25.047], [121.506, 25.044], [121.512, 25.041]] },
+      "properties": { "name": "中正橋管制段", "city": "metrotaipei", "kinds": ["decision"], "modules": [10], "color": "#F05D5E", "status": "高優先管制", "value": 95 }
+    }
+  ]
+}

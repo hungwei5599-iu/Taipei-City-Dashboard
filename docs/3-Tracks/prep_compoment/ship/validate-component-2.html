@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>組件 2 快速驗證：景點人潮即時燈號</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* DATA SOURCE: mock — Based on travel.taipei definitions */
+        :root {
+            --bg: #121218;
+            --surface: #1c1c28;
+            --surface2: #23233a;
+            --border: rgba(255,255,255,0.08);
+            --text: #e4e4f0;
+            --text-dim: #8888aa;
+            --accent: #7c6ef5;
+            --status-green: #22c55e;
+            --status-yellow: #eab308;
+            --status-red: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Sans TC', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            justify-content: space-between;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        h1 { font-size: 16px; font-weight: 600; }
+        select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            outline: none;
+        }
+        .main { display: flex; flex: 1; min-height: 0; }
+        .map-container { flex: 0 0 60%; position: relative; border-right: 1px solid var(--border); }
+        #map { width: 100%; height: 100%; }
+        .side-panel { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: var(--surface); }
+        .section { padding: 20px; border-bottom: 1px solid var(--border); }
+        .section-title { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .kpi-card { background: var(--surface2); padding: 15px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
+        .kpi-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+        .kpi-label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+        .gauge-area { display: flex; flex-direction: column; align-items: center; }
+        .location-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
+        .status-badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; margin-bottom: 10px; }
+        .status-red { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .status-yellow { background: rgba(234,179,8,0.2); color: #fde68a; }
+        .status-green { background: rgba(34,197,94,0.2); color: #86efac; }
+
+        .ai-panel { padding: 20px; background: rgba(124,110,245,0.05); margin: 20px; border-radius: 12px; border: 1px dashed var(--accent); }
+        .ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--accent); font-weight: 700; font-size: 14px; }
+        .ai-content { font-size: 13px; line-height: 1.6; color: var(--text); }
+
+        .legend { position: absolute; bottom: 20px; left: 20px; background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; z-index: 10; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .legend-circle { width: 10px; height: 10px; border-radius: 50%; }
+
+        #timelineChart { width: 100%; height: 200px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <span class="logo-badge">SYS.06</span>
+            <h1>景點人潮即時燈號</h1>
+        </div>
+        <div class="header-right">
+            <select id="citySelect">
+                <option value="Taipei">🏙️ 台北市</option>
+                <option value="Metro-Taipei">🌏 雙北</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-circle" style="background:var(--status-green)"></div>舒適 (&lt; 50%)</div>
+                <div class="legend-item"><div class="legend-circle" style="background:var(--status-yellow)"></div>略擠 (50-80%)</div>
+                <div class="legend-item"><div class="legend-circle" style="background:var(--status-red)"></div>擁擠 (&gt; 80%)</div>
+            </div>
+        </div>
+        <div class="side-panel">
+            <div class="section gauge-area">
+                <div class="location-name" id="selectedLocation">西門町商圈</div>
+                <div class="status-badge status-red" id="statusBadge">🔴 擁擠 (85%)</div>
+                <div id="gaugeChart"></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">24 小時人潮趨勢</div>
+                <div id="timelineChart"></div>
+            </div>
+
+            <div class="ai-panel">
+                <div class="ai-header">✦ AI 洞察摘要</div>
+                <div class="ai-content" id="aiInsight">
+                    西門町目前人潮為紅燈（約 85% 容量），過去 3 小時持續上升。歷史數據顯示週六下午 2-5 點為尖峰，建議改往鄰近的中山站商圈（目前黃燈 62%）或大稻埕（綠燈 38%）。
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">熱門景點排行</div>
+                <div class="kpi-grid" id="rankList">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATA SOURCE: mock
+        const locations = [
+            { id: 1, name: '西門町商圈', city: 'Taipei', lat: 25.042, lng: 121.508, val: 85, status: 'red' },
+            { id: 2, name: '台北 101', city: 'Taipei', lat: 25.034, lng: 121.564, val: 65, status: 'yellow' },
+            { id: 3, name: '故宮博物院', city: 'Taipei', lat: 25.102, lng: 121.548, val: 32, status: 'green' },
+            { id: 4, name: '大稻埕碼頭', city: 'Taipei', lat: 25.056, lng: 121.507, val: 38, status: 'green' },
+            { id: 5, name: '中山商圈', city: 'Taipei', lat: 25.051, lng: 121.521, val: 62, status: 'yellow' },
+            { id: 6, name: '淡水老街', city: 'NewTaipei', lat: 25.170, lng: 121.442, val: 92, status: 'red' },
+            { id: 7, name: '府中商圈', city: 'NewTaipei', lat: 25.008, lng: 121.459, val: 58, status: 'yellow' }
+        ];
+
+        // 1. Setup Map
+        mapboxgl.accessToken = '<YOUR_MAPBOX_ACCESS_TOKEN>';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'carto-dark': {
+                        type: 'raster',
+                        tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'],
+                        tileSize: 256,
+                    }
+                },
+                layers: [{ id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark' }]
+            },
+            center: [121.52, 25.05],
+            zoom: 11.5
+        });
+
+        map.on('load', () => {
+            map.addSource('pois', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: locations.map(l => ({
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
+                        properties: { ...l }
+                    }))
+                }
+            });
+
+            map.addLayer({
+                id: 'poi-circles',
+                type: 'circle',
+                source: 'pois',
+                paint: {
+                    'circle-radius': 12,
+                    'circle-color': [
+                        'match', ['get', 'status'],
+                        'red', '#ef4444',
+                        'yellow', '#eab308',
+                        'green', '#22c55e',
+                        '#ccc'
+                    ],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            map.on('click', 'poi-circles', (e) => {
+                const props = e.features[0].properties;
+                updateSidePanel(props);
+            });
+        });
+
+        // 2. Charts
+        let gaugeChart, timelineChart;
+
+        function initCharts() {
+            // Gauge
+            const gaugeOptions = {
+                series: [85],
+                chart: { height: 250, type: 'radialBar' },
+                plotOptions: {
+                    radialBar: {
+                        startAngle: -135,
+                        endAngle: 135,
+                        hollow: { size: '70%' },
+                        track: { background: '#23233a' },
+                        dataLabels: {
+                            name: { show: false },
+                            value: { fontSize: '30px', fontWeight: 'bold', color: '#fff', formatter: (v) => v + '%' }
+                        }
+                    }
+                },
+                colors: ['#ef4444'],
+                labels: ['壅塞度'],
+            };
+            gaugeChart = new ApexCharts(document.querySelector("#gaugeChart"), gaugeOptions);
+            gaugeChart.render();
+
+            // Timeline
+            const timelineOptions = {
+                series: [{
+                    name: '人潮比例',
+                    data: [30, 25, 20, 18, 15, 20, 35, 50, 65, 75, 80, 85, 90, 88, 85, 82, 85, 88, 82, 75, 60, 50, 40, 35]
+                }],
+                chart: { type: 'area', height: 200, toolbar: { show: false }, background: 'transparent' },
+                colors: ['#7c6ef5'],
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.2, stops: [0, 90, 100] } },
+                dataLabels: { enabled: false },
+                stroke: { curve: 'smooth', width: 2 },
+                xaxis: { categories: Array.from({length: 24}, (_, i) => i + ':00'), labels: { style: { colors: '#8888aa', fontSize: '10px' } } },
+                yaxis: { max: 100, labels: { style: { colors: '#8888aa' } } },
+                grid: { borderColor: 'rgba(255,255,255,0.05)' }
+            };
+            timelineChart = new ApexCharts(document.querySelector("#timelineChart"), timelineOptions);
+            timelineChart.render();
+        }
+
+        function updateSidePanel(data) {
+            document.getElementById('selectedLocation').innerText = data.name;
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = `${data.status === 'red' ? '🔴 擁擠' : (data.status === 'yellow' ? '🟡 略擠' : '🟢 舒適')} (${data.val}%)`;
+            badge.className = `status-badge status-${data.status}`;
+            
+            gaugeChart.updateOptions({ colors: [data.status === 'red' ? '#ef4444' : (data.status === 'yellow' ? '#eab308' : '#22c55e')] });
+            gaugeChart.updateSeries([data.val]);
+
+            // Mock different curve
+            const base = data.val;
+            const newData = Array.from({length: 24}, () => Math.max(0, Math.min(100, base - 20 + Math.random() * 40)));
+            timelineChart.updateSeries([{ data: newData }]);
+
+            // Update AI Insight
+            document.getElementById('aiInsight').innerText = `${data.name}目前正在處於${data.status === 'red' ? '高峰期' : (data.status === 'yellow' ? '適中狀態' : '離峰期')}。建議${data.val > 70 ? '延後前往或選擇鄰近景點' : '適合前往'}。`;
+        }
+
+        function renderRank() {
+            const container = document.getElementById('rankList');
+            container.innerHTML = locations.sort((a,b) => b.val - a.val).map(l => `
+                <div class="kpi-card">
+                    <div class="kpi-value" style="color:var(--status-${l.status})">${l.val}%</div>
+                    <div class="kpi-label">${l.name}</div>
+                </div>
+            `).join('');
+        }
+
+        initCharts();
+        renderRank();
+
+        document.getElementById('citySelect').addEventListener('change', (e) => {
+            const city = e.target.value;
+            const filtered = city === 'Taipei' ? locations.filter(l => l.city === 'Taipei') : locations;
+            map.getSource('pois').setData({
+                type: 'FeatureCollection',
+                features: filtered.map(l => ({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
+                    properties: { ...l }
+                }))
+            });
+            if (city === 'Taipei') map.flyTo({ center: [121.52, 25.05], zoom: 12 });
+            else map.flyTo({ center: [121.48, 25.08], zoom: 11 });
+        });
+    </script>
+</body>
+</html>

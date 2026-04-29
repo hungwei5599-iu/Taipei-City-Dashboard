@@ -1,0 +1,70 @@
+<mxGraphModel background="#F2EFE8" grid="0" tooltips="0" connect="0" arrows="0" fold="0" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <!-- Outer Border -->
+    <mxCell id="border" value="" style="rounded=0;arcSize=3;fillColor=none;strokeColor=#B9B3AB;strokeWidth=1.5;pointerEvents=0;" vertex="1" parent="1">
+      <mxGeometry x="20" y="20" width="1614" height="600" as="geometry"/>
+    </mxCell>
+    <!-- Title -->
+    <mxCell id="title" value="組件快速驗證 (Quick Validator) 執行流程 — 含比賽紅線檢查" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontStyle=1;fontSize=32;fontColor=#1F1F1C;" vertex="1" parent="1">
+      <mxGeometry x="80" y="40" width="1200" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Phase 0 -->
+    <mxCell id="p0" value="Phase 0&lt;br/&gt;解析目標組件規格" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#F8E9E1;strokeColor=#D88966;strokeWidth=1.8;fontColor=#D88966;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="250" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Phase 1 -->
+    <mxCell id="p1" value="Phase 1&lt;br/&gt;資料可達性驗證&lt;br/&gt;(curl only)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="340" y="250" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Phase 2 -->
+    <mxCell id="p2" value="Phase 2&lt;br/&gt;產生自包含&lt;br/&gt;HTML 預覽" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="620" y="250" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Phase 3 -->
+    <mxCell id="p3" value="Phase 3&lt;br/&gt;視覺驗證&lt;br/&gt;(Claude Preview)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="900" y="250" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Phase 4 (Warning) -->
+    <mxCell id="p4" value="Phase 4&lt;br/&gt;紅線合規審視" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#F3E4DA;strokeColor=#C88E6A;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="250" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Ready (Success) -->
+    <mxCell id="ready" value="Ready for Harness&lt;br/&gt;輸出報告" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#CFE8D7;strokeColor=#71AE88;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="1380" y="450" width="220" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Red Line Callout -->
+    <mxCell id="red_lines" value="&lt;b&gt;⛔ 比賽紅線清單&lt;/b&gt;&lt;br/&gt;1. 限用 ApexCharts&lt;br/&gt;2. 限用 TWCC Proxy AI&lt;br/&gt;3. 嚴禁前端直接呼叫 AI&lt;br/&gt;4. 限用 5 種標準資料格式&lt;br/&gt;5. 禁止未核准 NPM 套件" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;fillColor=#F8DFDA;strokeColor=#D96B63;strokeWidth=1.5;fontColor=#2D2B28;fontSize=18;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="400" width="300" height="160" as="geometry"/>
+    </mxCell>
+
+    <!-- Connections -->
+    <mxCell id="e01" edge="1" source="p0" target="p1" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e12" edge="1" source="p1" target="p2" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e23" edge="1" source="p2" target="p3" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e34" edge="1" source="p3" target="p4" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4r" edge="1" source="p4" target="ready" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4rl" edge="1" source="p4" target="red_lines" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#D96B63;strokeWidth=1.8;rounded=1;dashed=1;dashPattern=6 6;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

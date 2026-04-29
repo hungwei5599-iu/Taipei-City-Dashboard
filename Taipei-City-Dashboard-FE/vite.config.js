@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import viteCompression from "vite-plugin-compression";
+import { fileURLToPath, URL } from "node:url";
 
 // 嘗試讀取環境變數，若不存在則回傳 false
 let isDockerCompose = process?.env.DOCKER_COMPOSE === "true"; // eslint-disable-line no-undef
@@ -8,8 +9,8 @@ let isDockerCompose = process?.env.DOCKER_COMPOSE === "true"; // eslint-disable-
 const serverConfig = isDockerCompose
 	? {
 		// Docker Compose override config
-		host: "0.0.0.0",
-		port: 80, // 如有需要可變更 port
+		host: true, // Listen on all addresses (0.0.0.0)
+		port: 80,
 		proxy: {
 			"/api/dev": {
 				target: "http://dashboard-be:8080",
@@ -37,6 +38,17 @@ const serverConfig = isDockerCompose
 
 export default defineConfig({
 	plugins: [vue(), viteCompression()],
+	resolve: {
+		alias: {
+			"@": fileURLToPath(new URL("./src", import.meta.url)),
+		},
+	},
+	server: {
+		...serverConfig,
+		hmr: {
+			clientPort: 80,
+		},
+	},
 	build: {
 		rollupOptions: {
 			output: {

@@ -63,7 +63,7 @@ const chartOptions = ref({
 	},
 	colors: [...props.chart_config.color],
 	dataLabels: {
-		enabled: props.chart_config.categories ? false : true,
+		enabled: false,
 		offsetY: 20,
 	},
 	grid: {
@@ -71,13 +71,13 @@ const chartOptions = ref({
 	},
 	legend: isLargeDataSet.value
 		? {
-			show: props.chart_config.categories ? true : false,
+			show: props.series.length > 1 || props.chart_config.categories ? true : false,
 			horizontalAlign: "left",
 			offsetX: 20,
 			floating: true,
 		  }
 		: {
-			show: props.chart_config.categories ? true : false,
+			show: props.series.length > 1 || props.chart_config.categories ? true : false,
 		  },
 	plotOptions: {
 		bar: {
@@ -90,7 +90,7 @@ const chartOptions = ref({
 	stroke: {
 		colors: ["#282a2c"],
 		show: true,
-		width: 2,
+		width: 0,
 	},
 	tooltip: {
 		// The class "chart-tooltip" could be edited in /assets/styles/chartStyles.css

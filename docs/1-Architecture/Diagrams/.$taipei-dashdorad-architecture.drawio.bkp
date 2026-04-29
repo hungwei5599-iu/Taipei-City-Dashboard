@@ -1,0 +1,94 @@
+<mxGraphModel background="#F2EFE8" grid="0" tooltips="0" connect="0" arrows="0" fold="0" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <!-- Outer Border -->
+    <mxCell id="border" value="" style="rounded=0;arcSize=3;fillColor=none;strokeColor=#B9B3AB;strokeWidth=1.5;pointerEvents=0;" vertex="1" parent="1">
+      <mxGeometry x="20" y="20" width="1614" height="1000" as="geometry"/>
+    </mxCell>
+    <!-- Title -->
+    <mxCell id="title" value="Taipei Dashdorad 完整技術架構圖" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontStyle=1;fontSize=32;fontColor=#1F1F1C;" vertex="1" parent="1">
+      <mxGeometry x="80" y="40" width="1200" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- External: Frontend Dev -->
+    <mxCell id="fe_dev" value="前端開發環境&lt;br/&gt;(Vue 3 + Vite)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF4FB;strokeColor=#6FA8D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="60" y="150" width="280" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="fe_libs" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;ApexCharts &amp; Mapbox GL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="80" y="260" width="240" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- Docker Stack Group -->
+    <mxCell id="docker_stack" value="&lt;font style=&quot;font-size: 22px;&quot;&gt;Docker Compose Stack (生產/模擬環境)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;arcSize=4;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=2;fontSize=18;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=63;horizontal=1;html=1;" vertex="1" parent="1">
+      <mxGeometry x="400" y="150" width="1000" height="750" as="geometry"/>
+    </mxCell>
+
+    <!-- Subgroup: BE Services -->
+    <mxCell id="be_group" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;後端核心服務 (BE)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;arcSize=6;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontSize=16;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=50;horizontal=1;html=1;" vertex="1" parent="docker_stack">
+      <mxGeometry x="40" y="100" width="440" height="600" as="geometry"/>
+    </mxCell>
+    <mxCell id="be_go" value="Go API Service&lt;br/&gt;(Gin Framework)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="be_group">
+      <mxGeometry x="100" y="100" width="240" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="be_ai_proxy" value="AI Agent Proxy&lt;br/&gt;(llm-ffm-70b)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#D7E6DC;strokeColor=#7FB08F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="be_group">
+      <mxGeometry x="100" y="260" width="240" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="be_tools" value="13 x AI Tools&lt;br/&gt;(hackathon.go)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EEEAF9;strokeColor=#9A90D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="be_group">
+      <mxGeometry x="100" y="420" width="240" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- Subgroup: DB Storage -->
+    <mxCell id="db_group" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;資料與存儲 (Storage)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;arcSize=6;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontSize=16;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=50;horizontal=1;html=1;" vertex="1" parent="docker_stack">
+      <mxGeometry x="520" y="100" width="440" height="600" as="geometry"/>
+    </mxCell>
+    <mxCell id="db_pg" value="PostgreSQL 16&lt;br/&gt;+ PostGIS" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="db_group">
+      <mxGeometry x="100" y="100" width="240" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="db_qdrant" value="Qdrant&lt;br/&gt;(Vector DB)" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="db_group">
+      <mxGeometry x="100" y="260" width="240" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="db_redis" value="Redis&lt;br/&gt;(Cache / PubSub)" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="db_group">
+      <mxGeometry x="100" y="420" width="240" height="120" as="geometry"/>
+    </mxCell>
+
+    <!-- External: AI Provider -->
+    <mxCell id="twcc_ai" value="TWCC llama3.3&lt;br/&gt;Remote Proxy" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#D7E6DC;strokeColor=#7FB08F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="1300" y="410" width="240" height="100" as="geometry"/>
+    </mxCell>
+
+    <!-- External: Airflow -->
+    <mxCell id="airflow" value="Airflow DE 層&lt;br/&gt;(數據流水線)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EEEAF9;strokeColor=#9A90D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" vertex="1" parent="1">
+      <mxGeometry x="60" y="550" width="280" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="open_data" value="台北/新北 Open Data" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#F8E9E1;strokeColor=#D88966;strokeWidth=1.8;fontColor=#D88966;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="700" width="280" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Connections -->
+    <mxCell id="e_fe_be" edge="1" source="fe_dev" target="be_go" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint as="offset"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_be_db" edge="1" source="be_go" target="db_pg" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_be_ai" edge="1" source="be_go" target="be_ai_proxy" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_ai_tools" edge="1" source="be_ai_proxy" target="be_tools" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_ai_remote" edge="1" source="be_ai_proxy" target="twcc_ai" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7FB08F;strokeWidth=1.8;rounded=1;dashed=1;dashPattern=6 6;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_data_airflow" edge="1" source="open_data" target="airflow" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#D88966;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e_airflow_db" edge="1" source="airflow" target="db_pg" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#9A90D6;strokeWidth=1.8;rounded=1;" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

@@ -1,0 +1,85 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram id="OfW3fAxskgNMcLtPDiiT" name="第 1 页">
+    <mxGraphModel dx="1718" dy="1153" grid="0" gridSize="10" guides="1" tooltips="0" connect="0" arrows="0" fold="0" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" background="#F2EFE8" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="border" parent="1" style="rounded=0;arcSize=3;fillColor=none;strokeColor=#B9B3AB;strokeWidth=1.5;pointerEvents=0;" value="" vertex="1">
+          <mxGeometry height="1000" width="1614" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;fontStyle=1;fontSize=32;fontColor=#1F1F1C;" value="Taipei Dashdorad 完整技術架構圖" vertex="1">
+          <mxGeometry height="60" width="1200" x="80" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_dev" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EAF4FB;strokeColor=#6FA8D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="前端開發環境&lt;br/&gt;(Vue 3 + Vite)" vertex="1">
+          <mxGeometry height="100" width="280" x="60" y="328" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_libs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;ApexCharts &amp; Mapbox GL&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="240" x="80" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="docker_stack" parent="1" style="rounded=1;whiteSpace=wrap;arcSize=4;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=2;fontSize=18;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=63;horizontal=1;html=1;" value="&lt;font style=&quot;font-size: 22px;&quot;&gt;Docker Compose Stack (生產/模擬環境)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="750" width="1000" x="400" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="be_group" parent="docker_stack" style="rounded=1;whiteSpace=wrap;arcSize=6;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontSize=16;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=50;horizontal=1;html=1;" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;後端核心服務 (BE)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="600" width="440" x="40" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="be_go" parent="be_group" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Go API Service&lt;br/&gt;(Gin Framework)" vertex="1">
+          <mxGeometry height="100" width="240" x="100" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="be_ai_proxy" parent="be_group" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#D7E6DC;strokeColor=#7FB08F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="AI Agent Proxy&lt;br/&gt;(llm-ffm-70b)" vertex="1">
+          <mxGeometry height="100" width="240" x="100" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="be_tools" parent="be_group" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EEEAF9;strokeColor=#9A90D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="13 x AI Tools&lt;br/&gt;(hackathon.go)" vertex="1">
+          <mxGeometry height="100" width="240" x="100" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="db_group" parent="docker_stack" style="rounded=1;whiteSpace=wrap;arcSize=6;fillColor=#FAF8F4;strokeColor=#8C867F;strokeWidth=1.8;fontSize=16;fontStyle=1;fontColor=#5F5A54;swimlane;startSize=50;horizontal=1;html=1;" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;資料與存儲 (Storage)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="600" width="440" x="520" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="db_pg" parent="db_group" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="PostgreSQL 16&lt;br/&gt;+ PostGIS" vertex="1">
+          <mxGeometry height="120" width="240" x="100" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="db_qdrant" parent="db_group" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Qdrant&lt;br/&gt;(Vector DB)" vertex="1">
+          <mxGeometry height="120" width="240" x="100" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="db_redis" parent="db_group" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#E6E2DA;strokeColor=#8C867F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Redis&lt;br/&gt;(Cache / PubSub)" vertex="1">
+          <mxGeometry height="120" width="240" x="100" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="twcc_ai" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#D7E6DC;strokeColor=#7FB08F;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="TWCC llama3.3&lt;br/&gt;Remote Proxy" vertex="1">
+          <mxGeometry height="100" width="240" x="69" y="617" as="geometry" />
+        </mxCell>
+        <mxCell id="airflow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#EEEAF9;strokeColor=#9A90D6;strokeWidth=1.8;fontColor=#2D2B28;fontSize=20;" value="Airflow DE 層&lt;br/&gt;(數據流水線)" vertex="1">
+          <mxGeometry height="100" width="280" x="1418" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="open_data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#F8E9E1;strokeColor=#D88966;strokeWidth=1.8;fontColor=#D88966;fontSize=20;fontStyle=1;" value="台北/新北 Open Data" vertex="1">
+          <mxGeometry height="60" width="280" x="1418" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fe_be" edge="1" parent="1" source="fe_dev" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="be_go">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="469" y="378" />
+              <mxPoint x="469" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_be_db" edge="1" parent="1" source="be_go" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="db_pg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_be_ai" edge="1" parent="1" source="be_go" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="be_ai_proxy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai_tools" edge="1" parent="1" source="be_ai_proxy" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7A756E;strokeWidth=1.8;rounded=1;" target="be_tools">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai_remote" edge="1" parent="1" source="be_ai_proxy" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#7FB08F;strokeWidth=1.8;rounded=1;dashed=1;dashPattern=6 6;" target="twcc_ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_data_airflow" edge="1" parent="1" source="open_data" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#D88966;strokeWidth=1.8;rounded=1;" target="airflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_airflow_db" edge="1" parent="1" source="airflow" style="endArrow=open;endSize=14;edgeStyle=orthogonalEdgeStyle;strokeColor=#9A90D6;strokeWidth=1.8;rounded=1;" target="db_pg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

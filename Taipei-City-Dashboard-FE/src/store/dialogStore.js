@@ -44,6 +44,7 @@ export const useDialogStore = defineStore("dialog", {
 			addPin: false,
 			addViewPoint: false,
 			findClosestPoint: false,
+			routePlanner: false,
 		},
 		// Stores the content for notifications
 		notification: {
@@ -68,6 +69,10 @@ export const useDialogStore = defineStore("dialog", {
 		// Show the dialog passed into the function
 		showDialog(dialog) {
 			this.dialogs[dialog] = true;
+		},
+		// Hide a specific dialog
+		hideDialog(dialog) {
+			this.dialogs[dialog] = false;
 		},
 		// Will hide all dialogs currently active
 		hideAllDialogs() {

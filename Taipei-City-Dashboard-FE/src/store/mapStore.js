@@ -95,6 +95,12 @@ export const useMapStore = defineStore("map", {
 		layerUpdateTime: {
 			// [layerId]: Date
 		},
+		// 避災路線規劃
+		routePlannerStart: null,
+		routePlannerEnd: null,
+		routeResult: null,
+		routeDangerPoints: [],
+		disasterLayers: null,
 	}),
 	actions: {
 		/* Initialize Mapbox */
@@ -130,8 +136,16 @@ export const useMapStore = defineStore("map", {
 					});
 					this.map.addControl(this.overlay);
 					this.initializeBasicLayers();
+					this.fetchDisasterLayers();
 				})
 				.on("click", (event) => {
+					// 路線規劃模式：捕捉點擊座標
+					const dialogStore = useDialogStore();
+					if (dialogStore.dialogs.routePlanner) {
+						const { lng, lat } = event.lngLat;
+						this.setRoutePlannerPoint([lng, lat]);
+						return;
+					}
 					if (this.popup) {
 						this.popup = null;
 					}
@@ -401,6 +415,90 @@ export const useMapStore = defineStore("map", {
 			// 	this.map.setLayoutProperty("tp_village", "visibility", "none");
 			// }
 		},
+		/* Route Planner */
+		setRoutePlannerPoint(lngLat) {
+			if (!this.routePlannerStart) {
+				this.routePlannerStart = lngLat;
+				if (!this._startMarker) {
+					this._startMarker = new mapboxGl.Marker({
+						color: "#2ecc71",
+					});
+				}
+				this._startMarker.setLngLat(lngLat).addTo(this.map);
+			} else if (!this.routePlannerEnd) {
+				this.routePlannerEnd = lngLat;
+				if (!this._endMarker) {
+					this._endMarker = new mapboxGl.Marker({ color: "#e74c3c" });
+				}
+				this._endMarker.setLngLat(lngLat).addTo(this.map);
+			} else {
+				// 已有起終點：更新終點而非重置
+				this.routePlannerEnd = lngLat;
+				if (!this._endMarker) {
+					this._endMarker = new mapboxGl.Marker({ color: "#e74c3c" });
+				}
+				this._endMarker.setLngLat(lngLat).addTo(this.map);
+				this.routeResult = null;
+				this.routeDangerPoints = [];
+				this._removeRouteLayers();
+			}
+		},
+		setRouteResult(routeGeojson, dangerPoints) {
+			this.routeResult = routeGeojson;
+			this.routeDangerPoints = dangerPoints;
+			this._removeRouteLayers();
+
+			this.map.addSource("route-source", {
+				type: "geojson",
+				data: routeGeojson,
+			});
+			this.map.addLayer({
+				id: "route-line",
+				type: "line",
+				source: "route-source",
+				paint: {
+					"line-color": "#2ecc71",
+					"line-width": 4,
+					"line-opacity": 0.9,
+				},
+			});
+
+			if (dangerPoints.length > 0) {
+				this.map.addSource("danger-source", {
+					type: "geojson",
+					data: { type: "FeatureCollection", features: dangerPoints },
+				});
+				this.map.addLayer({
+					id: "danger-points",
+					type: "circle",
+					source: "danger-source",
+					paint: {
+						"circle-color": "#f39c12",
+						"circle-radius": 8,
+						"circle-stroke-color": "white",
+						"circle-stroke-width": 2,
+					},
+				});
+			}
+		},
+		clearRoutePlanner() {
+			this.routePlannerStart = null;
+			this.routePlannerEnd = null;
+			this.routeResult = null;
+			this.routeDangerPoints = [];
+			this._removeRouteLayers();
+			if (this._startMarker) this._startMarker.remove();
+			if (this._endMarker) this._endMarker.remove();
+		},
+		_removeRouteLayers() {
+			["route-line", "danger-points"].forEach((id) => {
+				if (this.map.getLayer(id)) this.map.removeLayer(id);
+			});
+			["route-source", "danger-source"].forEach((id) => {
+				if (this.map.getSource(id)) this.map.removeSource(id);
+			});
+		},
+
 		// 6. Set User Location
 		setCurrentLocation() {
 			if (navigator.geolocation) {
@@ -2251,7 +2349,28 @@ export const useMapStore = defineStore("map", {
 			this.viewPoints = res.data;
 			if (this.map) this.renderMarkers();
 		},
-		// 6. Render all markers
+		// 6. Fetch disaster layers used by the route planner
+		async fetchDisasterLayers() {
+			try {
+				const res = await axios.get(
+					"http://localhost:8088/api/v1/disaster/layers",
+					{
+						params: {
+							scenario: "130mm",
+							kinds: "flood_polygon",
+						},
+					},
+				);
+				this.disasterLayers = res.data;
+			} catch (error) {
+				console.error("Failed to fetch disaster layers", error);
+				this.disasterLayers = {
+					type: "FeatureCollection",
+					features: [],
+				};
+			}
+		},
+		// 7. Render all markers
 		renderMarkers() {
 			if (!this.viewPoints.length) return;
 
