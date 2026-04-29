@@ -140,7 +140,7 @@ export const useScenarioStore = defineStore("scenario", {
 			this.activeCity = this.activeCity === 'Taipei' ? 'Metro-Taipei' : 'Taipei';
 		},
 		compareWith(otherId) {
-			console.log("Compare", this.activeScenarioId, "with", otherId);
+			console.warn("Compare", this.activeScenarioId, "with", otherId);
 			// Future feature
 		}
 	}

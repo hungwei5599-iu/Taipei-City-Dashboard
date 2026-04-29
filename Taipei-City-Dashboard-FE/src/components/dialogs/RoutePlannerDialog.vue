@@ -47,7 +47,9 @@ async function calculateRoute() {
 			try {
 				const hit = turf.lineIntersect(routeGeojson, poly);
 				pts.push(...hit.features);
-			} catch (_) {}
+			} catch (error) {
+				console.warn("略過無法比對的淹水圖層", error);
+			}
 		}
 
 		safeRoute.value = routeGeojson;
