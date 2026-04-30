@@ -20,6 +20,7 @@ import (
 // AIChatInput matches the Request Schema in specification。https://docs.twcloud.ai/docs/user-guides/twcc/afs/api-and-parameters/api-parameter-information#模型說明
 type AIChatInput struct {
 	SessionID string `json:"session"`
+	Mode      string `json:"mode" binding:"omitempty,oneof=concierge"`
 	Stream    bool   `json:"stream"`
 	Messages  []struct {
 		Role      string `json:"role" binding:"required,oneof=system user assistant tool"`
@@ -94,11 +95,13 @@ func chatWithTWCC(c *gin.Context, includeRegistryTools bool) {
 		UserID:    fmt.Sprintf("%d", accountID),
 		IPAddress: c.ClientIP(),
 		Messages:  input.ToServiceMessages(),
+		Mode:      input.Mode,
 	}
 
 	// 3. Prepare Dynamic Options
 	options := input.ToCallOptions()
-	if includeRegistryTools && len(input.Tools) == 0 {
+	// Automatically include registry tools if mode is concierge OR if explicitly requested via endpoint
+	if (input.Mode == "concierge" || includeRegistryTools) && len(input.Tools) == 0 {
 		options = append(options, llms.WithTools(registryToolDefinitions()))
 	}
 

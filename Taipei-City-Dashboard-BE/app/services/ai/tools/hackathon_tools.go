@@ -78,6 +78,9 @@ func QueryAEDOverview(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢 AED 資料。", nil
+	}
 
 	type AEDRow struct {
 		CityScope    string `gorm:"column:city_scope"`
@@ -122,6 +125,9 @@ func QueryFoodInspectionTrend(ctx context.Context, args string) (string, error) 
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢食品抽驗趨勢。", nil
+	}
 
 	// 年份範圍預設：近 5 年
 	currentYear := time.Now().Year()
@@ -184,6 +190,9 @@ func QueryDeathCauseRanking(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢死因排名。", nil
+	}
 	year := params.Year
 	if year == 0 {
 		year = time.Now().Year() - 1
@@ -250,6 +259,9 @@ func QueryCulturalFacilities(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢文化設施。", nil
+	}
 	limit := params.Limit
 	if limit == 0 || limit > 20 {
 		limit = 10
@@ -298,6 +310,9 @@ func QueryLibraryMap(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢圖書館分布。", nil
+	}
 
 	type LibRow struct {
 		CityScope      string `gorm:"column:city_scope"`
@@ -343,6 +358,9 @@ func QueryShelterGap(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法進行避難缺口分析。", nil
+	}
 
 	type ShelterRow struct {
 		CityScope               string  `gorm:"column:city_scope"`
@@ -413,6 +431,9 @@ func QueryCulturalEvents(ctx context.Context, args string) (string, error) {
 	}
 
 	cityScope := toCityScope(params.City)
+	if models.DBDashboard == nil {
+		return "【系統提示】目前無法連線至儀表板資料庫，無法查詢藝文活動。", nil
+	}
 	limit := params.Limit
 	if limit == 0 || limit > 10 {
 		limit = 5

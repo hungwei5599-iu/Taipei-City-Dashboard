@@ -140,7 +140,7 @@ func TestHackathon_ArgsJSON_Valid(t *testing.T) {
 				t.Skipf("tool %q 尚未註冊，跳過執行測試", tc.tool)
 				return
 			}
-			_, _ = fn(context.Background(), tc.args) // 僅確認不 panic
+			_, _ = fn.Handler(context.Background(), tc.args) // 僅確認不 panic
 		})
 	}
 }

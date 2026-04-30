@@ -37,6 +37,7 @@ type AIChatRequest struct {
 	IPAddress string                 `json:"ip_address"`
 	Messages  []llms.MessageContent  `json:"messages"`
 	Params    map[string]interface{} `json:"params"`
+	Mode      string                 `json:"mode"` // "concierge" or ""
 }
 
 // ChatWithTWCC handles the AI conversation logic including retries, tool calling loop, and logging.
@@ -180,7 +181,16 @@ func (s *aiSession) injectInstructions() {
 		toolNames += t.Function.Name
 	}
 
-	instruction := fmt.Sprintf("\nSystem Instruction:\n1. Use ONLY: [%s].\n2. NEVER nest tool calls \n3. Arguments MUST be literal values (strings, integers, etc.), never function calls \n4. For dependent tasks, call tools sequentially in separate turns.\n5. If stuck, respond with text.", toolNames)
+	instruction := ""
+	if s.req.Mode == "concierge" {
+		tn := make([]string, 0, len(s.callOpts.Tools))
+		for _, t := range s.callOpts.Tools {
+			tn = append(tn, t.Function.Name)
+		}
+		instruction = GetConciergeSystemPrompt(tn)
+	} else {
+		instruction = fmt.Sprintf("\nSystem Instruction:\n1. Use ONLY: [%s].\n2. NEVER nest tool calls \n3. Arguments MUST be literal values (strings, integers, etc.), never function calls \n4. For dependent tasks, call tools sequentially in separate turns.\n5. If stuck, respond with text.", toolNames)
+	}
 	
 	s.currentMessages = make([]llms.MessageContent, 0)
 	merged := false
