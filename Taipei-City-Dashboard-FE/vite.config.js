@@ -23,14 +23,22 @@ const serverConfig = isDockerCompose
 		host: "0.0.0.0",
 		port: 80,
 		proxy: {
-			"/api": {
+			"/api/dev/ai": {
+				target: "http://localhost:8080",
+				changeOrigin: true,
+				secure: false,
+				rewrite: (path) => path.replace(/^\/api\/dev\/ai/, "/api/v1/ai")
+			},
+			"/api/dev": {
 				target: "https://citydashboard.taipei/api/v1",
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, "")
+				secure: false,
+				rewrite: (path) => path.replace(/^\/api\/dev/, "")
 			},
 			"/geo_server": {
 				target: "https://citydashboard.taipei/geo_server/",
 				changeOrigin: true,
+				secure: false,
 				rewrite: (path) => path.replace(/^\/geo_server/, "")
 			}
 		}

@@ -15,6 +15,8 @@ export const useChatStore = defineStore('chat', () => {
   	];
 
 	const recommendComponents = ref(null)
+	const currentMode = ref('recommend') // 'recommend' or 'concierge'
+	const isTyping = ref(false)
 
   	// 從 sessionStorage 讀取
   	const savedChatData = JSON.parse(sessionStorage.getItem('chatData')) || [];
@@ -124,5 +126,42 @@ export const useChatStore = defineStore('chat', () => {
       	}
 	};
 
-	return { chatData, addChatData, addQueryData, saveChatLog }
+	const chatWithLLM = async (userMsg) => {
+		currentMode.value = 'concierge'
+		isTyping.value = true
+		
+		// 1. Add user message
+		addChatData({ role: 'user', content: userMsg })
+
+		try {
+			// 2. Call BE AI Chat API
+			// Note: We use /ai/chat which includeRegistryTools=true
+			const response = await http.post("/ai/chat", {
+				mode: "concierge",
+				messages: chatData.value
+					.filter(m => !m.isDefault)
+					.map(m => ({
+						role: m.role === 'bot' ? 'assistant' : m.role,
+						content: m.content
+					}))
+			});
+
+			if (response.data?.status === "success") {
+				const answer = response.data.data.answer;
+				addChatData({ role: 'bot', content: answer });
+				
+				// If tool was used, we might want to trigger specific UI logic
+				// (e.g. if the answer contains a story, show share button)
+			} else {
+				addChatData({ role: 'bot', content: "抱歉，我現在無法回答這個問題。" });
+			}
+		} catch (error) {
+			console.error("LLM Chat Error:", error);
+			addChatData({ role: 'bot', content: "連線異常，請檢查後端服務。" });
+		} finally {
+			isTyping.value = false
+		}
+	};
+
+	return { chatData, currentMode, isTyping, addChatData, addQueryData, chatWithLLM, saveChatLog }
 })
