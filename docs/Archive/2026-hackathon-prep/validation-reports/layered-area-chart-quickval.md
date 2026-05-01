@@ -26,10 +26,18 @@
 
 ## 視覺預覽
 
-- 圖表渲染：YES，預期產生 5 個 ApexCharts area chart canvas。
+- 圖表渲染：YES，Chrome 本地開啟原型後顯示 5 個 `area chart with 1 data series`。
 - 地圖渲染：N/A，此概念不需要 Mapbox。
 - 佈局符合 quickval 目的：YES，桌面為圖表 + AI placeholder 側欄，手機版改為單欄。
 - 深色主題可讀：YES，使用 `#090909` 背景、`#494b4e` 框線、`#5a9cf8` 強調色。
+
+## 驗證紀錄
+
+- 靜態掃描：HTML 未出現 banned chart library / direct AI provider 關鍵字，結果 `static-compliance-pass`。
+- ApexCharts 引用：HTML 中 `ApexCharts` 出現 4 次，且唯一外部圖表 CDN 為 `https://cdn.jsdelivr.net/npm/apexcharts`。
+- 瀏覽器渲染：Chrome 開啟 `file://.../layered-area-chart-quickval.html` 後，5 個分層 area chart 正常出現。
+- AI panel 收合：按下「收合 AI 洞察 placeholder」後側欄隱藏，5 個圖表仍存在。
+- 城市切換：切換到「雙北」後，更新時間變為 `2026-05-01 16:35`，圖表標籤 peak 數值同步更新。
 
 ## 合規檢查
 
