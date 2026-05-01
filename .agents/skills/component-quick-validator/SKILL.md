@@ -49,18 +49,27 @@
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 spec / contract 只讀寫 `docs/3-Tracks/competition-mvp/`。
+- 快速驗證報告寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 自包含 HTML prototype / screenshot evidence 寫入 `docs/Archive/2026-hackathon-prep/prototype-html/`。
+- `docs/3-Tracks/prep_compoment/` 與 `docs/hackathon/` 只可作 legacy/archive 線索，不得新增 active spec。
+
+---
+
 ## 執行流程（4 個 Phase）
 
 ### Phase 0：讀取目標組件規格
 
 **動作：**
-1. 讀取 `docs/hackathon/01_heat_island/execute/component-specs.md`，找出目標組件的：
+1. 讀取 `docs/3-Tracks/competition-mvp/contracts/fe_component_contracts.md`、`docs/3-Tracks/competition-mvp/contracts/de_dataset_manifest.yaml`、`docs/3-Tracks/competition-mvp/contracts/be_api_ai_contracts.md`，找出目標組件的：
    - 資料源（API URL / 資料集名稱）
    - 圖表類型（對應 Apexcharts type）
    - 地圖圖層需求（有/無、點/面/線）
    - AI Tool schema（tool name + input/output）
    - 雙北切換邏輯（CT 值對應）
-2. 讀取 `docs/hackathon/01_heat_island/review/validation-results.md`，確認已知的 API 狀態
+2. 如需歷史驗證證據，只讀 `docs/Archive/2026-hackathon-prep/validation-reports/`；Archive 內容不得升格為 active spec，除非先改寫進 `competition-mvp/contracts/`。
 
 **輸出：**
 - 一段文字摘要：「組件 N：{名稱}，需要 {X} 個資料源，{Y} 種圖表，地圖={有/無}」
@@ -102,7 +111,7 @@ curl -s "API_URL" | head -c 2000
 
 ### Phase 2：產生自包含 HTML 預覽
 
-**產生一個 HTML 檔案到 `/tmp/validate-component-{N}.html`**
+**產生一個 HTML 檔案到 `docs/Archive/2026-hackathon-prep/prototype-html/`，例如 `component-{N}-quickval.html`。不得把 prototype HTML 放在 active docs 或 repo root。**
 
 HTML 必須包含：
 
@@ -202,7 +211,7 @@ const map = new mapboxgl.Map({
 ```
 
 **報告輸出到：**
-`docs/hackathon/01_heat_island/execute/validation-reports/component-{N}-quickval.md`
+`docs/Archive/2026-hackathon-prep/validation-reports/component-{N}-quickval.md`
 
 **報告格式：**
 
@@ -269,10 +278,11 @@ YES / NO（附原因）
 
 | 檔案 | 用途 |
 |------|------|
-| `docs/hackathon/01_heat_island/execute/component-specs.md` | 10 組件完整規格書 |
-| `docs/hackathon/01_heat_island/plan/execution-plan.md` | 執行計畫 + wireframe |
-| `docs/hackathon/01_heat_island/review/validation-results.md` | API 驗證結果 |
-| `docs/hackathon/00_general/research/data-mapping-results.md` | 資料源 RID 註冊表 |
+| `docs/3-Tracks/competition-mvp/contracts/fe_component_contracts.md` | FE 組件 contract |
+| `docs/3-Tracks/competition-mvp/contracts/de_dataset_manifest.yaml` | DE 資料 manifest |
+| `docs/3-Tracks/competition-mvp/contracts/be_api_ai_contracts.md` | BE API 與 AI Tool contract |
+| `docs/Archive/2026-hackathon-prep/validation-reports/` | 歷史 quick validation 報告 |
+| `docs/Archive/2026-hackathon-prep/prototype-html/` | 歷史 HTML prototype |
 | `Taipei-City-Dashboard-BE/app/services/ai/tools/hackathon.go` | 現有 13 個 tool handler |
 | `Taipei-City-Dashboard-BE/app/services/ai/tools/registry.go` | Tool registry 定義 |
 | `Taipei-City-Dashboard-BE/app/models/componentData.go` | 5 種資料格式定義 |

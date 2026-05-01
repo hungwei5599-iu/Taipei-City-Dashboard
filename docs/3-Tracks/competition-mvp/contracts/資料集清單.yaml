@@ -1,0 +1,96 @@
+version: 1
+last_updated: "2026-05-01"
+scope: competition-mvp
+owner: "賴泓瑋"
+rule: "這份 DE 合約只用於競賽重建。僅可引用官方 fork 與已核准的公開資料；不得把賽前既有程式碼複製進正式競賽倉庫。"
+
+components:
+  - component_id: mvp_map
+    name: 雙北現況熱區地圖
+    decision_question: 哪些行政區或點位最需要優先處理？
+    required_output: hackathon_mvp_situation_map_ready
+    approved_formats:
+      - map_legend
+    required_fields:
+      - city_scope
+      - district_name
+      - latitude
+      - longitude
+      - category
+      - value
+      - status_level
+      - source_trace
+      - data_mode
+      - last_validated_at
+      - lasttime_in_data
+    quality_checks:
+      - row_count_gt_0
+      - city_scope_contains_taipei_and_metro_taipei
+      - coordinates_are_wgs84_or_documented_join
+      - source_trace_not_empty
+
+  - component_id: mvp_trend
+    name: 趨勢與異常圖
+    decision_question: 指標是否正在惡化或出現異常？
+    required_output: hackathon_mvp_trend_ready
+    approved_formats:
+      - time
+    required_fields:
+      - city_scope
+      - district_name
+      - x_axis
+      - y_axis
+      - data
+      - anomaly_flag
+      - source_trace
+      - data_mode
+      - last_validated_at
+      - lasttime_in_data
+    quality_checks:
+      - row_count_gt_0
+      - x_axis_is_parseable_time
+      - anomaly_rule_documented
+      - source_trace_not_empty
+
+  - component_id: mvp_compare
+    name: 臺北 vs 雙北比較卡
+    decision_question: 臺北與雙北整體的差距或服務缺口在哪裡？
+    required_output: hackathon_mvp_compare_ready
+    approved_formats:
+      - two_d
+      - percent
+    required_fields:
+      - city_scope
+      - district_name
+      - metric_name
+      - x_axis
+      - data
+      - rank_order
+      - source_trace
+      - data_mode
+      - last_validated_at
+      - lasttime_in_data
+    quality_checks:
+      - row_count_gt_0
+      - metric_same_definition_across_city_scope
+      - rank_order_deterministic
+      - source_trace_not_empty
+
+  - component_id: mvp_ai_decision
+    name: AI 決策摘要卡
+    decision_question: 目前資料支持什麼行動，風險與副作用是什麼？
+    required_output: no_standalone_de_table
+    approved_formats:
+      - structured_tool_context
+    required_fields:
+      - component_id
+      - city_scope
+      - district_name
+      - metric_snapshot
+      - source_trace
+      - data_hash
+      - last_validated_at
+    quality_checks:
+      - source_trace_not_empty
+      - data_hash_changes_when_input_changes
+      - no_llm_generated_fact_in_de_output

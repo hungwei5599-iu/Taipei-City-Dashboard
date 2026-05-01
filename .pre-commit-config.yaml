@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: taipei-large-file-binary-guard
+        name: Taipei Dashdorad staged file guard
+        entry: scripts/pre-commit/large-file-guard.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

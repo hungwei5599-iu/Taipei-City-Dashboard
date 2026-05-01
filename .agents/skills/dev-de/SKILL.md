@@ -28,6 +28,15 @@ description: CIVIC NEXUS 資料工程開發輔助。Airflow DAG + PostgreSQL ETL
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 DE spec 只寫入 `docs/3-Tracks/competition-mvp/contracts/de_dataset_manifest.yaml`、`docs/3-Tracks/competition-mvp/contracts/db_schema_plan.sql`、`docs/3-Tracks/competition-mvp/role-specs/de.md`。
+- raw curl、profiler output、mock fallback、資料可達性草稿只寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 不得把新的 active DE 文件寫到 `docs/3-Tracks/prep_compoment/` 或 `docs/hackathon/`。
+- 不得把既有 PoC/賽前 code 直接搬成 DAG；只能把欄位 mapping、清理規則、品質檢核改寫成 contract。
+
+---
+
 ## 開發流程（三階段鐵律）
 
 ### Phase 1：釐清資料目標（Grill Me）

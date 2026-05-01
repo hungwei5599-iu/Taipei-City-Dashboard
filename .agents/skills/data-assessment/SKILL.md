@@ -40,6 +40,13 @@ Successful output:
 - **預期標準 Mock Schema** (若驗證失敗，供後方驗證器使用)。
 </decision_boundary>
 
+## 文件輸出契約（2026-05-01）
+
+- 可直接指導賽中重建的資料決策，才寫入 `docs/3-Tracks/competition-mvp/contracts/de_dataset_manifest.yaml`、`docs/3-Tracks/competition-mvp/contracts/db_schema_plan.sql` 或 `docs/3-Tracks/competition-mvp/role-specs/de.md`。
+- profiler output、curl sample、raw JSON/CSV 摘要、Mock Schema、失敗證據寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 不得把新的 active assessment report 寫到 `docs/3-Tracks/prep_compoment/` 或 `docs/hackathon/`。
+- 若 output 同時包含 spec 與 evidence，先拆成 active contract 與 archive evidence 兩份，不要混在同一份文件。
+
 ## Primary use cases
 
 1) **空間與時效壓力測試**
@@ -80,8 +87,8 @@ Step 2: 致命弱點判讀 (Vulnerability Analysis)
 
 Step 3: 逆向交接與 Mock Schema 生成 (Handoff to DE & Mock)
 - Action: 若發現高風險致命傷（如 TWD97 需轉碼、無座標需 Group By），必須強制產出：
-  1. 給 Data Engineer (DE) 的 **Data Cleaning Ticket**。
-  2. 供 `/component-quick-validator` 預先開發用的 **Mock JSON Schema**。
+  1. 給 Data Engineer (DE) 的 **Data Cleaning Ticket**：若可作正式重建依據，寫入 `docs/3-Tracks/competition-mvp/role-specs/de.md` 或 `contracts/de_dataset_manifest.yaml`。
+  2. 供 `/component-quick-validator` 預先開發用的 **Mock JSON Schema**：寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`，不得放進 active docs。
 </workflow>
 
 <output_contract>

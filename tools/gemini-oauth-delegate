@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Non-interactive Gemini CLI OAuth delegate.
+
+This wrapper is for personal Google-account OAuth sessions. It never performs
+login. If Gemini CLI tries to open browser/OAuth onboarding, the wrapper fails
+instead of blocking Codex or OMX.
+"""
+
+from __future__ import annotations
+
+import os
+import select
+import shutil
+import subprocess
+import sys
+import time
+
+
+PROMPT_PATTERNS = (
+    "Opening authentication page",
+    "Do you want to continue",
+    "[Y/n]",
+    "authentication prompt",
+    "Manual authorization",
+)
+
+
+def main(argv: list[str]) -> int:
+    gemini_bin = os.environ.get("GEMINI_BIN") or shutil.which("gemini")
+    if not gemini_bin:
+        print("ERROR: gemini binary not found in PATH", file=sys.stderr)
+        return 127
+
+    prompt = " ".join(argv).strip()
+    if not prompt:
+        prompt = sys.stdin.read().strip()
+    if not prompt:
+        print("ERROR: empty prompt", file=sys.stderr)
+        return 2
+
+    process = subprocess.Popen(
+        [gemini_bin, "-p", prompt, "--output-format", "text"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=False,
+    )
+
+    assert process.stdout is not None
+    os.set_blocking(process.stdout.fileno(), False)
+
+    started = time.monotonic()
+    chunks: list[bytes] = []
+    while True:
+        ready, _, _ = select.select([process.stdout], [], [], 0.2)
+        if ready:
+            chunk = os.read(process.stdout.fileno(), 4096)
+            if chunk:
+                chunks.append(chunk)
+                combined = b"".join(chunks).decode(errors="replace")
+                if any(pattern in combined for pattern in PROMPT_PATTERNS):
+                    process.kill()
+                    process.wait(timeout=5)
+                    print("ERROR: Gemini CLI entered interactive OAuth/browser authentication.", file=sys.stderr)
+                    print("Run this manually in a real terminal first: gemini", file=sys.stderr)
+                    return 10
+
+        status = process.poll()
+        if status is not None:
+            remainder = process.stdout.read() or b""
+            if remainder:
+                chunks.append(remainder)
+            output = b"".join(chunks).decode(errors="replace")
+            if any(pattern in output for pattern in PROMPT_PATTERNS):
+                print("ERROR: Gemini CLI entered interactive OAuth/browser authentication.", file=sys.stderr)
+                print("Run this manually in a real terminal first: gemini", file=sys.stderr)
+                return 10
+            if status != 0:
+                sys.stderr.write(output)
+                return status
+            sys.stdout.write(output)
+            return 0
+
+        if time.monotonic() - started > 90:
+            process.kill()
+            process.wait(timeout=5)
+            print("ERROR: Gemini CLI timed out.", file=sys.stderr)
+            return 124
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

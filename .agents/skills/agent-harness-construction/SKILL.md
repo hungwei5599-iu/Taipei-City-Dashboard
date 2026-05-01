@@ -49,18 +49,27 @@
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 MVP spec、role spec、contract、handoff、verification checklist 只讀寫 `docs/3-Tracks/competition-mvp/`。
+- 資料 quick validation、HTML prototype、mock fallback、Gemini advisory、過期 10 組件計畫只放 `docs/Archive/2026-hackathon-prep/`。
+- `docs/3-Tracks/prep_compoment/` 與 `docs/hackathon/` 是 legacy pointer；不得新增 active implementation spec。
+- 每次正式開發前先確認 `docs/3-Tracks/competition-mvp/00_file_placement_rules.md`。
+
+---
+
 ## 執行流程（6 個 Phase）
 
 ### Phase 0：讀取目標組件規格
 
 **動作：**
-1. 讀取 `docs/hackathon/01_heat_island/execute/component-specs.md`，找出目標組件的：
+1. 讀取 `docs/3-Tracks/competition-mvp/README.md`、`docs/3-Tracks/competition-mvp/contracts/`、`docs/3-Tracks/competition-mvp/role-specs/`，找出目標組件的：
    - 資料源（API URL / 資料集 ID）
    - 圖表類型（對應 Apexcharts type）
    - AI Tools（需要哪些 tool handler）
    - 雙北切換邏輯
-2. 讀取 `docs/hackathon/01_heat_island/plan/execution-plan.md`，確認目前驗證狀態
-3. 讀取 `docs/hackathon/01_heat_island/review/validation-results.md`，確認 API 可達性清單
+2. 讀取 `docs/3-Tracks/competition-mvp/verification/`，確認目前驗收與 demo smoke 條件。
+3. 如需歷史 API 可達性證據，只讀 `docs/Archive/2026-hackathon-prep/validation-reports/`，不得直接把 Archive 當 active spec。
 
 **輸出：**
 - 組件規格摘要（一段文字）
@@ -75,7 +84,7 @@
 **動作：**
 ```bash
 # 對每個資料源執行驗證
-curl "https://data.taipei/api/getDatasetInfo?id={DATASET_ID}&scope=resourceAquire&limit=5" | jq .
+curl "https://data.taipei/api/v1/dataset/{DATASET_ID}?scope=resourceAquire&limit=5" | jq .
 
 # 驗證 checklist：
 # ✅ HTTP 200？
@@ -91,7 +100,8 @@ curl "https://data.taipei/api/getDatasetInfo?id={DATASET_ID}&scope=resourceAquir
 - 新北資料（若欄位不對齊）→ 人工欄位對應表
 
 **輸出：**
-- 更新 `docs/hackathon/01_heat_island/review/validation-results.md` 驗證結果表（填入狀態、欄位、座標格式）
+- raw 驗證報告寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 只有可直接指導賽中重建的欄位與決策，才回寫 `docs/3-Tracks/competition-mvp/contracts/de_dataset_manifest.yaml`。
 
 ---
 
@@ -364,10 +374,10 @@ grep -r "TWCC\|twcloud\|afs.twcc" Taipei-City-Dashboard-FE/src/
 | `Taipei-City-Dashboard/Taipei-City-Dashboard-BE/app/controllers/ai.go` | AI controller + `ToCallOptions()` |
 | `Taipei-City-Dashboard/Taipei-City-Dashboard-BE/app/services/ai/tools/hackathon.go` | 13 個 AI tool handler（目前返回 mock data） |
 | `Taipei-City-Dashboard/Taipei-City-Dashboard-BE/app/services/ai/tools/registry.go` | Tool registry |
-| `docs/hackathon/01_heat_island/execute/component-specs.md` | 10 個組件完整規格書 |
-| `docs/hackathon/01_heat_island/plan/execution-plan.md` | 執行計畫 + wireframe |
-| `docs/hackathon/01_heat_island/review/validation-results.md` | API 驗證結果（每次驗證後更新） |
-| `docs/hackathon/00_general/research/data-mapping-results.md` | 資料源 RID 對照表 |
+| `docs/3-Tracks/competition-mvp/README.md` | 正式 MVP 文件入口 |
+| `docs/3-Tracks/competition-mvp/contracts/` | DE / DB / BE / FE contract |
+| `docs/3-Tracks/competition-mvp/role-specs/` | 每個角色可開工 spec |
+| `docs/Archive/2026-hackathon-prep/` | 歷史驗證、prototype、過期計畫 |
 
 ---
 

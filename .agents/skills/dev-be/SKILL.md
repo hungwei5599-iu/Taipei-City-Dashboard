@@ -29,6 +29,15 @@ description: CIVIC NEXUS 後端開發輔助。Go 1.24 + Gin + GORM 的 Controlle
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 BE / AI contract 只寫入 `docs/3-Tracks/competition-mvp/contracts/be_api_ai_contracts.md`、`docs/3-Tracks/competition-mvp/contracts/db_schema_plan.sql`、`docs/3-Tracks/competition-mvp/role-specs/be-ai.md`。
+- BE 驗證 checklist 與 demo smoke 條件寫入 `docs/3-Tracks/competition-mvp/verification/`。
+- raw API scratch、mock fallback、舊 AI advisory 只寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 不得把新的 active BE spec 寫到 `docs/3-Tracks/prep_compoment/` 或 `docs/hackathon/`。
+
+---
+
 ## 開發流程（三階段鐵律）
 
 ### Phase 1：釐清目標（Grill Me）

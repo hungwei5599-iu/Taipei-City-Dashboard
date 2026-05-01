@@ -30,6 +30,15 @@ description: CIVIC NEXUS 前端開發輔助。Vue 3 + ApexCharts + Mapbox 組件
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 FE contract 只寫入 `docs/3-Tracks/competition-mvp/contracts/fe_component_contracts.md` 與 `docs/3-Tracks/competition-mvp/role-specs/fe.md`。
+- quick validation 報告與 HTML prototype 只寫入 `docs/Archive/2026-hackathon-prep/validation-reports/` 與 `docs/Archive/2026-hackathon-prep/prototype-html/`。
+- 不得把新的 active FE spec 寫到 `docs/3-Tracks/prep_compoment/` 或 `docs/hackathon/`。
+- 任何 prototype 只能當驗證證據；正式 Vue implementation 必須依官方 repo pattern 重寫。
+
+---
+
 ## 開發流程（三階段鐵律）
 
 ### Phase 1：釐清目標（Grill Me）

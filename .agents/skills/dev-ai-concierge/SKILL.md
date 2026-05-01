@@ -31,6 +31,15 @@ description: CIVIC NEXUS AI 導覽員 Tool 開發輔助。在 TWCC Llama 3.3 + T
 
 ---
 
+## 文件輸出契約（2026-05-01）
+
+- 正式 AI Tool contract 只寫入 `docs/3-Tracks/competition-mvp/contracts/be_api_ai_contracts.md` 與 `docs/3-Tracks/competition-mvp/role-specs/be-ai.md`。
+- AI fallback 文案、cache key、rate-limit demo 條件若需驗收，寫入 `docs/3-Tracks/competition-mvp/verification/demo_smoke_checklist.md`。
+- 舊 prompt、Gemini advisory、mock tool output 只寫入 `docs/Archive/2026-hackathon-prep/validation-reports/`。
+- 不得把新的 active AI spec 寫到 `docs/3-Tracks/prep_compoment/` 或 `docs/hackathon/`。
+
+---
+
 ## 開發流程（三階段鐵律）
 
 ### Phase 1：釐清 Tool 目標（Grill Me）
