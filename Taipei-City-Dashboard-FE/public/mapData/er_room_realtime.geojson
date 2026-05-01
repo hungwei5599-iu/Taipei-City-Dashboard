@@ -1,0 +1,326 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0101020017",
+        "name": "聯醫仁愛",
+        "full_name": "臺北市立聯合醫院仁愛院區",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市大安區仁愛路四段10號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.545208, 25.036974]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0101090517",
+        "name": "北市聯醫",
+        "full_name": "臺北市立聯合醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市大同區鄭州路145號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5088874, 25.05069244]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0131060029",
+        "name": "部立臺北",
+        "full_name": "衛生福利部臺北醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市新莊區思源路127號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.45958, 25.0429649]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0401180014",
+        "name": "臺大",
+        "full_name": "國立台灣大學醫學院附設醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市中正區中山南路7號、8號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5183428, 25.03553921]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0401180023",
+        "name": "台大兒醫",
+        "full_name": "國立臺灣大學醫學院附設醫院兒童醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市中正區中山南路8號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5187506, 25.04434314]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0501110514",
+        "name": "三總",
+        "full_name": "三軍總醫院附設民眾診療服務處",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市內湖區成功路二段325號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5919821, 25.07180042]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "0601160016",
+        "name": "北榮",
+        "full_name": "臺北榮民總醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市北投區石牌路二段201號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5191658, 25.11918228]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1101020018",
+        "name": "台北國泰",
+        "full_name": "國泰醫療財團法人國泰綜合醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市大安區仁愛路四段280號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5528014, 25.03717848]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1101100011",
+        "name": "台北馬偕",
+        "full_name": "台灣基督長老教會馬偕醫療財團法人馬偕紀念醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市中山區中山北路二段92號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.522558, 25.05888423]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1101100020",
+        "name": "馬偕兒醫",
+        "full_name": "台灣基督長老教會馬偕醫療財團法人馬偕兒童醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市中山區中山北路二段92號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.522558, 25.05888423]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1101150011",
+        "name": "新光",
+        "full_name": "新光醫療財團法人新光吳火獅紀念醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市士林區文昌路95號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5202887, 25.0962409]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1101160017",
+        "name": "振興",
+        "full_name": "振興醫療財團法人振興醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市北投區振興街45號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5224005, 25.11754255]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1131010011",
+        "name": "亞東",
+        "full_name": "醫療財團法人徐元智先生醫藥基金會亞東紀念醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市板橋區南雅南路二段21號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.4523, 24.9973]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1131050515",
+        "name": "台北慈濟",
+        "full_name": "佛教慈濟醫療財團法人台北慈濟醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市新店區建國路289號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5358, 24.98578]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1131100010",
+        "name": "淡水馬偕",
+        "full_name": "台灣基督長老教會馬偕醫療財團法人淡水馬偕紀念醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市淡水區民生路45號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.4618043, 25.1389266]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1131130018",
+        "name": "土城醫院",
+        "full_name": "新北市立土城醫院（委託長庚醫療財團法人興建經營）",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市土城區金城路二段6號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.44872, 24.976436]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1231050017",
+        "name": "耕莘",
+        "full_name": "財團法人天主教耕莘醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市新店區中正路362號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5361, 24.97636]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1301170017",
+        "name": "北醫",
+        "full_name": "臺北醫學大學附設醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市信義區吳興街252號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5636377, 25.02663801]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1301200010",
+        "name": "萬芳",
+        "full_name": "臺北市立萬芳醫院",
+        "area_code": "01",
+        "city": "taipei",
+        "address": "臺北市文山區興隆路三段111號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.5583303, 25.00030628]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1331040513",
+        "name": "部立雙和",
+        "full_name": "衛生福利部雙和醫院（委託臺北醫學大學興建經營）",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市中和區中正路291號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.49375, 24.992556]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "hosp_id": "1331160010",
+        "name": "輔大",
+        "full_name": "輔仁大學學校財團法人輔仁大學附設醫院",
+        "area_code": "31",
+        "city": "newtaipei",
+        "address": "新北市泰山區貴子路69號"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.43079, 25.039675]
+      }
+    }
+  ]
+}

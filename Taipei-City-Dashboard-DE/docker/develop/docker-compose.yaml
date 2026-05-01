@@ -88,6 +88,10 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-../../}/plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
+  dns:
+    - 8.8.8.8
+    - 1.1.1.1
+
 
 services:
   airflow-webserver:

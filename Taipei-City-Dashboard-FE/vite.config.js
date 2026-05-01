@@ -2,21 +2,23 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import viteCompression from "vite-plugin-compression";
 
-// 嘗試讀取環境變數，若不存在則回傳 false
 let isDockerCompose = process?.env.DOCKER_COMPOSE === "true"; // eslint-disable-line no-undef
 
 const serverConfig = isDockerCompose
 	? {
-		// Docker Compose override config
 		host: "0.0.0.0",
-		port: 80, // 如有需要可變更 port
+		port: 80,
+		watch: {
+			usePolling: true,
+			interval: 1000,
+		},
 		proxy: {
 			"/api/dev": {
 				target: "http://dashboard-be:8080",
 				changeOrigin: true,
-				rewrite: (path) => path.replace("/dev", "/v1")
-			}
-		}
+				rewrite: (path) => path.replace("/dev", "/v1"),
+			},
+		},
 	}
 	: {
 		host: "0.0.0.0",
@@ -25,14 +27,14 @@ const serverConfig = isDockerCompose
 			"/api": {
 				target: "https://citydashboard.taipei/api/v1",
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, "")
+				rewrite: (path) => path.replace(/^\/api/, ""),
 			},
 			"/geo_server": {
 				target: "https://citydashboard.taipei/geo_server/",
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/geo_server/, "")
-			}
-		}
+				rewrite: (path) => path.replace(/^\/geo_server/, ""),
+			},
+		},
 	};
 
 export default defineConfig({
