@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 功能說明 - 台北城市儀表板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+  .topbar { background: #0d1f3c; border-bottom: 1px solid #1e3a5f; padding: 16px 40px; display: flex; align-items: center; gap: 16px; }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #e96c42; }
+  .topbar .sep { color: #3a5a7f; }
+  .hero { background: linear-gradient(135deg, #1a0800, #0a1628); padding: 60px 40px; border-bottom: 1px solid #1e3a5f; }
+  .hero h1 { font-size: 2.4rem; color: #e96c42; margin-bottom: 12px; }
+  .hero p { color: #7ea8cf; font-size: 1.1rem; line-height: 1.8; max-width: 700px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 60px 40px; }
+  h2 { font-size: 1.5rem; color: #e96c42; margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid #1e3a5f; }
+  h3 { font-size: 1.1rem; color: #e0e6f0; margin: 20px 0 10px; }
+  p { color: #9ab5cf; line-height: 1.8; margin-bottom: 16px; }
+  code { background: rgba(233,108,66,0.08); border: 1px solid rgba(233,108,66,0.2); color: #e96c42; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; }
+  .highlight { color: #e96c42; font-weight: bold; }
+  .analogy { background: linear-gradient(135deg, rgba(233,108,66,0.08), rgba(200,60,30,0.03)); border-left: 3px solid #e96c42; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; font-style: italic; color: #b07860; }
+  .code-block { background: #060d1a; border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; font-family: monospace; font-size: 0.83rem; line-height: 1.7; margin: 16px 0; overflow-x: auto; }
+  .code-block .keyword { color: #e96c42; }
+  .code-block .string { color: #ffaa44; }
+  .code-block .comment { color: #3a5a7f; }
+  .code-block .func { color: #42b883; }
+  .code-block .type { color: #c084fc; }
+  .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .card h4 { color: #e96c42; margin-bottom: 12px; font-size: 1rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .note { background: rgba(255,180,0,0.05); border: 1px solid rgba(255,180,0,0.2); border-radius: 10px; padding: 16px 20px; margin: 16px 0; color: #c0a060; font-size: 0.9rem; }
+  .ai-flow {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 16px;
+    padding: 32px;
+    margin: 24px 0;
+  }
+  .chat-bubble {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .bubble-user { justify-content: flex-end; }
+  .bubble-ai { justify-content: flex-start; }
+  .bubble-text {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  .user-text { background: rgba(0,112,243,0.15); border: 1px solid rgba(0,180,255,0.2); color: #a0c8e8; }
+  .ai-text { background: rgba(233,108,66,0.1); border: 1px solid rgba(233,108,66,0.2); color: #c0a090; }
+  .tool-text { background: rgba(66,184,131,0.1); border: 1px solid rgba(66,184,131,0.2); color: #80c090; font-family: monospace; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .user-avatar { background: rgba(0,112,243,0.2); }
+  .ai-avatar { background: rgba(233,108,66,0.2); }
+  .vector-viz {
+    background: #060d1a;
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .vec-item { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .vec-label { min-width: 120px; color: #9ab5cf; font-size: 0.85rem; }
+  .vec-bar-container { flex: 1; background: #0d1f3c; border-radius: 4px; height: 10px; overflow: hidden; }
+  .vec-bar { height: 100%; border-radius: 4px; }
+  .vec-score { color: #e96c42; font-size: 0.82rem; min-width: 50px; text-align: right; font-family: monospace; }
+  .flow-step { display: flex; gap: 16px; margin: 12px 0; align-items: flex-start; }
+  .flow-num { background: rgba(233,108,66,0.15); border: 1px solid rgba(233,108,66,0.3); color: #e96c42; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; font-size: 0.85rem; }
+  .flow-content h4 { color: #e0e6f0; font-size: 0.95rem; margin-bottom: 4px; }
+  .flow-content p { color: #7ea8cf; font-size: 0.88rem; margin: 0; }
+  .nav-bottom { display: flex; justify-content: space-between; padding: 40px 0 0; border-top: 1px solid #1e3a5f; }
+  .nav-btn { background: rgba(233,108,66,0.08); border: 1px solid rgba(233,108,66,0.3); color: #e96c42; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+  .nav-btn:hover { background: rgba(233,108,66,0.15); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">🏠 首頁</a>
+  <span class="sep">/</span>
+  <a href="01-overview.html">整體架構</a>
+  <span class="sep">/</span>
+  <span style="color:#e96c42;">AI 功能</span>
+</div>
+
+<div class="hero">
+  <h1>🤖 AI 功能</h1>
+  <p>AI 聊天機器人如何回答城市相關問題、向量搜尋如何用語意理解找到相關圖表、Tool Calling 如何讓 AI 查詢即時資料。</p>
+</div>
+
+<div class="container">
+
+  <h2>系統中有哪些 AI 功能？</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>💬 AI 聊天助手</h4>
+      <p style="color:#7ea8cf;font-size:0.88rem;line-height:1.7;">使用者可以用自然語言詢問城市相關問題，AI 會調用工具查詢即時資料回答。背後使用 TWCC（台灣超級電腦雲）的 LLM。</p>
+    </div>
+    <div class="card">
+      <h4>🔍 向量語意搜尋</h4>
+      <p style="color:#7ea8cf;font-size:0.88rem;line-height:1.7;">使用者輸入關鍵字（如「交通」），系統能找出<strong style="color:#e0e6f0;">語意相關</strong>的圖表元件，不只是字面上的關鍵字匹配。</p>
+    </div>
+  </div>
+
+  <h2>AI 聊天流程</h2>
+  <p>當使用者在聊天框輸入問題，系統啟動 AI 對話流程：</p>
+
+  <div class="ai-flow">
+    <div style="color:#e96c42;font-weight:bold;margin-bottom:20px;font-size:0.9rem;">對話範例</div>
+    <div class="chat-bubble bubble-user">
+      <div class="bubble-text user-text">台北市目前的人口是多少？</div>
+      <div class="avatar user-avatar">👤</div>
+    </div>
+    <div class="chat-bubble bubble-ai">
+      <div class="avatar ai-avatar">🤖</div>
+      <div class="bubble-text ai-text">讓我查一下最新的人口資料... <br>[調用工具: get_population_summary]</div>
+    </div>
+    <div class="chat-bubble bubble-ai">
+      <div class="avatar" style="background:rgba(66,184,131,0.2);">🔧</div>
+      <div class="bubble-text tool-text">Tool result: { "total": 2646204, "year": 2024, ... }</div>
+    </div>
+    <div class="chat-bubble bubble-ai">
+      <div class="avatar ai-avatar">🤖</div>
+      <div class="bubble-text ai-text">根據最新資料，截至 2024 年，台北市總人口為約 264 萬 6 千人。與去年相比減少約 1.2%，呈現人口持續下降的趨勢...</div>
+    </div>
+  </div>
+
+  <h2>Tool Calling（工具調用）是什麼？</h2>
+  <p>LLM 本身只能根據訓練資料回答，無法取得即時數據。「工具調用」讓 AI 能夠執行真實的函式、取得最新資料：</p>
+
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-content">
+      <h4>後端把「工具清單」告訴 LLM</h4>
+      <p>在呼叫 TWCC API 時，一起傳送可用的工具定義（函式名稱、參數格式、功能說明）</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-content">
+      <h4>LLM 決定是否需要調用工具</h4>
+      <p>如果問題需要即時資料（如「現在的 PM2.5」），LLM 回應「我需要呼叫 xxx 工具」而不是直接回答</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-content">
+      <h4>後端執行工具，取得資料</h4>
+      <p>後端的 tool registry 接收到工具調用請求，執行對應的 Go 函式（如查詢資料庫）</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-content">
+      <h4>把工具結果回傳給 LLM</h4>
+      <p>把工具執行結果加入對話歷史，再次呼叫 LLM，讓它根據真實數據產生最終回答</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">5</div>
+    <div class="flow-content">
+      <h4>最多重複 5 次（防無限循環）</h4>
+      <p>系統設有最大迭代次數（5次），避免 LLM 不斷要求工具調用造成無窮迴圈</p>
+    </div>
+  </div>
+
+  <h2>已註冊的工具</h2>
+  <div class="code-block">
+<span class="comment">// app/services/ai/tools/registry.go</span><br>
+<span class="comment">// 系統目前有以下工具可讓 AI 調用</span><br>
+<br>
+<span class="keyword">var</span> RegisteredTools = []Tool{<br>
+&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Name: <span class="string">"get_current_time"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Description: <span class="string">"取得目前的日期和時間"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Handler: <span class="keyword">func</span>() → 回傳目前時間<br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Name: <span class="string">"get_population_summary"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Description: <span class="string">"取得台北市人口統計摘要"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Handler: <span class="keyword">func</span>() → 查詢資料庫回傳人口資料<br>
+&nbsp;&nbsp;},<br>
+}<br>
+<br>
+<span class="comment">// 工具調用流程（最多5次迭代）</span><br>
+<span class="keyword">for</span> i := <span class="type">0</span>; i < <span class="type">5</span>; i++ {<br>
+&nbsp;&nbsp;response := <span class="func">callLLM</span>(messages, tools)<br>
+&nbsp;&nbsp;<span class="keyword">if</span> response.FinishReason != <span class="string">"tool_calls"</span> {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">break</span>  <span class="comment">// LLM 直接回答，不需要工具</span><br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span class="comment">// 執行工具，加入結果，繼續循環</span><br>
+&nbsp;&nbsp;toolResult := <span class="func">executeTool</span>(response.ToolCall)<br>
+&nbsp;&nbsp;messages = <span class="func">append</span>(messages, toolResult)<br>
+}
+  </div>
+
+  <h2>向量搜尋：怎麼理解「語意」？</h2>
+  <p>傳統搜尋是關鍵字匹配（文字要完全相同），向量搜尋理解的是<span class="highlight">語意相似度</span>：</p>
+
+  <div class="analogy">
+    💡 <strong>類比：</strong>傳統搜尋像「拼音字典」——查「人口」只找到寫著「人口」的條目。向量搜尋像「理解意思的圖書館員」——問他「城市居民統計」，他知道你要找「人口分布圖」，因為這兩個詞語意相似。
+  </div>
+
+  <h3>向量搜尋的工作原理</h3>
+
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-content">
+      <h4>建立索引：把每個元件的描述轉成向量</h4>
+      <p>用 ONNX E5 模型把文字描述轉成一個數字陣列（向量），存入 Qdrant 向量資料庫。例如「台北市各區人口分布」→ [0.23, -0.45, 0.78, ...]（768維向量）</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-content">
+      <h4>查詢：把搜尋詞也轉成向量</h4>
+      <p>使用者輸入「交通流量」→ ONNX 模型把它轉成向量</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-content">
+      <h4>計算相似度</h4>
+      <p>Qdrant 計算查詢向量和所有元件向量的「餘弦相似度」（cosine similarity），找出最相似的 N 個</p>
+    </div>
+  </div>
+
+  <div class="vector-viz">
+    <div style="color:#e96c42;font-weight:bold;margin-bottom:16px;font-size:0.88rem;">搜尋「交通壅塞」的向量相似度結果</div>
+    <div class="vec-item">
+      <div class="vec-label">各路段車流量</div>
+      <div class="vec-bar-container"><div class="vec-bar" style="width:92%;background:linear-gradient(to right,#e96c42,#ff8844)"></div></div>
+      <div class="vec-score">0.92</div>
+    </div>
+    <div class="vec-item">
+      <div class="vec-label">捷運乘客人數</div>
+      <div class="vec-bar-container"><div class="vec-bar" style="width:78%;background:linear-gradient(to right,#e96c42,#ff8844)"></div></div>
+      <div class="vec-score">0.78</div>
+    </div>
+    <div class="vec-item">
+      <div class="vec-label">停車場使用率</div>
+      <div class="vec-bar-container"><div class="vec-bar" style="width:71%;background:linear-gradient(to right,#e96c42,#ff8844)"></div></div>
+      <div class="vec-score">0.71</div>
+    </div>
+    <div class="vec-item">
+      <div class="vec-label">台北市人口分布</div>
+      <div class="vec-bar-container"><div class="vec-bar" style="width:31%;background:rgba(233,108,66,0.3)"></div></div>
+      <div class="vec-score">0.31</div>
+    </div>
+    <div class="vec-item">
+      <div class="vec-label">空氣品質指數</div>
+      <div class="vec-bar-container"><div class="vec-bar" style="width:22%;background:rgba(233,108,66,0.2)"></div></div>
+      <div class="vec-score">0.22</div>
+    </div>
+    <div style="margin-top:12px;font-size:0.78rem;color:#3a5a7f;">相似度 > 0.5 的元件會被回傳給使用者</div>
+  </div>
+
+  <h2>ONNX：本地端 AI 模型</h2>
+  <p>系統使用 ONNX Runtime 在<span class="highlight">本地執行嵌入模型</span>，不需要呼叫外部 API 做向量轉換：</p>
+
+  <div class="code-block">
+<span class="comment">// 使用 E5 模型把文字轉成向量（本地執行）</span><br>
+<span class="comment">// 模型在 Docker 建構時下載並打包進映像檔</span><br>
+<br>
+<span class="keyword">func</span> <span class="func">GenerateEmbedding</span>(text <span class="type">string</span>) ([]<span class="type">float32</span>, error) {<br>
+&nbsp;&nbsp;<span class="comment">// 1. Tokenize（把文字切成 token）</span><br>
+&nbsp;&nbsp;tokens := tokenizer.<span class="func">Encode</span>(text)<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="comment">// 2. 用 ONNX 模型推理產生向量</span><br>
+&nbsp;&nbsp;output, _ := onnxSession.<span class="func">Run</span>(tokens)<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="comment">// 3. 正規化向量（讓長度為1）</span><br>
+&nbsp;&nbsp;<span class="keyword">return</span> <span class="func">normalize</span>(output.Embeddings[<span class="type">0</span>]), nil<br>
+}
+  </div>
+
+  <div class="note">
+    💡 <strong>為什麼用本地模型而不是 OpenAI Embeddings？</strong><br>
+    1. <strong>成本</strong>：本地模型零費用，呼叫外部 API 要付費<br>
+    2. <strong>速度</strong>：本地計算無網路延遲<br>
+    3. <strong>隱私</strong>：城市資料不需要傳送到外部服務<br>
+    4. <strong>穩定</strong>：不依賴外部服務的可用性
+  </div>
+
+  <h2>AI 對話記錄</h2>
+  <p>每一次 AI 對話都會被記錄在 <code>chat_logs</code> 資料表，供管理員審計和分析：</p>
+
+  <div class="code-block">
+<span class="comment">// AI 對話記錄 Schema</span><br>
+{<br>
+&nbsp;&nbsp;<span class="string">"session_id"</span>: <span class="string">"uuid-xxx"</span>,    <span class="comment">// 同一對話 session 的 ID</span><br>
+&nbsp;&nbsp;<span class="string">"user_id"</span>: <span class="type">42</span>,<br>
+&nbsp;&nbsp;<span class="string">"provider"</span>: <span class="string">"twcc"</span>,          <span class="comment">// LLM 服務提供商</span><br>
+&nbsp;&nbsp;<span class="string">"model"</span>: <span class="string">"xxx-70b"</span>,<br>
+&nbsp;&nbsp;<span class="string">"question"</span>: <span class="string">"台北市目前人口？"</span>,<br>
+&nbsp;&nbsp;<span class="string">"answer"</span>: <span class="string">"根據最新資料..."</span>,<br>
+&nbsp;&nbsp;<span class="string">"tool_used"</span>: [<span class="string">"get_population_summary"</span>],<br>
+&nbsp;&nbsp;<span class="string">"tokens_input"</span>: <span class="type">150</span>,<br>
+&nbsp;&nbsp;<span class="string">"tokens_output"</span>: <span class="type">200</span>,<br>
+&nbsp;&nbsp;<span class="string">"latency_ms"</span>: <span class="type">1200</span>,<br>
+&nbsp;&nbsp;<span class="string">"status"</span>: <span class="string">"success"</span><br>
+}
+  </div>
+
+  <div class="nav-bottom">
+    <a href="08-connection.html" class="nav-btn">← 前後端連接</a>
+    <a href="index.html" class="nav-btn">回首頁 →</a>
+  </div>
+
+</div>
+</body>
+</html>

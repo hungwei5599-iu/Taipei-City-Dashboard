@@ -1,0 +1,37 @@
+{
+    "dag_infos": {
+        "dag_id": "er_room_realtime",
+        "start_date": "2025-01-01",
+        "schedule_interval": "*/5 * * * *",
+        "catchup": false,
+        "tags": ["er_room", "realtime", "healthcare"],
+        "description": "Fetch realtime ER waiting data from the NHI API every 5 minutes.",
+        "default_args": {
+            "owner": "airflow",
+            "email": ["DEFAULT_EMAIL_LIST"],
+            "email_on_retry": false,
+            "email_on_failure": true,
+            "retries": 1,
+            "retry_delay": 60
+        },
+        "ready_data_db": "postgres_default",
+        "ready_data_default_table": "er_room_realtime",
+        "ready_data_history_table": "",
+        "raw_data_db": "postgres_default",
+        "raw_data_table": "",
+        "load_behavior": "replace"
+    },
+    "data_infos": {
+        "name_cn": "急診室即時候診資訊",
+        "airflow_update_freq": "every 5 minutes",
+        "source": "https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002",
+        "source_type": "nhi api",
+        "source_dept": "衛生福利部中央健康保險署",
+        "gis_format": null,
+        "output_coordinate": null,
+        "is_geometry": 0,
+        "dataset_description": "急診室即時候診資訊，包含醫院名稱、區域代碼與各類候診人數。",
+        "etl_description": "POST NHI API, filter area_code 01/31, rename columns, replace table every 5 min",
+        "sensitivity": "public"
+    }
+}
