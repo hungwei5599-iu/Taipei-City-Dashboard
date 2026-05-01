@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台北城市儀表板 - 完整技術指南</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+    background: #0a0e1a;
+    color: #e0e6f0;
+    min-height: 100vh;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0a0e1a 0%, #1a2340 50%, #0d1f3c 100%);
+    padding: 80px 40px;
+    text-align: center;
+    border-bottom: 1px solid #1e3a5f;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(0,150,255,0.05) 0%, transparent 70%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.1);opacity:1} }
+  .hero h1 {
+    font-size: 3rem;
+    background: linear-gradient(90deg, #00b4ff, #0070f3, #00d2ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    color: #7ea8cf;
+    max-width: 700px;
+    margin: 0 auto 40px;
+    line-height: 1.8;
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(0,112,243,0.15);
+    border: 1px solid rgba(0,180,255,0.3);
+    color: #00b4ff;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin: 4px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 60px 40px; }
+  .section-title {
+    font-size: 1.6rem;
+    color: #00b4ff;
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1e3a5f;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+  .card {
+    background: linear-gradient(135deg, #0d1f3c, #111f3a);
+    border: 1px solid #1e3a5f;
+    border-radius: 16px;
+    padding: 28px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent, linear-gradient(90deg, #00b4ff, #0070f3));
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(0,180,255,0.4);
+    box-shadow: 0 20px 60px rgba(0,112,243,0.2);
+  }
+  .card-icon { font-size: 2.5rem; margin-bottom: 16px; }
+  .card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #e0e6f0;
+    margin-bottom: 10px;
+  }
+  .card-desc { font-size: 0.9rem; color: #7ea8cf; line-height: 1.6; margin-bottom: 16px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: rgba(0,112,243,0.1);
+    border: 1px solid rgba(0,180,255,0.2);
+    color: #7ea8cf;
+  }
+  .card-arrow {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: rgba(0,180,255,0.3);
+    transition: all 0.3s;
+  }
+  .card:hover .card-arrow { color: #00b4ff; transform: translateY(-50%) translateX(4px); }
+  .arch-diagram {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 60px;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    background: rgba(0,112,243,0.1);
+    border: 1px solid rgba(0,180,255,0.3);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  .arch-box.green { background: rgba(0,200,100,0.1); border-color: rgba(0,200,100,0.3); color: #4ecb8a; }
+  .arch-box.blue { background: rgba(0,112,243,0.1); border-color: rgba(0,180,255,0.3); color: #00b4ff; }
+  .arch-box.purple { background: rgba(150,0,255,0.1); border-color: rgba(180,0,255,0.3); color: #c080ff; }
+  .arch-box.orange { background: rgba(255,150,0,0.1); border-color: rgba(255,180,0,0.3); color: #ffaa44; }
+  .arch-box.red { background: rgba(255,50,50,0.1); border-color: rgba(255,80,80,0.3); color: #ff6b6b; }
+  .arch-arrow { color: #1e3a5f; font-size: 1.5rem; }
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: #3a5a7f;
+    border-top: 1px solid #1e3a5f;
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🏙️ 台北城市儀表板</h1>
+  <p>完整技術架構說明指南 — 從零開始，徹底理解這個系統是如何運作的</p>
+  <div>
+    <span class="badge">Vue 3</span>
+    <span class="badge">Go + Gin</span>
+    <span class="badge">PostgreSQL</span>
+    <span class="badge">Redis</span>
+    <span class="badge">Airflow</span>
+    <span class="badge">Docker</span>
+    <span class="badge">JWT</span>
+    <span class="badge">AI / LLM</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <h2 class="section-title">📐 系統整體架構（一句話概念）</h2>
+  <div class="arch-diagram">
+    <p style="color:#7ea8cf;margin-bottom:32px;font-size:1rem;">整個系統就像一個「城市資料中心」：資料工程負責蒐集原始資料，後端負責整理和提供資料，前端負責把資料畫成漂亮的圖表和地圖給市民看。</p>
+    <div class="arch-row">
+      <div class="arch-box orange">📡 外部資料來源<br><small>TDX、政府API、感測器</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box purple">⚙️ Airflow (DE)<br><small>資料工程/ETL管道</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box blue">🗄️ PostgreSQL<br><small>資料庫存放資料</small></div>
+    </div>
+    <div class="arch-arrow" style="display:block;transform:rotate(90deg);margin:8px 0;font-size:2rem;">↓</div>
+    <div class="arch-row">
+      <div class="arch-box red">🔒 Redis<br><small>快取/限流</small></div>
+      <div class="arch-arrow">←</div>
+      <div class="arch-box blue">🔧 Go Backend<br><small>API 伺服器</small></div>
+      <div class="arch-arrow">←</div>
+      <div class="arch-box green">🌐 Vue 前端<br><small>瀏覽器介面</small></div>
+    </div>
+    <div style="margin-top:24px;color:#5a7a9f;font-size:0.85rem;">使用者從瀏覽器看圖表 → 前端向後端要資料 → 後端去資料庫查詢 → 回傳給前端渲染</div>
+  </div>
+
+  <h2 class="section-title">📚 選擇你想了解的部分</h2>
+  <div class="cards">
+
+    <a href="01-overview.html" class="card" style="--accent: linear-gradient(90deg, #00b4ff, #0070f3)">
+      <div class="card-icon">🗺️</div>
+      <div class="card-title">整體架構概覽</div>
+      <div class="card-desc">從最高層次理解整個系統——三個主要部分如何協作，資料如何流動，為什麼要這樣設計。</div>
+      <div class="card-tags">
+        <span class="tag">架構圖</span>
+        <span class="tag">資料流</span>
+        <span class="tag">Docker</span>
+        <span class="tag">Nginx</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="02-frontend.html" class="card" style="--accent: linear-gradient(90deg, #42b883, #35495e)">
+      <div class="card-icon">🖥️</div>
+      <div class="card-title">前端 (Frontend)</div>
+      <div class="card-desc">Vue 3 應用程式如何運作、圖表怎麼畫出來、地圖怎麼顯示、狀態管理（Pinia）是什麼。</div>
+      <div class="card-tags">
+        <span class="tag">Vue 3</span>
+        <span class="tag">Pinia</span>
+        <span class="tag">ApexCharts</span>
+        <span class="tag">Mapbox</span>
+        <span class="tag">Axios</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="03-backend.html" class="card" style="--accent: linear-gradient(90deg, #00add8, #007d9c)">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">後端 (Backend)</div>
+      <div class="card-desc">Go 語言 + Gin 框架如何提供 REST API、控制器/模型/路由如何分工、請求如何被處理。</div>
+      <div class="card-tags">
+        <span class="tag">Go</span>
+        <span class="tag">Gin</span>
+        <span class="tag">REST API</span>
+        <span class="tag">GORM</span>
+        <span class="tag">中介軟體</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="04-database.html" class="card" style="--accent: linear-gradient(90deg, #336791, #224466)">
+      <div class="card-icon">🗄️</div>
+      <div class="card-title">資料庫 (Database)</div>
+      <div class="card-desc">為什麼用兩個 PostgreSQL 資料庫、PostGIS 地理資訊擴充是什麼、資料表如何設計。</div>
+      <div class="card-tags">
+        <span class="tag">PostgreSQL</span>
+        <span class="tag">PostGIS</span>
+        <span class="tag">GORM</span>
+        <span class="tag">Schema</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="05-redis.html" class="card" style="--accent: linear-gradient(90deg, #dc382d, #9e2920)">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">Redis 快取與限流</div>
+      <div class="card-desc">Redis 在這個系統中扮演什麼角色、速率限制（Rate Limiting）是怎麼實作的、為什麼需要它。</div>
+      <div class="card-tags">
+        <span class="tag">Redis</span>
+        <span class="tag">Rate Limit</span>
+        <span class="tag">快取</span>
+        <span class="tag">防護</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="06-auth.html" class="card" style="--accent: linear-gradient(90deg, #f7971e, #ffd200)">
+      <div class="card-icon">🔐</div>
+      <div class="card-title">認證與授權 (Auth)</div>
+      <div class="card-desc">JWT token 是什麼、登入流程如何運作、台北通 OAuth 是怎麼接的、角色權限如何管理。</div>
+      <div class="card-tags">
+        <span class="tag">JWT</span>
+        <span class="tag">OAuth 2.0</span>
+        <span class="tag">台北通</span>
+        <span class="tag">RBAC</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="07-de.html" class="card" style="--accent: linear-gradient(90deg, #11998e, #38ef7d)">
+      <div class="card-icon">🔄</div>
+      <div class="card-title">資料工程 (DE)</div>
+      <div class="card-desc">Airflow 是什麼、ETL 管道如何運作、資料從哪裡來、怎麼清洗再存進資料庫。</div>
+      <div class="card-tags">
+        <span class="tag">Airflow</span>
+        <span class="tag">ETL</span>
+        <span class="tag">Python</span>
+        <span class="tag">Celery</span>
+        <span class="tag">TDX</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="08-connection.html" class="card" style="--accent: linear-gradient(90deg, #8e44ad, #6c3483)">
+      <div class="card-icon">🔗</div>
+      <div class="card-title">前後端如何連接</div>
+      <div class="card-desc">一個圖表從資料到畫面的完整旅程、API 請求流程、WebSocket、Nginx 如何做路由。</div>
+      <div class="card-tags">
+        <span class="tag">API 流程</span>
+        <span class="tag">Nginx</span>
+        <span class="tag">Axios</span>
+        <span class="tag">圖表渲染</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="09-ai.html" class="card" style="--accent: linear-gradient(90deg, #e96c42, #c0392b)">
+      <div class="card-icon">🤖</div>
+      <div class="card-title">AI 功能</div>
+      <div class="card-desc">AI 聊天機器人如何運作、向量搜尋（Qdrant）是什麼概念、Tool Calling 是怎麼做的。</div>
+      <div class="card-tags">
+        <span class="tag">LLM</span>
+        <span class="tag">Qdrant</span>
+        <span class="tag">向量搜尋</span>
+        <span class="tag">ONNX</span>
+        <span class="tag">Tool Use</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="10-postgres-manager.html" class="card" style="--accent: linear-gradient(90deg, #336791, #00b4ff)">
+      <div class="card-icon">🗂️</div>
+      <div class="card-title">postgres-manager 完全解析</div>
+      <div class="card-desc">系統的「控制中心」—— 所有資料表逐一說明、ER Diagram、關聯邏輯，以及如何新增組件的完整 SQL 步驟。</div>
+      <div class="card-tags">
+        <span class="tag">Schema</span>
+        <span class="tag">ER Diagram</span>
+        <span class="tag">components</span>
+        <span class="tag">dashboards</span>
+        <span class="tag">新增組件</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="11-add-component.html" class="card" style="--accent: linear-gradient(90deg, #7c3aed, #06b6d4)">
+      <div class="card-icon">🧩</div>
+      <div class="card-title">新增組件完整指南</div>
+      <div class="card-desc">從零到組件上線的完整流程 —— FE、BE、DE、資料庫各層如何互動，為什麼不需要改 Go 或 Vue 程式碼，以及急診室組件的實作步驟。</div>
+      <div class="card-tags">
+        <span class="tag">Configuration-Driven</span>
+        <span class="tag">DashboardComponent</span>
+        <span class="tag">query_charts</span>
+        <span class="tag">v-for</span>
+        <span class="tag">急診室組件</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+
+  <h2 class="section-title">⚡ 快速理解：用一句話說清楚每個部分</h2>
+  <div style="background:#0d1f3c;border:1px solid #1e3a5f;border-radius:16px;padding:32px;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.95rem;">
+      <tr style="border-bottom:1px solid #1e3a5f;">
+        <th style="text-align:left;padding:12px 16px;color:#00b4ff;">部分</th>
+        <th style="text-align:left;padding:12px 16px;color:#00b4ff;">技術</th>
+        <th style="text-align:left;padding:12px 16px;color:#00b4ff;">一句話說明</th>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">🖥️ 前端</td>
+        <td style="padding:12px 16px;color:#42b883;">Vue 3</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">使用者看到的畫面，負責顯示圖表和地圖</td>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">⚙️ 後端</td>
+        <td style="padding:12px 16px;color:#00add8;">Go + Gin</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">資料的中間人，接收請求、查資料庫、回傳結果</td>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">🗄️ 資料庫</td>
+        <td style="padding:12px 16px;color:#336791;">PostgreSQL</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">永久儲存所有資料的地方，像一個超大的 Excel</td>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">⚡ Redis</td>
+        <td style="padding:12px 16px;color:#dc382d;">Redis</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">超快的暫存記憶體，負責防止被濫用（限流）</td>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">🔐 認證</td>
+        <td style="padding:12px 16px;color:#f7971e;">JWT + OAuth</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">身份證系統，確認「你是誰」和「你能做什麼」</td>
+      </tr>
+      <tr style="border-bottom:1px solid #0a1628;">
+        <td style="padding:12px 16px;">🔄 資料工程</td>
+        <td style="padding:12px 16px;color:#38ef7d;">Airflow</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">自動化的資料搬運工，定時抓取並清理外部資料</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 16px;">🤖 AI</td>
+        <td style="padding:12px 16px;color:#e96c42;">LLM + Qdrant</td>
+        <td style="padding:12px 16px;color:#7ea8cf;">智慧助手，可以用自然語言查詢圖表和城市資料</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  台北城市儀表板技術說明 · 由 Taipei Urban Intelligence Center (TUIC) 開發
+</div>
+
+</body>
+</html>

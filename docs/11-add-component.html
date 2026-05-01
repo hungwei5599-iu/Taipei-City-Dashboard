@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新增組件完全指南 — Taipei City Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3350;
+    --text: #e2e8f0;
+    --dim: #94a3b8;
+    --blue: #60a5fa;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --purple: #c084fc;
+    --orange: #fb923c;
+    --teal: #2dd4bf;
+    --tab-active: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.6; }
+
+  /* ── NAV ── */
+  nav { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+  nav .logo { color: var(--blue); font-weight: 700; font-size: 14px; padding: 14px 16px 14px 0; border-right: 1px solid var(--border); margin-right: 8px; white-space: nowrap; }
+  nav button { background: none; border: none; color: var(--dim); cursor: pointer; padding: 14px 14px; font-size: 13px; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* ── PAGE ── */
+  .page { display: none; max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  .page.active { display: block; }
+
+  /* ── TYPOGRAPHY ── */
+  h1 { font-size: 26px; color: var(--blue); margin-bottom: 8px; }
+  h2 { font-size: 20px; color: var(--text); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; color: var(--yellow); margin: 28px 0 10px; }
+  h4 { font-size: 14px; color: var(--teal); margin: 16px 0 8px; }
+  p { color: var(--dim); margin-bottom: 12px; }
+  strong { color: var(--text); }
+  .subtitle { color: var(--dim); font-size: 14px; margin-bottom: 32px; }
+
+  /* ── CODE ── */
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 12px 0 20px; font-size: 13px; line-height: 1.7; }
+  code { font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+  pre code { color: var(--text); }
+  .kw { color: #ff79c6; }
+  .fn { color: #50fa7b; }
+  .str { color: #f1fa8c; }
+  .cmt { color: #6272a4; }
+  .num { color: #bd93f9; }
+  .type { color: #8be9fd; }
+  .prop { color: #ffb86c; }
+  inline-code, .ic { background: #1e2233; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: 13px; color: var(--teal); }
+
+  /* ── CARDS ── */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+  .card h4 { margin-top: 0; }
+
+  /* ── FLOW ── */
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 20px 0; }
+  .flow-item { display: flex; gap: 16px; }
+  .flow-item .step-col { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
+  .flow-item .step-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .flow-item .step-line { width: 2px; flex: 1; min-height: 20px; background: var(--border); margin: 4px 0; }
+  .flow-item:last-child .step-line { display: none; }
+  .flow-item .step-content { padding: 4px 0 24px; flex: 1; }
+  .flow-item .step-content h4 { margin-top: 0; }
+  .fe { background: #1e3a5f; color: var(--blue); }
+  .be { background: #1a3a1a; color: var(--green); }
+  .db { background: #3a2a0f; color: var(--yellow); }
+  .de { background: #2e1a3a; color: var(--purple); }
+
+  /* ── BADGE ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 6px; }
+  .badge-fe { background: #1e3a5f; color: var(--blue); }
+  .badge-be { background: #1a3a1a; color: var(--green); }
+  .badge-db { background: #3a2a0f; color: var(--yellow); }
+  .badge-de { background: #2e1a3a; color: var(--purple); }
+  .badge-new { background: #3a1a1a; color: var(--red); }
+  .badge-skip { background: #1e2233; color: var(--dim); }
+
+  /* ── FILE PATH ── */
+  .filepath { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; font-family: monospace; font-size: 12px; color: var(--orange); margin: 8px 0 4px; display: flex; align-items: center; gap: 8px; }
+  .filepath::before { content: '📄'; }
+  .line-ref { color: var(--purple); font-size: 11px; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13px; }
+  th { background: var(--bg3); color: var(--text); padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--dim); vertical-align: top; }
+  td strong { color: var(--text); }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; margin: 12px 0; }
+  .checklist li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .checklist li:last-child { border-bottom: none; }
+  .check { color: var(--green); font-size: 16px; flex-shrink: 0; }
+  .skip-check { color: var(--dim); font-size: 16px; flex-shrink: 0; }
+  .checklist .detail { color: var(--dim); font-size: 12px; margin-top: 2px; }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight { border-left: 4px solid var(--blue); background: rgba(96,165,250,.07); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .highlight.green { border-left-color: var(--green); background: rgba(52,211,153,.07); }
+  .highlight.yellow { border-left-color: var(--yellow); background: rgba(251,191,36,.07); }
+  .highlight.red { border-left-color: var(--red); background: rgba(248,113,113,.07); }
+
+  /* ── COMPARISON ── */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .compare .col { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+  .compare .col h4 { margin-top: 0; }
+  @media (max-width: 640px) { .compare { grid-template-columns: 1fr; } }
+
+  /* ── ANCHOR SCROLL ── */
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Taipei Dashboard</div>
+  <button class="active" onclick="showPage('overview')">① 概念總覽</button>
+  <button onclick="showPage('fe')">② 前端（FE）</button>
+  <button onclick="showPage('be')">③ 後端＋資料庫</button>
+  <button onclick="showPage('de')">④ DE 資料工程</button>
+  <button onclick="showPage('guide')">⑤ 新增組件完整指南</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 1 — 概念總覽
+══════════════════════════════════════════════ -->
+<div id="page-overview" class="page active">
+  <h1>這個系統是怎麼運作的</h1>
+  <p class="subtitle">從「你要新增一個組件」出發，理解 FE、BE、DE 與資料庫的全貌</p>
+
+  <h2>核心概念：Configuration-Driven 架構</h2>
+  <p>傳統做法：每新增一個組件 → 寫一個新的 Vue 元件 + 寫一個新的 BE API + 寫 SQL。<br>
+  這個專案的做法：<strong>所有顯示邏輯都參數化存在資料庫裡</strong>，程式碼本身是通用的框架。</p>
+
+  <div class="compare">
+    <div class="col">
+      <h4 style="color:var(--red)">❌ 傳統做法（你原本想的）</h4>
+      <p>加 YouBike 組件：寫 YouBike.vue + GET /youbike + YouBike SQL</p>
+      <p>加急診組件：寫 ErRoom.vue + GET /er-room + ER SQL</p>
+      <p>每次都要改程式碼、重新部署</p>
+    </div>
+    <div class="col">
+      <h4 style="color:var(--green)">✅ 本專案做法（Configuration-Driven）</h4>
+      <p>一個通用容器 <strong>DashboardComponent.vue</strong> 渲染所有組件</p>
+      <p>一個通用 API <strong>GET /component/:id/chart</strong> 服務所有組件</p>
+      <p>加新組件只需在 DB 插入設定資料</p>
+    </div>
+  </div>
+
+  <h2>四個層次各自做什麼</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h4>① DE（資料工程）</h4>
+      <p><span class="badge badge-de">Airflow</span> 定時抓外部 API → 清洗資料 → 存入 <strong>postgres-data</strong></p>
+      <p>負責讓「原始資料」定期更新到資料庫。例如每 5 分鐘抓一次 NHI 急診 API。</p>
+    </div>
+    <div class="card">
+      <h4>② postgres-data（業務資料庫）</h4>
+      <p>存放真實的業務數據：急診等候人數、YouBike 站點、空氣品質等。</p>
+      <p>由 DE 自動寫入，BE 執行 SQL 時從這裡讀。</p>
+    </div>
+    <div class="card">
+      <h4>③ postgres-manager（設定資料庫）</h4>
+      <p>存放組件的<strong>顯示設定</strong>：用什麼圖表、執行什麼 SQL、地圖怎麼畫。</p>
+      <p>手動設定一次，之後不變。BE 讀這裡的 SQL 字串去查 postgres-data。</p>
+    </div>
+    <div class="card">
+      <h4>④ BE（後端 Go/Gin）</h4>
+      <p>通用 SQL 執行器。從 postgres-manager 拿到 SQL 字串，到 postgres-data 執行，回傳 JSON 給 FE。</p>
+      <p><strong>不需要為新組件改任何 Go 程式碼。</strong></p>
+    </div>
+    <div class="card">
+      <h4>⑤ FE（前端 Vue 3）</h4>
+      <p>通用渲染框架。DashboardComponent.vue 是所有組件的容器，根據設定自動選擇圖表類型。</p>
+      <p><strong>不需要為新組件新建任何 .vue 檔案。</strong></p>
+    </div>
+  </div>
+
+  <h2>一個請求的完整旅程</h2>
+  <div class="flow">
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num fe">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>使用者打開 Dashboard</h4>
+        <p>FE 發出 <code>GET /api/v1/dashboard/taipei_health</code>，取得這個 Dashboard 包含哪些組件 ID（來自 postgres-manager.dashboards）</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num fe">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>FE 取得組件清單</h4>
+        <p>BE 回傳組件清單（含 id、名稱、圖表設定、地圖設定）。FE 存進 <code>contentStore.currentDashboard.components</code></p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num fe">3</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>DashboardView.vue 的 v-for 執行</h4>
+        <p>清單裡有幾個組件，畫面就出現幾個「正方形」。每個正方形都是同一個 <strong>DashboardComponent.vue</strong> 的實例，只是傳入不同的 config。</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num fe">4</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>FE 為每個組件抓圖表數據</h4>
+        <p>對每個組件呼叫 <code>GET /api/v1/component/:id/chart?city=taipei</code></p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num be">5</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>BE 查 postgres-manager 取得 SQL 字串</h4>
+        <p>從 <code>query_charts</code> 表撈出對應的 SQL 字串和 query_type</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num be">6</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>BE 把 SQL 字串丟進 postgres-data 執行</h4>
+        <p>根據 query_type 決定用哪個解析函式（two_d / three_d / time / map_legend）</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col">
+        <div class="step-num fe">7</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>FE 收到 JSON 資料，渲染圖表</h4>
+        <p>DashboardComponent 讀取 <code>chart_config.types[0]</code>（例如 "BarChart"），動態渲染對應的圖表元件</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>兩個資料庫的職責</h2>
+  <table>
+    <tr>
+      <th>比較項目</th>
+      <th>postgres-data（port 5433）</th>
+      <th>postgres-manager（port 5432）</th>
+    </tr>
+    <tr>
+      <td><strong>儲存什麼</strong></td>
+      <td>實際業務資料（急診人數、YouBike 數量）</td>
+      <td>組件顯示設定（SQL 字串、圖表類型、地圖設定）</td>
+    </tr>
+    <tr>
+      <td><strong>誰在寫入</strong></td>
+      <td>DE（Airflow）自動定期寫入</td>
+      <td>你手動執行 INSERT SQL 一次</td>
+    </tr>
+    <tr>
+      <td><strong>資料量變化</strong></td>
+      <td>隨時間增加或被 replace</td>
+      <td>基本固定，只有管理員手動改</td>
+    </tr>
+    <tr>
+      <td><strong>類比</strong></td>
+      <td>倉庫裡的貨物</td>
+      <td>說明書＋展示規則</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 2 — 前端 FE
+══════════════════════════════════════════════ -->
+<div id="page-fe" class="page">
+  <h1>前端（FE）深入解析</h1>
+  <p class="subtitle">為什麼不需要新增 Vue 檔案，以及每行程式碼在做什麼</p>
+
+  <h2>① DashboardView.vue — 組件清單的入口</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/src/views/DashboardView.vue</div>
+
+  <p>這個 View 是「Dashboard 頁面」。它的工作只有一件事：<strong>把 contentStore 裡的組件清單，用 v-for 逐一渲染成 DashboardComponent。</strong></p>
+
+  <pre><code><span class="cmt">// DashboardView.vue 第 122–182 行（一般 Dashboard）</span>
+<span class="kw">&lt;div</span>
+  <span class="prop">v-else-if</span>=<span class="str">"contentStore.currentDashboard.components?.length !== 0"</span>
+  class=<span class="str">"dashboard"</span>
+<span class="kw">&gt;</span>
+  <span class="kw">&lt;DashboardComponent</span>
+    <span class="prop">v-for</span>=<span class="str">"item in contentStore.currentDashboard.components"</span>  <span class="cmt">← 核心迴圈</span>
+    <span class="prop">:key</span>=<span class="str">"`${item.index}-${item.city}`"</span>
+    <span class="prop">:config</span>=<span class="str">"item"</span>                           <span class="cmt">← 把組件設定傳進去</span>
+    <span class="prop">:active-city</span>=<span class="str">"item.city"</span>                 <span class="cmt">← 預設城市</span>
+    <span class="prop">:select-btn</span>=<span class="str">"true"</span>                      <span class="cmt">← 啟用城市選單</span>
+    <span class="prop">:select-btn-list</span>=<span class="str">"cityManager.getSelectList(currentDashboard.city)"</span>
+    <span class="prop">@change-city</span>=<span class="str">"(city) => { ... }"</span>       <span class="cmt">← 切換城市的處理</span>
+  <span class="kw">/&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <div class="highlight">
+    <strong>關鍵理解：</strong><code>contentStore.currentDashboard.components</code> 是一個 array。這個 array 有幾個元素，畫面就出現幾個正方形。你在 DB 的 <code>dashboards.components</code> 裡加一個新 component ID，下次載入這個 array 就多一個元素，畫面就多一個正方形。
+  </div>
+
+  <h3>changeCity 事件處理（第 166–179 行）</h3>
+  <pre><code><span class="prop">@change-city</span>=<span class="str">"(city) => {</span>
+  <span class="cmt">// 從 cityDashboard.components 找到同一個 index 但不同 city 的組件資料</span>
+  <span class="kw">const</span> selectedData = contentStore.cityDashboard.components.<span class="fn">find</span>((data) => {
+    <span class="kw">if</span> (data.index === item.index && data.city === city) <span class="kw">return</span> data
+  });
+  <span class="cmt">// 把目前那格的 config 換成新城市的 config（圖表資料也跟著換）</span>
+  contentStore.<span class="fn">setComponentData</span>(componentIndex, selectedData);
+}"</code></pre>
+
+  <p>這就是城市選單的切換邏輯：FE 已經預先抓好了 <strong>taipei</strong> 和 <strong>metrotaipei</strong> 兩份資料，切換時直接換 config，不重打 API。</p>
+
+  <h2>② contentStore.js — 資料抓取的核心</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/src/store/contentStore.js</div>
+
+  <h3>Step 1：setDashboards()（第 126–192 行）</h3>
+  <pre><code><span class="cmt">// 第 127 行：抓所有 Dashboard 清單</span>
+<span class="kw">const</span> response = <span class="kw">await</span> http.<span class="fn">get</span>(<span class="str">`/dashboard/`</span>);
+<span class="cmt">// BE 回傳：{ taipei: [{id, index, name, components:[1,2,3]}, ...], metrotaipei: [...] }</span></code></pre>
+
+  <h3>Step 2：setCurrentDashboardAllContent()（第 218–268 行）</h3>
+  <pre><code><span class="cmt">// 第 258–261 行：抓指定 Dashboard 的所有組件設定（不過濾 city）</span>
+<span class="kw">const</span> response = <span class="kw">await</span> http.<span class="fn">get</span>(<span class="str">`/dashboard/${this.currentDashboard.index}`</span>);
+this.cityDashboard.components = response.data.data || [];
+<span class="cmt">// 這裡包含 taipei 和 metrotaipei 兩份，用來支援城市切換</span></code></pre>
+
+  <h3>Step 3：setCurrentDashboardAllChartData()（第 272–430 行）</h3>
+  <pre><code><span class="cmt">// 第 283–298 行：對每個組件打一次 /chart API</span>
+<span class="kw">for</span> (let index = 0; index < this.cityDashboard.components.length; index++) {
+  <span class="kw">const</span> component = this.cityDashboard.components[index];
+  <span class="kw">const</span> response = <span class="kw">await</span> http.<span class="fn">get</span>(<span class="str">`/component/${component.id}/chart`</span>, {
+    params: {
+      city: component.city,   <span class="cmt">← "taipei" 或 "metrotaipei"</span>
+      ...timeParams           <span class="cmt">← 若 time_from 不是 current/static，帶時間範圍</span>
+    }
+  });
+  component.chart_data = response.data.data;  <span class="cmt">← 圖表資料存進去</span>
+}</code></pre>
+
+  <h2>③ DashboardComponent.vue — 通用正方形容器</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/src/dashboardComponent/DashboardComponent.vue</div>
+
+  <p>這個元件是<strong>所有組件的通用容器</strong>。不管是急診組件、YouBike 組件、空氣品質組件，全部都用這個正方形。</p>
+
+  <h3>決定顯示哪種圖表（第 94 行）</h3>
+  <pre><code><span class="cmt">// 第 94 行</span>
+<span class="kw">const</span> activeChart = <span class="fn">ref</span>(props.config.chart_config.types[<span class="num">0</span>]);
+<span class="cmt">// props.config.chart_config.types 來自 postgres-manager 的 component_charts.types</span>
+<span class="cmt">// 例如 types = ["BarChart"] → activeChart = "BarChart"</span></code></pre>
+
+  <h3>城市選單 dropdown（第 346–361 行）</h3>
+  <pre><code><span class="cmt">// 第 346–361 行：城市選單，當 selectBtn=true 且 selectBtnList 有多個選項時才顯示</span>
+<span class="kw">&lt;select</span>
+  <span class="prop">v-if</span>=<span class="str">"selectBtn && !selectBtnDisabled"</span>
+  <span class="prop">v-model</span>=<span class="str">"activeCity"</span>
+  class=<span class="str">"selectBtn"</span>
+<span class="kw">&gt;</span>
+  <span class="kw">&lt;template</span> <span class="prop">v-for</span>=<span class="str">"city in props.selectBtnList"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;option</span> <span class="prop">:value</span>=<span class="str">"city.value"</span><span class="kw">&gt;</span>{{ city.name }}<span class="kw">&lt;/option&gt;</span>
+  <span class="kw">&lt;/template&gt;</span>
+<span class="kw">&lt;/select&gt;</span>
+<span class="cmt">// selectBtnList 由 cityManager.getSelectList("metrotaipei") 提供</span>
+<span class="cmt">// 返回 [{name:"雙北", value:"metrotaipei"}, {name:"臺北市", value:"taipei"}]</span></code></pre>
+
+  <h3>圖表切換按鈕（第 362–378 行）</h3>
+  <pre><code><span class="cmt">// 當 chart_config.types 有超過 1 個時，自動顯示切換按鈕</span>
+<span class="kw">&lt;div</span> <span class="prop">v-if</span>=<span class="str">"config.chart_config.types.length > 1"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;button</span>
+    <span class="prop">v-for</span>=<span class="str">"item in config.chart_config.types"</span>
+    <span class="prop">@click</span>=<span class="str">"changeActiveChart(item)"</span>
+  <span class="kw">&gt;</span>{{ chartTypes[item] }}<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;/div&gt;</span>
+<span class="cmt">// 如果 types = ["BarChart","ColumnChart"] → 顯示兩個切換按鈕</span></code></pre>
+
+  <h3>動態渲染圖表元件（第 421–446 行）</h3>
+  <pre><code><span class="cmt">// 第 421–446 行：Vue 的 &lt;component :is="..."> 動態決定渲染哪個元件</span>
+<span class="kw">&lt;component</span>
+  <span class="prop">:is</span>=<span class="str">"returnChartComponent(item)"</span>   <span class="cmt">← 傳入 "BarChart"，取出 BarChart.vue</span>
+  <span class="prop">v-for</span>=<span class="str">"item in config.chart_config.types"</span>
+  <span class="prop">:active-chart</span>=<span class="str">"activeChart"</span>          <span class="cmt">← 目前選中哪個圖表</span>
+  <span class="prop">:series</span>=<span class="str">"config.chart_data"</span>          <span class="cmt">← BE 回傳的圖表資料</span>
+<span class="kw">/&gt;</span></code></pre>
+
+  <h3>returnChartComponent() 函式（第 185–228 行）</h3>
+  <pre><code><span class="cmt">// 第 185–228 行：switch 判斷式，把字串名稱轉成 Vue 元件</span>
+<span class="kw">function</span> <span class="fn">returnChartComponent</span>(name, svg) {
+  <span class="kw">switch</span> (name) {
+    <span class="kw">case</span> <span class="str">"BarChart"</span>:          <span class="kw">return</span> svg ? BarChartSvg : BarChart;
+    <span class="kw">case</span> <span class="str">"ColumnChart"</span>:       <span class="kw">return</span> svg ? ColumnChartSvg : ColumnChart;
+    <span class="kw">case</span> <span class="str">"DonutChart"</span>:        <span class="kw">return</span> svg ? DonutChartSvg : DonutChart;
+    <span class="kw">case</span> <span class="str">"TimelineSeparateChart"</span>: <span class="kw">return</span> svg ? ... : TimelineSeparateChart;
+    <span class="kw">case</span> <span class="str">"BarPercentChart"</span>:   <span class="kw">return</span> svg ? ... : BarPercentChart;
+    <span class="kw">case</span> <span class="str">"GuageChart"</span>:        <span class="kw">return</span> svg ? ... : GuageChart;
+    <span class="kw">case</span> <span class="str">"RadarChart"</span>:        <span class="kw">return</span> svg ? ... : RadarChart;
+    <span class="kw">case</span> <span class="str">"HeatmapChart"</span>:      <span class="kw">return</span> svg ? ... : HeatmapChart;
+    <span class="cmt">// ... 共 20+ 種</span>
+    <span class="kw">default</span>: <span class="kw">return</span> MapLegend;
+  }
+}
+<span class="cmt">// 你在 DB 填 types=["BarChart"]，這裡就回傳 BarChart.vue，不需要任何新程式碼</span></code></pre>
+
+  <h2>④ cityManager.ts — 城市選單的配置</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/src/dashboardComponent/utilities/cityManager.ts</div>
+
+  <pre><code><span class="cmt">// 第 22–62 行：定義每個城市的選單內容</span>
+<span class="kw">private</span> configs: Map&lt;<span class="type">string</span>, CityConfig&gt; = <span class="kw">new</span> <span class="fn">Map</span>([
+  [<span class="str">"taipei"</span>, {
+    enabled: <span class="kw">true</span>,
+    selectList: [<span class="str">"taipei"</span>],           <span class="cmt">← 臺北 Dashboard 的選單：只有「臺北市」</span>
+    tagList: [<span class="str">"taipei"</span>],
+  }],
+  [<span class="str">"metrotaipei"</span>, {
+    enabled: <span class="kw">true</span>,
+    selectList: [<span class="str">"metrotaipei"</span>, <span class="str">"taipei"</span>],  <span class="cmt">← 雙北 Dashboard 的選單：「雙北」+「臺北市」</span>
+    tagList: [<span class="str">"metrotaipei"</span>, <span class="str">"taipei"</span>],
+  }],
+  [<span class="str">"newtaipei"</span>, { enabled: <span class="kw">false</span>, ... }],   <span class="cmt">← 目前停用</span>
+]);</code></pre>
+
+  <div class="highlight yellow">
+    <strong>城市選單機制總結：</strong><br>
+    1. 你在 query_charts 建 <code>city='taipei'</code> 和 <code>city='metrotaipei'</code> 兩筆記錄<br>
+    2. Dashboard 的 city 是 'metrotaipei' → getSelectList 回傳 ["metrotaipei","taipei"]<br>
+    3. DashboardComponent 的 &lt;select&gt; 自動出現「雙北」和「臺北市」兩個選項<br>
+    4. 使用者切換 → FE 直接換 config（用已快取資料），不重打 API
+  </div>
+
+  <h2>⑤ mapStore.js — 地圖圖層（Mapbox）</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/src/store/mapStore.js</div>
+
+  <pre><code><span class="cmt">// 第 455 行左右：讀取靜態 GeoJSON 檔案</span>
+<span class="kw">async function</span> <span class="fn">fetchLocalGeoJson</span>(map_config) {
+  <span class="kw">const</span> res = <span class="kw">await</span> axios.<span class="fn">get</span>(<span class="str">`/mapData/${map_config.index}.geojson`</span>);
+  <span class="cmt">// map_config.index = "er_room_realtime"</span>
+  <span class="cmt">// 就會讀取 /public/mapData/er_room_realtime.geojson</span>
+}</code></pre>
+
+  <p>你只需要把 GeoJSON 檔案放進 <code>public/mapData/</code>，mapStore 就能讀取。不需要改任何程式碼。</p>
+
+  <h2>圖表資料格式對應（query_type）</h2>
+  <table>
+    <tr>
+      <th>query_type</th>
+      <th>SQL 必須有的欄位</th>
+      <th>適合圖表</th>
+      <th>急診組件建議</th>
+    </tr>
+    <tr>
+      <td><strong>two_d</strong></td>
+      <td><code>x_axis</code>（文字）, <code>data</code>（數字）</td>
+      <td>BarChart, ColumnChart</td>
+      <td>✅ 醫院名 vs 一般候診人數</td>
+    </tr>
+    <tr>
+      <td><strong>three_d</strong></td>
+      <td><code>x_axis</code>, <code>y_axis</code>, <code>data</code></td>
+      <td>BarChart（分組）</td>
+      <td>✅ 醫院名 × 等候類別 × 人數</td>
+    </tr>
+    <tr>
+      <td><strong>percent</strong></td>
+      <td><code>x_axis</code>, <code>y_axis</code>, <code>data</code></td>
+      <td>BarPercentChart, DonutChart</td>
+      <td>可用於顯示各類別占比</td>
+    </tr>
+    <tr>
+      <td><strong>time</strong></td>
+      <td><code>x_axis</code>（時間）, <code>y_axis</code>, <code>data</code></td>
+      <td>TimelineSeparateChart</td>
+      <td>有 history_table 時使用</td>
+    </tr>
+    <tr>
+      <td><strong>map_legend</strong></td>
+      <td><code>name</code>, <code>type</code>, <code>value</code></td>
+      <td>MapLegend</td>
+      <td>地圖圖例</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 3 — 後端 + 資料庫
+══════════════════════════════════════════════ -->
+<div id="page-be" class="page">
+  <h1>後端（BE）＋資料庫深入解析</h1>
+  <p class="subtitle">一個通用 API 如何服務所有組件，以及兩個 PostgreSQL 資料庫的分工</p>
+
+  <h2>① 路由設定 — 為什麼不需要新路由</h2>
+  <div class="filepath">Taipei-City-Dashboard-BE/app/routes/router.go <span class="line-ref">第 105–127 行</span></div>
+
+  <pre><code><span class="cmt">// 第 105–127 行：組件路由，已涵蓋所有需求</span>
+<span class="kw">func</span> <span class="fn">configureComponentRoutes</span>() {
+  componentRoutes := RouterGroup.<span class="fn">Group</span>(<span class="str">"/component"</span>)
+  {
+    componentRoutes.<span class="fn">GET</span>(<span class="str">"/"</span>,        controllers.GetAllComponents)
+    componentRoutes.<span class="fn">GET</span>(<span class="str">"/:id"</span>,     controllers.GetComponentByID)
+    componentRoutes.<span class="fn">GET</span>(<span class="str">"/:id/all"</span>, controllers.GetComponentByIDAll)
+    componentRoutes.<span class="fn">GET</span>(<span class="str">"/:id/chart"</span>,   controllers.GetComponentChartData)   <span class="cmt">← 這個</span>
+    componentRoutes.<span class="fn">GET</span>(<span class="str">"/:id/history"</span>, controllers.GetComponentHistoryData)
+  }
+}
+<span class="cmt">// GET /:id/chart 就是所有組件共用的圖表數據 API</span>
+<span class="cmt">// 你的急診組件 ID 假設是 99，FE 就呼叫 GET /component/99/chart?city=taipei</span></code></pre>
+
+  <div class="highlight green">
+    <strong>為什麼不需要新路由？</strong><br>
+    <code>/:id/chart</code> 裡的 <code>:id</code> 是 URL 參數，代表任何組件 ID 都用這一個路由。BE 不需要知道 ID=99 是急診組件，它只是去 DB 查對應的 SQL 字串然後執行。
+  </div>
+
+  <h2>② GetComponentChartData — 通用 SQL 執行器</h2>
+  <div class="filepath">Taipei-City-Dashboard-BE/app/controllers/componentData.go <span class="line-ref">第 20–87 行</span></div>
+
+  <pre><code><span class="kw">func</span> <span class="fn">GetComponentChartData</span>(c *gin.Context) {
+  <span class="cmt">// 第 22 行：從 URL 取得 component id</span>
+  id, _ := strconv.<span class="fn">Atoi</span>(c.<span class="fn">Param</span>(<span class="str">"id"</span>))
+
+  <span class="cmt">// 第 30–38 行：取得 city 參數，只允許 "taipei" 或 "metrotaipei"</span>
+  <span class="kw">var</span> query componentQuery
+  c.<span class="fn">ShouldBindQuery</span>(&query)
+  <span class="kw">if</span> query.City == <span class="str">""</span> { query.City = <span class="str">"taipei"</span> }
+
+  <span class="cmt">// 第 41 行：去 postgres-manager 查 query_charts，取回 SQL 字串</span>
+  queryType, queryString, err := models.<span class="fn">GetComponentChartDataQuery</span>(id, query.City)
+  <span class="cmt">// queryType = "two_d"（或 three_d / time / map_legend）</span>
+  <span class="cmt">// queryString = "SELECT hosp_name AS x_axis, wait_general AS data FROM er_room_realtime WHERE..."</span>
+
+  <span class="cmt">// 第 58–86 行：根據 query_type 選擇解析器，執行 SQL，回傳 JSON</span>
+  <span class="kw">if</span> queryType == <span class="str">"two_d"</span> {
+    chartData, _ := models.<span class="fn">GetTwoDimensionalData</span>(&queryString, timeFrom, timeTo)
+    c.<span class="fn">JSON</span>(200, gin.H{<span class="str">"status"</span>: <span class="str">"success"</span>, <span class="str">"data"</span>: chartData})
+  } <span class="kw">else if</span> queryType == <span class="str">"three_d"</span> || queryType == <span class="str">"percent"</span> {
+    chartData, categories, _ := models.<span class="fn">GetThreeDimensionalData</span>(&queryString, ...)
+    c.<span class="fn">JSON</span>(200, gin.H{<span class="str">"status"</span>: <span class="str">"success"</span>, <span class="str">"data"</span>: chartData, <span class="str">"categories"</span>: categories})
+  } <span class="kw">else if</span> queryType == <span class="str">"time"</span> {
+    ...
+  }
+}</code></pre>
+
+  <h2>③ GetComponentChartDataQuery — 從 postgres-manager 取 SQL</h2>
+  <div class="filepath">Taipei-City-Dashboard-BE/app/models/componentData.go <span class="line-ref">第 117–131 行</span></div>
+
+  <pre><code><span class="kw">func</span> <span class="fn">GetComponentChartDataQuery</span>(id <span class="type">int</span>, city <span class="type">string</span>) (queryType, queryString <span class="type">string</span>, err <span class="type">error</span>) {
+  <span class="kw">var</span> chartDataQuery ChartDataQuery
+
+  err = DBManager.                         <span class="cmt">← 連接 postgres-manager</span>
+    <span class="fn">Table</span>(<span class="str">"components"</span>).
+    <span class="fn">Select</span>(<span class="str">"query_charts.query_type, query_charts.query_chart"</span>).
+    <span class="fn">Joins</span>(<span class="str">"LEFT JOIN query_charts ON components.index = query_charts.index"</span>).
+    <span class="fn">Where</span>(<span class="str">"components.id = ?"</span>, id).
+    <span class="fn">Where</span>(<span class="str">"query_charts.city = ?"</span>, city).   <span class="cmt">← 用 city 過濾出對應的 SQL</span>
+    <span class="fn">Find</span>(&chartDataQuery).<span class="fn">Error</span>
+
+  <span class="kw">return</span> chartDataQuery.QueryType, chartDataQuery.QueryChart, nil
+  <span class="cmt">// 回傳 query_type（決定解析方式）和 query_chart（實際 SQL 字串）</span>
+}</code></pre>
+
+  <h2>④ DBDashboard vs DBManager</h2>
+  <div class="filepath">Taipei-City-Dashboard-BE/app/models/database.go</div>
+
+  <pre><code><span class="kw">var</span> (
+  DBManager   *gorm.DB   <span class="cmt">← 連接 postgres-manager（設定資料庫，port 5432）</span>
+  DBDashboard *gorm.DB   <span class="cmt">← 連接 postgres-data（業務資料庫，port 5433）</span>
+)
+<span class="cmt">// GetComponentChartDataQuery 用 DBManager 查 SQL 字串</span>
+<span class="cmt">// GetTwoDimensionalData 用 DBDashboard 執行那個 SQL 字串</span></code></pre>
+
+  <h2>⑤ postgres-manager 五張核心表</h2>
+  <table>
+    <tr>
+      <th>表名</th>
+      <th>存放什麼</th>
+      <th>新增組件時需要 INSERT</th>
+    </tr>
+    <tr>
+      <td><strong>components</strong></td>
+      <td>組件基本資訊：index、名稱、歷史設定、map_config_ids</td>
+      <td>✅ 1 筆</td>
+    </tr>
+    <tr>
+      <td><strong>component_charts</strong></td>
+      <td>圖表樣式：顏色陣列、types（圖表類型）、單位</td>
+      <td>✅ 1 筆</td>
+    </tr>
+    <tr>
+      <td><strong>query_charts</strong></td>
+      <td>各城市的 SQL 查詢：query_type、query_chart（SQL 字串）、city</td>
+      <td>✅ 2 筆（taipei + metrotaipei）</td>
+    </tr>
+    <tr>
+      <td><strong>component_maps</strong></td>
+      <td>Mapbox 圖層設定：source type、paint 樣式、GeoJSON index</td>
+      <td>✅ 1 筆（若有地圖）</td>
+    </tr>
+    <tr>
+      <td><strong>dashboards</strong></td>
+      <td>儀表板結構：包含哪些 component id（integer 陣列）</td>
+      <td>✅ UPDATE 現有 dashboard</td>
+    </tr>
+  </table>
+
+  <h2>⑥ createTempComponentDB — 組件資料的組裝</h2>
+  <div class="filepath">Taipei-City-Dashboard-BE/app/models/componentConfig.go</div>
+
+  <p>當 FE 呼叫 <code>GET /dashboard/:index</code>，BE 執行這個複雜的 JOIN 查詢，把 5 張表的資料組裝成一個 <code>CityComponent</code> 物件回傳：</p>
+  <pre><code><span class="cmt">// 回傳的 JSON 結構（FE 直接存進 contentStore）</span>
+{
+  "id": 99,
+  "index": "er_room_realtime",
+  "name": "急診室即時資訊",
+  "city": "metrotaipei",
+  "time_from": "current",
+  "chart_config": {
+    "color": ["#e53935", "#fb8c00", "#43a047"],
+    "types": ["BarChart"],         <span class="cmt">← DashboardComponent 用這個決定渲染哪個圖表</span>
+    "unit": "人"
+  },
+  "map_config": [{
+    "index": "er_room_realtime",   <span class="cmt">← mapStore 用這個讀 /public/mapData/er_room_realtime.geojson</span>
+    "type": "circle",
+    "source": "geojson"
+  }],
+  "chart_data": [...]              <span class="cmt">← 另外打 /chart API 回來的資料</span>
+}</code></pre>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 4 — DE 資料工程
+══════════════════════════════════════════════ -->
+<div id="page-de" class="page">
+  <h1>DE（資料工程）深入解析</h1>
+  <p class="subtitle">Airflow DAG 的結構、job_config.json 的設定，以及 load_behavior 的意義</p>
+
+  <h2>DE 在整個架構中的位置</h2>
+  <div class="highlight">
+    DE 是唯一需要<strong>寫新程式碼</strong>的部分。因為每個外部 API 的格式都不同，清洗邏輯無法通用化。
+    DE 的職責：定時抓外部資料 → 清洗 → 存進 postgres-data。跟 FE、BE、postgres-manager 完全無關。
+  </div>
+
+  <h2>一個 DAG 資料夾的標準結構</h2>
+  <div class="filepath">Taipei-City-Dashboard-DE/dags/proj_city_dashboard/D010501/</div>
+
+  <pre><code>D010501/
+├── D010501.py          ← 主要 ETL 邏輯（Extract / Transform / Load）
+└── job_config.json     ← 排程設定、資料庫設定</code></pre>
+
+  <h2>job_config.json 解析</h2>
+  <div class="filepath">Taipei-City-Dashboard-DE/dags/proj_city_dashboard/D010501/job_config.json</div>
+
+  <pre><code>{
+  "dag_infos": {
+    "dag_id": "D010501",
+    "start_date": "2024-06-25",
+    "schedule_interval": "0 19 16 * *",      <span class="cmt">← Cron 格式：每月 16 日 19:00 執行</span>
+    "catchup": false,
+    "ready_data_db": "postgres_default",     <span class="cmt">← 目標資料庫（postgres-data）</span>
+    "ready_data_default_table": "resh_petition",  <span class="cmt">← 主要寫入的表名</span>
+    "ready_data_history_table": "",          <span class="cmt">← 歷史記錄表（可選）</span>
+    "load_behavior": "append"               <span class="cmt">← 寫入方式</span>
+  },
+  "data_infos": {
+    "name_cn": "臺北市陳情系統類別資料",
+    "source": "https://data.taipei/...",
+    "is_geometry": 0                         <span class="cmt">← 0=不含幾何, 1=含幾何</span>
+  }
+}</code></pre>
+
+  <h3>load_behavior 三種模式</h3>
+  <table>
+    <tr>
+      <th>值</th>
+      <th>行為</th>
+      <th>適用場景</th>
+    </tr>
+    <tr>
+      <td><strong>replace</strong></td>
+      <td>每次執行前清空整張表，再寫入新資料</td>
+      <td>即時資料（急診等候、YouBike 站點）</td>
+    </tr>
+    <tr>
+      <td><strong>append</strong></td>
+      <td>保留原有資料，把新資料加在後面</td>
+      <td>歷史累積資料（月報、陳情記錄）</td>
+    </tr>
+    <tr>
+      <td><strong>upsert</strong></td>
+      <td>有就更新，沒有就新增（用主鍵判斷）</td>
+      <td>需要更新特定記錄</td>
+    </tr>
+  </table>
+  <p><strong>急診組件用 replace：</strong>每次跑 DAG 就把舊的 21 筆蓋掉，寫入最新的 21 筆。</p>
+
+  <h2>DAG Python 檔的標準結構</h2>
+  <div class="filepath">Taipei-City-Dashboard-DE/dags/proj_city_dashboard/D010501/D010501.py</div>
+
+  <pre><code><span class="kw">from</span> airflow <span class="kw">import</span> DAG
+<span class="kw">from</span> operators.common_pipeline <span class="kw">import</span> CommonDag
+
+<span class="kw">def</span> <span class="fn">_transfer</span>(**kwargs):
+    <span class="cmt"># ── CONFIG ──────────────────────────────────────</span>
+    dag_infos = kwargs.<span class="fn">get</span>(<span class="str">"dag_infos"</span>)            <span class="cmt">← 從 job_config.json 來</span>
+    ready_data_db_uri = kwargs.<span class="fn">get</span>(<span class="str">"ready_data_db_uri"</span>)  <span class="cmt">← postgres-data 連線字串</span>
+    default_table = dag_infos.<span class="fn">get</span>(<span class="str">"ready_data_default_table"</span>)
+    load_behavior = dag_infos.<span class="fn">get</span>(<span class="str">"load_behavior"</span>)  <span class="cmt">← "replace"</span>
+
+    <span class="cmt"># ── EXTRACT ──────────────────────────────────────</span>
+    <span class="kw">import</span> requests
+    response = requests.<span class="fn">post</span>(
+        <span class="str">"https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002"</span>,
+        json={}
+    )
+    raw_data = pd.<span class="fn">DataFrame</span>(response.<span class="fn">json</span>()[<span class="str">"data"</span>])
+
+    <span class="cmt"># ── TRANSFORM ──────────────────────────────────────</span>
+    data = raw_data.<span class="fn">copy</span>()
+    data = data[data[<span class="str">"areA_NO_N"</span>].<span class="fn">isin</span>([<span class="str">"01"</span>, <span class="str">"31"</span>])]  <span class="cmt">← 只保留雙北</span>
+    data = data.<span class="fn">rename</span>(columns={
+        <span class="str">"hosP_ID"</span>: <span class="str">"hosp_id"</span>,
+        <span class="str">"hosP_NAME"</span>: <span class="str">"hosp_name"</span>,
+        <span class="str">"areA_NO_N"</span>: <span class="str">"area_code"</span>,
+        <span class="str">"conT_TYPE"</span>: <span class="str">"cont_type"</span>,
+        <span class="str">"waiT_SEE_CNT"</span>: <span class="str">"wait_see"</span>,
+        <span class="str">"waiT_BED_CNT"</span>: <span class="str">"wait_bed"</span>,
+        <span class="str">"waiT_GENERAL_CNT"</span>: <span class="str">"wait_general"</span>,
+        <span class="str">"waiT_ICU_CNT"</span>: <span class="str">"wait_icu"</span>,
+        <span class="str">"txT_DATE"</span>: <span class="str">"data_time"</span>,
+    })
+    <span class="cmt"># null 值轉為 0，data_time 標準化</span>
+    data[<span class="str">"data_time"</span>] = <span class="fn">convert_str_to_time_format</span>(data[<span class="str">"data_time"</span>])
+    ready_data = data[[
+        <span class="str">"hosp_id"</span>, <span class="str">"hosp_name"</span>, <span class="str">"area_code"</span>, <span class="str">"cont_type"</span>,
+        <span class="str">"wait_see"</span>, <span class="str">"wait_bed"</span>, <span class="str">"wait_general"</span>, <span class="str">"wait_icu"</span>, <span class="str">"data_time"</span>
+    ]]
+
+    <span class="cmt"># ── LOAD ──────────────────────────────────────</span>
+    engine = <span class="fn">create_engine</span>(ready_data_db_uri)
+    <span class="fn">save_dataframe_to_postgresql</span>(
+        engine,
+        data=ready_data,
+        load_behavior=load_behavior,      <span class="cmt">← "replace"</span>
+        default_table=default_table,      <span class="cmt">← "er_room_realtime"</span>
+    )
+    <span class="fn">update_lasttime_in_data_to_dataset_info</span>(engine, dag_id, data[<span class="str">"data_time"</span>].<span class="fn">max</span>())
+
+
+<span class="cmt"># 這兩行建立 DAG，固定格式</span>
+dag = <span class="fn">CommonDag</span>(proj_folder=<span class="str">"proj_city_dashboard"</span>, dag_folder=<span class="str">"er_room_realtime"</span>)
+dag.<span class="fn">create_dag</span>(etl_func=_transfer)</code></pre>
+
+  <h2>Cron 排程範例</h2>
+  <table>
+    <tr>
+      <th>schedule_interval</th>
+      <th>執行頻率</th>
+      <th>適用場景</th>
+    </tr>
+    <tr>
+      <td><code>*/5 * * * *</code></td>
+      <td>每 5 分鐘</td>
+      <td>急診即時資料 ✅</td>
+    </tr>
+    <tr>
+      <td><code>*/10 * * * *</code></td>
+      <td>每 10 分鐘</td>
+      <td>YouBike 站點資料</td>
+    </tr>
+    <tr>
+      <td><code>0 * * * *</code></td>
+      <td>每小時整點</td>
+      <td>每小時彙整資料</td>
+    </tr>
+    <tr>
+      <td><code>0 0 * * *</code></td>
+      <td>每天午夜</td>
+      <td>每日統計</td>
+    </tr>
+    <tr>
+      <td><code>0 19 16 * *</code></td>
+      <td>每月 16 日 19:00</td>
+      <td>月報資料</td>
+    </tr>
+  </table>
+
+  <h2>DE 與其他層的關係</h2>
+  <div class="highlight">
+    <strong>DE 只跟 postgres-data 互動。</strong><br>
+    DE 不需要知道 postgres-manager 存什麼、BE 如何查詢、FE 如何顯示。<br>
+    它的唯一職責：把外部 API 的資料清洗後存進正確的表。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 5 — 完整指南
+══════════════════════════════════════════════ -->
+<div id="page-guide" class="page">
+  <h1>新增「急診室即時資訊」完整指南</h1>
+  <p class="subtitle">從零到組件上線，所有步驟、所有檔案、所有程式碼</p>
+
+  <h2>整體規劃一覽</h2>
+  <table>
+    <tr>
+      <th>步驟</th>
+      <th>誰做</th>
+      <th>在哪裡做</th>
+      <th>改動量</th>
+    </tr>
+    <tr>
+      <td>① 建 postgres-data 表</td>
+      <td>你（手動）</td>
+      <td>pgAdmin → postgres-data（port 5433）</td>
+      <td>1 段 CREATE TABLE SQL</td>
+    </tr>
+    <tr>
+      <td>② 寫 DE DAG</td>
+      <td>你（寫程式）</td>
+      <td>新增 2 個檔案到 DE 資料夾</td>
+      <td>~80 行 Python + 1 個 JSON</td>
+    </tr>
+    <tr>
+      <td>③ 建 GeoJSON</td>
+      <td>你（手動）</td>
+      <td>新增 1 個檔案到 FE/public/mapData/</td>
+      <td>1 個 GeoJSON 檔</td>
+    </tr>
+    <tr>
+      <td>④ 設定 postgres-manager</td>
+      <td>你（手動）</td>
+      <td>pgAdmin → postgres-manager（port 5432）</td>
+      <td>1 段 INSERT SQL（5 張表）</td>
+    </tr>
+    <tr>
+      <td>⑤ 測試驗收</td>
+      <td>你</td>
+      <td>瀏覽器</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>FE Vue 程式碼</td>
+      <td>—</td>
+      <td>—</td>
+      <td><strong style="color:var(--green)">不需要動</strong></td>
+    </tr>
+    <tr>
+      <td>BE Go 程式碼</td>
+      <td>—</td>
+      <td>—</td>
+      <td><strong style="color:var(--green)">不需要動</strong></td>
+    </tr>
+  </table>
+
+  <h2>Step 1 — 在 postgres-data 建表</h2>
+  <p><span class="badge badge-db">pgAdmin</span> 連接 postgres-data（localhost:5433）→ 執行以下 SQL：</p>
+
+  <pre><code><span class="kw">CREATE TABLE</span> er_room_realtime (
+    id           SERIAL <span class="kw">PRIMARY KEY</span>,
+    hosp_id      VARCHAR(20),
+    hosp_name    VARCHAR(100),
+    area_code    VARCHAR(5),       <span class="cmt">-- '01'=臺北, '31'=新北</span>
+    cont_type    VARCHAR(5),       <span class="cmt">-- '1'=醫學中心, '2'=區域, '3'=地區</span>
+    wait_see     INTEGER,          <span class="cmt">-- 等待看診人數（可能 null）</span>
+    wait_bed     INTEGER,          <span class="cmt">-- 等待病床人數</span>
+    wait_general INTEGER,          <span class="cmt">-- 一般候診人數</span>
+    wait_icu     INTEGER,          <span class="cmt">-- 加護病房候診人數</span>
+    data_time    TIMESTAMP <span class="kw">WITH TIME ZONE</span>
+);
+<span class="kw">CREATE INDEX</span> ON er_room_realtime (area_code);
+<span class="kw">COMMENT ON TABLE</span> er_room_realtime <span class="kw">IS</span> <span class="str">'雙北急診室即時等候人數，每5分鐘更新'</span>;</code></pre>
+
+  <div class="highlight yellow">注意：這張表<strong>不需要 wkb_geometry 欄位</strong>。醫院位置由前端靜態 GeoJSON 處理，兩者完全獨立。</div>
+
+  <h2>Step 2 — 寫 DE DAG</h2>
+  <p><span class="badge badge-de">新增檔案</span> 在以下位置新增兩個檔案：</p>
+
+  <div class="filepath">Taipei-City-Dashboard-DE/dags/proj_city_dashboard/er_room_realtime/job_config.json <span class="badge badge-new">新增</span></div>
+  <pre><code>{
+  "dag_infos": {
+    "dag_id": "er_room_realtime",
+    "start_date": "2025-01-01",
+    "schedule_interval": "*/5 * * * *",
+    "catchup": false,
+    "tags": ["er_room", "衛生局", "急診"],
+    "description": "雙北急診室即時等候人數，每5分鐘更新",
+    "default_args": {
+      "owner": "airflow",
+      "email_on_failure": true,
+      "retries": 1,
+      "retry_delay": 60
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "er_room_realtime",
+    "ready_data_history_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "雙北急診室即時資訊",
+    "source": "https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002",
+    "source_type": "nhi api",
+    "source_dept": "衛福部中央健康保險署",
+    "is_geometry": 0
+  }
+}</code></pre>
+
+  <div class="filepath">Taipei-City-Dashboard-DE/dags/proj_city_dashboard/er_room_realtime/er_room_realtime.py <span class="badge badge-new">新增</span></div>
+  <pre><code><span class="kw">from</span> airflow <span class="kw">import</span> DAG
+<span class="kw">from</span> operators.common_pipeline <span class="kw">import</span> CommonDag
+
+
+<span class="kw">def</span> <span class="fn">_transfer</span>(**kwargs):
+    <span class="kw">import</span> pandas <span class="kw">as</span> pd
+    <span class="kw">import</span> requests
+    <span class="kw">from</span> sqlalchemy <span class="kw">import</span> create_engine
+    <span class="kw">from</span> utils.load_stage <span class="kw">import</span> (
+        save_dataframe_to_postgresql,
+        update_lasttime_in_data_to_dataset_info,
+    )
+    <span class="kw">from</span> utils.transform_time <span class="kw">import</span> convert_str_to_time_format
+
+    <span class="cmt"># ── Config ──</span>
+    dag_infos = kwargs.<span class="fn">get</span>(<span class="str">"dag_infos"</span>)
+    ready_data_db_uri = kwargs.<span class="fn">get</span>(<span class="str">"ready_data_db_uri"</span>)
+    dag_id = dag_infos.<span class="fn">get</span>(<span class="str">"dag_id"</span>)
+    load_behavior = dag_infos.<span class="fn">get</span>(<span class="str">"load_behavior"</span>)
+    default_table = dag_infos.<span class="fn">get</span>(<span class="str">"ready_data_default_table"</span>)
+
+    <span class="cmt"># ── Extract ──</span>
+    res = requests.<span class="fn">post</span>(
+        <span class="str">"https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002"</span>,
+        json={},
+        timeout=30,
+    )
+    res.<span class="fn">raise_for_status</span>()
+    raw_data = pd.<span class="fn">DataFrame</span>(res.<span class="fn">json</span>()[<span class="str">"data"</span>])
+
+    <span class="cmt"># ── Transform ──</span>
+    data = raw_data[raw_data[<span class="str">"areA_NO_N"</span>].<span class="fn">isin</span>([<span class="str">"01"</span>, <span class="str">"31"</span>])].<span class="fn">copy</span>()
+    data = data.<span class="fn">rename</span>(columns={
+        <span class="str">"hosP_ID"</span>:            <span class="str">"hosp_id"</span>,
+        <span class="str">"hosP_NAME"</span>:          <span class="str">"hosp_name"</span>,
+        <span class="str">"areA_NO_N"</span>:          <span class="str">"area_code"</span>,
+        <span class="str">"conT_TYPE"</span>:          <span class="str">"cont_type"</span>,
+        <span class="str">"waiT_SEE_CNT"</span>:       <span class="str">"wait_see"</span>,
+        <span class="str">"waiT_BED_CNT"</span>:       <span class="str">"wait_bed"</span>,
+        <span class="str">"waiT_GENERAL_CNT"</span>:   <span class="str">"wait_general"</span>,
+        <span class="str">"waiT_ICU_CNT"</span>:       <span class="str">"wait_icu"</span>,
+        <span class="str">"txT_DATE"</span>:           <span class="str">"data_time"</span>,
+    })
+    <span class="cmt"># 數字欄位轉 int，null 保留為 None（DB 接受）</span>
+    <span class="kw">for</span> col <span class="kw">in</span> [<span class="str">"wait_see"</span>, <span class="str">"wait_bed"</span>, <span class="str">"wait_general"</span>, <span class="str">"wait_icu"</span>]:
+        data[col] = pd.<span class="fn">to_numeric</span>(data[col], errors=<span class="str">"coerce"</span>).<span class="fn">astype</span>(<span class="str">"Int64"</span>)
+
+    data[<span class="str">"data_time"</span>] = <span class="fn">convert_str_to_time_format</span>(data[<span class="str">"data_time"</span>])
+    ready_data = data[[
+        <span class="str">"hosp_id"</span>, <span class="str">"hosp_name"</span>, <span class="str">"area_code"</span>, <span class="str">"cont_type"</span>,
+        <span class="str">"wait_see"</span>, <span class="str">"wait_bed"</span>, <span class="str">"wait_general"</span>, <span class="str">"wait_icu"</span>, <span class="str">"data_time"</span>,
+    ]]
+
+    <span class="cmt"># ── Load ──</span>
+    engine = <span class="fn">create_engine</span>(ready_data_db_uri)
+    <span class="fn">save_dataframe_to_postgresql</span>(
+        engine,
+        data=ready_data,
+        load_behavior=load_behavior,
+        default_table=default_table,
+    )
+    <span class="fn">update_lasttime_in_data_to_dataset_info</span>(engine, dag_id, data[<span class="str">"data_time"</span>].<span class="fn">max</span>())
+
+
+dag = <span class="fn">CommonDag</span>(proj_folder=<span class="str">"proj_city_dashboard"</span>, dag_folder=<span class="str">"er_room_realtime"</span>)
+dag.<span class="fn">create_dag</span>(etl_func=_transfer)</code></pre>
+
+  <h2>Step 3 — 建立醫院 GeoJSON</h2>
+  <div class="filepath">Taipei-City-Dashboard-FE/public/mapData/er_room_realtime.geojson <span class="badge badge-new">新增</span></div>
+
+  <pre><code>{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5197, 25.0491] },
+      "properties": {
+        "hosp_id": "0401180014",
+        "name": "臺大醫院",
+        "cont_type": "1",
+        "area": "01"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [121.5436, 25.0578] },
+      "properties": {
+        "hosp_id": "0601160016",
+        "name": "台北榮總",
+        "cont_type": "1",
+        "area": "01"
+      }
+    }
+    <span class="cmt">// ... 共 21 家醫院</span>
+  ]
+}</code></pre>
+
+  <p>座標取得方式（任選一種）：</p>
+  <ul style="color:var(--dim); padding-left: 20px; margin: 8px 0;">
+    <li style="margin: 6px 0;">Google Maps 搜尋醫院名稱 → 點右鍵 → 複製座標</li>
+    <li style="margin: 6px 0;">衛福部醫事機構查詢 API（data.gov.tw）含座標</li>
+    <li style="margin: 6px 0;">OSM Overpass API 批次查詢台灣醫院</li>
+  </ul>
+
+  <h2>Step 4 — 設定 postgres-manager</h2>
+  <p><span class="badge badge-db">pgAdmin</span> 連接 postgres-manager（localhost:5432）→ 按順序執行：</p>
+
+  <h3>4-1. INSERT component_maps（先做，因為需要它的 id）</h3>
+  <pre><code><span class="kw">INSERT INTO</span> component_maps (
+    index, title, type, source, size, base_layer, paint, property
+) <span class="kw">VALUES</span> (
+    <span class="str">'er_room_realtime'</span>,          <span class="cmt">-- 對應 GeoJSON 檔名</span>
+    <span class="str">'急診醫院位置'</span>,
+    <span class="str">'circle'</span>,                    <span class="cmt">-- 圓點圖層</span>
+    <span class="str">'geojson'</span>,                   <span class="cmt">-- 讀靜態 GeoJSON 檔</span>
+    <span class="num">6</span>,                            <span class="cmt">-- 圓點大小</span>
+    <span class="kw">false</span>,
+    <span class="str">'{"circle-color": "#e53935", "circle-opacity": 0.9}'</span>,
+    <span class="str">'{"name": "name"}'</span>            <span class="cmt">-- popup 顯示的欄位</span>
+);
+<span class="cmt">-- 記下產生的 id，例如 id = 15</span>
+<span class="kw">SELECT</span> id <span class="kw">FROM</span> component_maps <span class="kw">WHERE</span> index = <span class="str">'er_room_realtime'</span>;</code></pre>
+
+  <h3>4-2. INSERT components</h3>
+  <pre><code><span class="kw">INSERT INTO</span> components (
+    index, name, history_config, map_config_ids, map_filter, linked_component_ids
+) <span class="kw">VALUES</span> (
+    <span class="str">'er_room_realtime'</span>,
+    <span class="str">'急診室即時資訊'</span>,
+    <span class="kw">NULL</span>,                           <span class="cmt">-- 無歷史功能</span>
+    ARRAY[<span class="num">15</span>],                       <span class="cmt">-- 剛才的 component_maps.id</span>
+    <span class="str">'{}'</span>,
+    <span class="kw">NULL</span>
+);
+<span class="cmt">-- 記下產生的 id，例如 id = 99</span>
+<span class="kw">SELECT</span> id <span class="kw">FROM</span> components <span class="kw">WHERE</span> index = <span class="str">'er_room_realtime'</span>;</code></pre>
+
+  <h3>4-3. INSERT component_charts</h3>
+  <pre><code><span class="kw">INSERT INTO</span> component_charts (
+    index, color, types, unit
+) <span class="kw">VALUES</span> (
+    <span class="str">'er_room_realtime'</span>,
+    ARRAY[<span class="str">'#e53935'</span>, <span class="str">'#fb8c00'</span>, <span class="str">'#43a047'</span>, <span class="str">'#1e88e5'</span>],
+    ARRAY[<span class="str">'BarChart'</span>],             <span class="cmt">-- 水平長條圖，最適合「各醫院比較」</span>
+    <span class="str">'人'</span>
+);</code></pre>
+
+  <h3>4-4. INSERT query_charts（兩筆，分別對應臺北和雙北）</h3>
+  <pre><code><span class="cmt">-- 臺北（只查 area_code='01'）</span>
+<span class="kw">INSERT INTO</span> query_charts (
+    index, city, query_type, query_chart,
+    time_from, update_freq, update_freq_unit,
+    source, short_desc
+) <span class="kw">VALUES</span> (
+    <span class="str">'er_room_realtime'</span>,
+    <span class="str">'taipei'</span>,                        <span class="cmt">← 對應 cityManager 的 city value</span>
+    <span class="str">'two_d'</span>,
+    <span class="str">'SELECT hosp_name AS x_axis,
+            COALESCE(wait_general, 0) AS data
+     FROM er_room_realtime
+     WHERE area_code = ''01''
+       AND wait_general IS NOT NULL
+     ORDER BY wait_general DESC'</span>,
+    <span class="str">'current'</span>,                       <span class="cmt">← 即時資料標籤</span>
+    <span class="num">5</span>, <span class="str">'minute'</span>,                       <span class="cmt">← 「每 5 分鐘更新」標籤</span>
+    <span class="str">'衛福部中央健康保險署'</span>,
+    <span class="str">'臺北市急診室各醫院即時候診人數'</span>
+);
+
+<span class="cmt">-- 雙北（查 area_code IN ('01','31')）</span>
+<span class="kw">INSERT INTO</span> query_charts (
+    index, city, query_type, query_chart,
+    time_from, update_freq, update_freq_unit,
+    source, short_desc
+) <span class="kw">VALUES</span> (
+    <span class="str">'er_room_realtime'</span>,
+    <span class="str">'metrotaipei'</span>,                   <span class="cmt">← 對應 cityManager 的 city value</span>
+    <span class="str">'two_d'</span>,
+    <span class="str">'SELECT hosp_name AS x_axis,
+            COALESCE(wait_general, 0) AS data
+     FROM er_room_realtime
+     WHERE area_code IN (''01'', ''31'')
+       AND wait_general IS NOT NULL
+     ORDER BY wait_general DESC'</span>,
+    <span class="str">'current'</span>,
+    <span class="num">5</span>, <span class="str">'minute'</span>,
+    <span class="str">'衛福部中央健康保險署'</span>,
+    <span class="str">'雙北急診室各醫院即時候診人數'</span>
+);</code></pre>
+
+  <h3>4-5. UPDATE dashboards（把組件加進 Dashboard）</h3>
+  <pre><code><span class="cmt">-- 把 component id 99 加進目標 Dashboard 的組件陣列</span>
+<span class="kw">UPDATE</span> dashboards
+<span class="kw">SET</span> components = array_append(components, <span class="num">99</span>)
+<span class="kw">WHERE</span> index = <span class="str">'metrotaipei_health'</span>;  <span class="cmt">-- 或你想放的 Dashboard index</span>
+
+<span class="cmt">-- 確認結果</span>
+<span class="kw">SELECT</span> index, components <span class="kw">FROM</span> dashboards <span class="kw">WHERE</span> index = <span class="str">'metrotaipei_health'</span>;</code></pre>
+
+  <h2>Step 5 — 驗收清單</h2>
+  <ul class="checklist">
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>DE DAG 執行成功</strong>
+        <div class="detail">Airflow UI → DAG er_room_realtime → 手動觸發 → 確認 Success</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>postgres-data 有資料</strong>
+        <div class="detail">pgAdmin → postgres-data → SELECT COUNT(*) FROM er_room_realtime → 應回傳 21</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>BE API 正常回應</strong>
+        <div class="detail">瀏覽器打 http://localhost:8088/api/v1/component/99/chart?city=taipei → 確認有資料</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>Dashboard 顯示正方形</strong>
+        <div class="detail">開啟 Dashboard → 應看到「急診室即時資訊」組件正方形</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>圖表正常渲染</strong>
+        <div class="detail">BarChart 顯示各醫院候診人數水平長條</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>城市選單正常</strong>
+        <div class="detail">左上角 &lt;select&gt; 有「雙北」和「臺北市」，切換後圖表資料改變</div>
+      </div>
+    </li>
+    <li>
+      <span class="check">□</span>
+      <div>
+        <strong>地圖圖層正常</strong>
+        <div class="detail">MapView 切換到此組件 → toggle 開啟 → Mapbox 顯示 21 個醫院圓點</div>
+      </div>
+    </li>
+  </ul>
+
+  <h2>完整資料流程圖</h2>
+  <div class="flow">
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num de">DE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>每 5 分鐘 — Airflow DAG 執行</h4>
+        <p><code>er_room_realtime.py</code> → POST NHI API → 過濾雙北 → 21 筆資料 → <strong>postgres-data.er_room_realtime（replace）</strong></p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>使用者開啟 Dashboard</h4>
+        <p><code>contentStore.setDashboards()</code> → <code>GET /dashboard/</code> → 取得所有 Dashboard 清單</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>contentStore 抓組件設定</h4>
+        <p><code>GET /dashboard/metrotaipei_health</code> → BE 從 <strong>postgres-manager</strong> 組裝 CityComponent（含 taipei + metrotaipei 兩份）→ 存進 cityDashboard.components</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>DashboardView 的 v-for 渲染正方形</h4>
+        <p><code>DashboardView.vue 第 125–182 行</code>：v-for 產生 DashboardComponent 實例，傳入急診組件的 config</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>抓圖表數據</h4>
+        <p><code>GET /component/99/chart?city=metrotaipei</code></p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num be">BE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>GetComponentChartData 執行</h4>
+        <p><code>componentData.go 第 41 行</code>：查 <strong>postgres-manager.query_charts</strong>，取出 SQL 字串</p>
+        <p>SQL = <code>SELECT hosp_name AS x_axis, wait_general AS data FROM er_room_realtime WHERE area_code IN ('01','31') ...</code></p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num be">BE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>執行 SQL 到 postgres-data</h4>
+        <p><code>componentData.go 第 58 行</code>：queryType = "two_d" → <code>GetTwoDimensionalData()</code> → 對 <strong>postgres-data.er_room_realtime</strong> 執行查詢</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div><div class="step-line"></div></div>
+      <div class="step-content">
+        <h4>DashboardComponent 渲染圖表</h4>
+        <p><code>DashboardComponent.vue 第 94 行</code>：<code>activeChart = "BarChart"</code><br>
+        <code>第 421 行</code>：<code>&lt;component :is="returnChartComponent('BarChart')"&gt;</code> → 渲染水平長條圖</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="step-col"><div class="step-num fe">FE</div></div>
+      <div class="step-content">
+        <h4>使用者切換「臺北市」選單</h4>
+        <p><code>DashboardComponent.vue 第 95–103 行</code>：emit changeCity → <code>DashboardView.vue 第 166–179 行</code>：從已快取的 cityDashboard.components 換成 taipei 的資料 → BarChart 自動更新（不重打 API）</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>常見問題排查</h2>
+  <table>
+    <tr>
+      <th>問題</th>
+      <th>可能原因</th>
+      <th>解法</th>
+    </tr>
+    <tr>
+      <td>組件正方形不出現</td>
+      <td>components.id 沒加進 dashboards.components</td>
+      <td>執行 UPDATE dashboards SET components = array_append(...)</td>
+    </tr>
+    <tr>
+      <td>圖表顯示「組件資料異常」</td>
+      <td>query_charts 的 SQL 有錯，或 er_room_realtime 表是空的</td>
+      <td>pgAdmin 直接執行 SQL 確認；確認 DE DAG 執行成功</td>
+    </tr>
+    <tr>
+      <td>城市選單不出現</td>
+      <td>query_charts 只有一個 city，或 cityManager 設定不符</td>
+      <td>確認同一 index 有 taipei 和 metrotaipei 兩筆</td>
+    </tr>
+    <tr>
+      <td>Mapbox 不顯示醫院點</td>
+      <td>GeoJSON 檔名不符，或 component_maps.index 錯誤</td>
+      <td>確認 public/mapData/ 下有 er_room_realtime.geojson</td>
+    </tr>
+    <tr>
+      <td>BE API 回傳 404</td>
+      <td>component id 傳錯，或 query_charts 沒有對應 city 的記錄</td>
+      <td>確認 GET /component/:id/chart?city=taipei 的 id 正確</td>
+    </tr>
+  </table>
+</div>
+
+<script>
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+
+</body>
+</html>

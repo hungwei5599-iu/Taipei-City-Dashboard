@@ -90,6 +90,9 @@ x-airflow-common:
   user: "${AIRFLOW_UID:-50000}:0"
   networks:
     - br_dashboard
+  dns:
+    - 8.8.8.8
+    - 1.1.1.1
 
 services:
   airflow-webserver:

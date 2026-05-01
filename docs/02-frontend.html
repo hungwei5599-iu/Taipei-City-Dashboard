@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前端說明 - 台北城市儀表板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+  .topbar { background: #0d1f3c; border-bottom: 1px solid #1e3a5f; padding: 16px 40px; display: flex; align-items: center; gap: 16px; }
+  .topbar a { color: #7ea8cf; text-decoration: none; font-size: 0.9rem; }
+  .topbar a:hover { color: #42b883; }
+  .topbar .sep { color: #3a5a7f; }
+  .hero { background: linear-gradient(135deg, #0a1a12, #0a1628); padding: 60px 40px; border-bottom: 1px solid #1e3a5f; }
+  .hero h1 { font-size: 2.4rem; color: #42b883; margin-bottom: 12px; }
+  .hero p { color: #7ea8cf; font-size: 1.1rem; line-height: 1.8; max-width: 700px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 60px 40px; }
+  h2 { font-size: 1.5rem; color: #42b883; margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid #1e3a5f; }
+  h3 { font-size: 1.1rem; color: #e0e6f0; margin: 24px 0 12px; }
+  p { color: #9ab5cf; line-height: 1.8; margin-bottom: 16px; }
+  .highlight { color: #42b883; font-weight: bold; }
+  .analogy { background: linear-gradient(135deg, rgba(66,184,131,0.08), rgba(66,184,131,0.03)); border-left: 3px solid #42b883; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; font-style: italic; color: #80b898; }
+  code { background: rgba(66,184,131,0.1); border: 1px solid rgba(66,184,131,0.2); color: #42b883; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 0.88rem; }
+  .file-tree {
+    background: #0d1f3c;
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    padding: 24px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    margin: 16px 0;
+  }
+  .file-tree .dir { color: #42b883; }
+  .file-tree .file { color: #7ea8cf; }
+  .file-tree .comment { color: #3a5a7f; }
+  .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .card h4 { color: #42b883; margin-bottom: 12px; font-size: 1rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+  .store-box {
+    background: linear-gradient(135deg, #0d1f3c, #0a1628);
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .store-box h4 { color: #42b883; margin-bottom: 8px; font-size: 0.95rem; }
+  .store-box p { font-size: 0.85rem; color: #7ea8cf; margin: 0; }
+  .store-box .items { margin-top: 10px; }
+  .store-box .item { font-size: 0.8rem; color: #9ab5cf; padding: 3px 0; }
+  .store-box .item::before { content: '• '; color: #42b883; }
+  .flow-step {
+    display: flex;
+    gap: 16px;
+    margin: 12px 0;
+    align-items: flex-start;
+  }
+  .flow-num {
+    background: rgba(66,184,131,0.2);
+    border: 1px solid rgba(66,184,131,0.4);
+    color: #42b883;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; flex-shrink: 0; font-size: 0.85rem;
+  }
+  .flow-content h4 { color: #e0e6f0; font-size: 0.95rem; margin-bottom: 4px; }
+  .flow-content p { color: #7ea8cf; font-size: 0.88rem; margin: 0; }
+  .chart-type {
+    display: inline-block;
+    background: rgba(66,184,131,0.08);
+    border: 1px solid rgba(66,184,131,0.2);
+    color: #42b883;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    margin: 4px;
+  }
+  .note { background: rgba(255,180,0,0.05); border: 1px solid rgba(255,180,0,0.2); border-radius: 10px; padding: 16px 20px; margin: 16px 0; color: #c0a060; font-size: 0.9rem; }
+  .code-block { background: #060d1a; border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; font-family: monospace; font-size: 0.83rem; line-height: 1.7; margin: 16px 0; overflow-x: auto; }
+  .code-block .keyword { color: #42b883; }
+  .code-block .string { color: #ffaa44; }
+  .code-block .comment { color: #3a5a7f; }
+  .code-block .func { color: #00b4ff; }
+  .nav-bottom { display: flex; justify-content: space-between; padding: 40px 0 0; border-top: 1px solid #1e3a5f; }
+  .nav-btn { background: rgba(66,184,131,0.1); border: 1px solid rgba(66,184,131,0.3); color: #42b883; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+  .nav-btn:hover { background: rgba(66,184,131,0.2); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">🏠 首頁</a>
+  <span class="sep">/</span>
+  <a href="01-overview.html">整體架構</a>
+  <span class="sep">/</span>
+  <span style="color:#42b883;">前端</span>
+</div>
+
+<div class="hero">
+  <h1>🖥️ 前端 (Frontend)</h1>
+  <p>Vue 3 應用程式如何把後端資料變成你看到的圖表和地圖——從元件結構、狀態管理、到圖表渲染的完整說明。</p>
+</div>
+
+<div class="container">
+
+  <h2>前端的技術棧（用了哪些工具）</h2>
+  <div class="grid3">
+    <div class="store-box">
+      <h4>🏗️ Vue 3 + Vite</h4>
+      <p>主要框架，Composition API 風格，Vite 負責超快的開發建構</p>
+    </div>
+    <div class="store-box">
+      <h4>📦 Pinia</h4>
+      <p>狀態管理（像一個全局的資料倉庫），取代舊版 Vuex</p>
+    </div>
+    <div class="store-box">
+      <h4>📡 Axios</h4>
+      <p>HTTP 請求工具，負責跟後端 API 通訊</p>
+    </div>
+    <div class="store-box">
+      <h4>📊 ApexCharts</h4>
+      <p>繪製各種圖表（長條、折線、圓餅、熱力圖等）</p>
+    </div>
+    <div class="store-box">
+      <h4>🗺️ Mapbox GL</h4>
+      <p>顯示互動式地圖，支援向量圖磚</p>
+    </div>
+    <div class="store-box">
+      <h4>🎨 Deck.gl</h4>
+      <p>在地圖上疊加大量資料圖層（熱力、弧線、散點等）</p>
+    </div>
+  </div>
+
+  <h2>前端的目錄結構</h2>
+  <div class="file-tree">
+    <span class="dir">Taipei-City-Dashboard-FE/src/</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">assets/</span><span class="comment">               # 靜態資源</span><br>
+    <span class="comment">│   └── </span><span class="dir">utilityFunctions/</span><span class="comment">  # 工具函式（插值、地圖計算等）</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">components/</span><span class="comment">           # 可重用 UI 元件</span><br>
+    <span class="comment">│   ├── </span><span class="dir">charts/</span><span class="comment">           # 圖表元件（歷史圖表）</span><br>
+    <span class="comment">│   ├── </span><span class="dir">dialogs/</span><span class="comment">          # 彈窗（登入、AI聊天、新增等）</span><br>
+    <span class="comment">│   └── </span><span class="dir">utilities/</span><span class="comment">        # 工具列（導覽列、側邊欄等）</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">dashboardComponent/</span><span class="comment">   # 儀表板圖表元件</span><br>
+    <span class="comment">│   └── </span><span class="dir">components/</span><br>
+    <span class="comment">│       ├── </span><span class="file">BarChart.vue</span><br>
+    <span class="comment">│       ├── </span><span class="file">DonutChart.vue</span><br>
+    <span class="comment">│       ├── </span><span class="file">HeatmapChart.vue</span><br>
+    <span class="comment">│       └── </span><span class="file">... 共10+ 種圖表</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">router/</span><br>
+    <span class="comment">│   ├── </span><span class="file">index.js</span><span class="comment">          # 頁面路由（9個路由）</span><br>
+    <span class="comment">│   └── </span><span class="file">axios.js</span><span class="comment">          # ★ Axios 設定（API 基底URL、Token）</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">store/</span><span class="comment">                # ★ Pinia 狀態管理</span><br>
+    <span class="comment">│   ├── </span><span class="file">authStore.js</span><span class="comment">      # 認證狀態（登入/登出/Token）</span><br>
+    <span class="comment">│   ├── </span><span class="file">contentStore.js</span><span class="comment">   # 儀表板和元件資料</span><br>
+    <span class="comment">│   ├── </span><span class="file">mapStore.js</span><span class="comment">       # 地圖相關狀態</span><br>
+    <span class="comment">│   ├── </span><span class="file">dialogStore.js</span><span class="comment">    # 彈窗顯示狀態</span><br>
+    <span class="comment">│   └── </span><span class="file">chatStore.js</span><span class="comment">      # AI 聊天狀態</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="dir">views/</span><span class="comment">                # 頁面視圖</span><br>
+    <span class="comment">│   ├── </span><span class="file">DashboardView.vue</span><span class="comment"> # 主儀表板頁面</span><br>
+    <span class="comment">│   ├── </span><span class="file">MapView.vue</span><span class="comment">       # 地圖視圖頁面</span><br>
+    <span class="comment">│   └── </span><span class="file">ComponentView.vue</span><span class="comment"> # 元件管理頁面</span><br>
+    <span class="comment">│</span><br>
+    <span class="comment">├── </span><span class="file">App.vue</span><span class="comment">               # 根元件</span><br>
+    <span class="comment">└── </span><span class="file">main.js</span><span class="comment">               # 應用程式入口</span>
+  </div>
+
+  <h2>Pinia：前端的「大腦記憶中心」</h2>
+  <p>Pinia 是 Vue 3 的狀態管理工具。簡單說：它就是一個<span class="highlight">全局的資料倉庫</span>，所有元件都可以存取裡面的資料，不需要層層傳遞 props。</p>
+
+  <div class="analogy">
+    💡 <strong>類比：</strong>想像 Pinia 是公司的「共享文件系統」。不同部門（元件）需要同一份報告（資料），不需要每個人都各自影印一份，直接去共享文件夾拿就好。
+  </div>
+
+  <div class="grid2">
+    <div class="store-box">
+      <h4>📋 authStore.js</h4>
+      <p>管理登入狀態</p>
+      <div class="items">
+        <div class="item">當前使用者資訊（名稱、信箱）</div>
+        <div class="item">JWT Token 儲存在 localStorage</div>
+        <div class="item">是否為管理員</div>
+        <div class="item">登入/登出方法</div>
+        <div class="item">台北通 OAuth 流程</div>
+      </div>
+    </div>
+    <div class="store-box">
+      <h4>📊 contentStore.js</h4>
+      <p>核心資料倉庫（最重要）</p>
+      <div class="items">
+        <div class="item">所有儀表板列表</div>
+        <div class="item">各個圖表的資料</div>
+        <div class="item">地圖圖層設定</div>
+        <div class="item">定時刷新機制</div>
+        <div class="item">城市管理員設定</div>
+      </div>
+    </div>
+    <div class="store-box">
+      <h4>🗺️ mapStore.js</h4>
+      <p>地圖相關狀態</p>
+      <div class="items">
+        <div class="item">儲存的地圖視角</div>
+        <div class="item">地圖圖層開關</div>
+        <div class="item">自訂視角管理</div>
+      </div>
+    </div>
+    <div class="store-box">
+      <h4>🤖 chatStore.js</h4>
+      <p>AI 聊天狀態</p>
+      <div class="items">
+        <div class="item">對話紀錄</div>
+        <div class="item">當前 session ID</div>
+        <div class="item">AI 回應狀態</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>圖表是怎麼畫出來的？</h2>
+  <p>整個圖表渲染流程分成三步驟：</p>
+
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-content">
+      <h4>後端回傳的 JSON 資料長這樣</h4>
+      <div class="code-block">
+<span class="comment">// 2D 資料（長條圖/圓餅圖）</span><br>
+[<br>
+&nbsp;&nbsp;{ <span class="string">"x_axis"</span>: <span class="string">"大安區"</span>, <span class="string">"data"</span>: 312000 },<br>
+&nbsp;&nbsp;{ <span class="string">"x_axis"</span>: <span class="string">"信義區"</span>, <span class="string">"data"</span>: 228000 },<br>
+&nbsp;&nbsp;{ <span class="string">"x_axis"</span>: <span class="string">"中山區"</span>, <span class="string">"data"</span>: 197000 }<br>
+]<br>
+<br>
+<span class="comment">// 時間序列資料（折線圖）</span><br>
+[<br>
+&nbsp;&nbsp;{ <span class="string">"timestamp"</span>: <span class="string">"2024-01-01"</span>, <span class="string">"series_name"</span>: <span class="string">"大安區"</span>, <span class="string">"value"</span>: 312000 },<br>
+&nbsp;&nbsp;{ <span class="string">"timestamp"</span>: <span class="string">"2024-02-01"</span>, <span class="string">"series_name"</span>: <span class="string">"大安區"</span>, <span class="string">"value"</span>: 313500 }<br>
+]
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-content">
+      <h4>contentStore 把資料存好，元件讀取</h4>
+      <div class="code-block">
+<span class="comment">// BarChart.vue 元件內部</span><br>
+<span class="keyword">const</span> contentStore = <span class="func">useContentStore</span>()<br>
+<br>
+<span class="comment">// 從 store 讀取這個元件的資料</span><br>
+<span class="keyword">const</span> chartData = <span class="func">computed</span>(() => {<br>
+&nbsp;&nbsp;<span class="keyword">return</span> contentStore.components[props.componentId].chart_data<br>
+})
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-content">
+      <h4>ApexCharts 根據資料畫出圖表</h4>
+      <div class="code-block">
+<span class="comment">// template 中使用 vue3-apexcharts</span><br>
+&lt;<span class="keyword">apexchart</span><br>
+&nbsp;&nbsp;<span class="string">type</span>="bar"<br>
+&nbsp;&nbsp;<span class="string">:options</span>="chartOptions"<span class="comment">  // 圖表樣式設定</span><br>
+&nbsp;&nbsp;<span class="string">:series</span>="chartSeries"<span class="comment">    // 實際資料</span><br>
+/&gt;
+      </div>
+    </div>
+  </div>
+
+  <h2>支援哪些圖表類型？</h2>
+  <p>系統根據元件設定中的 <code>chart_type</code> 決定渲染哪種圖表元件：</p>
+  <div>
+    <span class="chart-type">📊 BarChart 長條圖</span>
+    <span class="chart-type">📊 BarChartWithGoal 帶目標長條圖</span>
+    <span class="chart-type">📊 BarPercentChart 百分比長條圖</span>
+    <span class="chart-type">📈 ColumnChart 直條圖</span>
+    <span class="chart-type">📈 ColumnLineChart 直條折線組合</span>
+    <span class="chart-type">🍩 DonutChart 甜甜圈圖</span>
+    <span class="chart-type">🌡️ GuageChart 儀表圖</span>
+    <span class="chart-type">🔥 HeatmapChart 熱力圖</span>
+    <span class="chart-type">🗺️ DistrictChart 行政區圖</span>
+    <span class="chart-type">🏷️ ComponentTag 標籤顯示</span>
+  </div>
+
+  <h2>地圖是怎麼顯示的？</h2>
+  <p>地圖功能用了兩個工具的組合：</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>🗺️ Mapbox GL — 底圖</h4>
+      <p style="color:#7ea8cf;font-size:0.9rem;line-height:1.7;">提供基礎地圖畫面（街道、建築、地形），需要 Mapbox API Token。透過向量圖磚渲染，速度快且可客製化樣式。</p>
+    </div>
+    <div class="card">
+      <h4>🎨 Deck.gl — 資料圖層</h4>
+      <p style="color:#7ea8cf;font-size:0.9rem;line-height:1.7;">疊加在地圖上的資料視覺化圖層。支援：熱力圖層（HeatmapLayer）、弧線圖層（ArcLayer）、散點圖層（ScatterplotLayer）、GeoJSON 多邊形等。</p>
+    </div>
+  </div>
+
+  <div class="analogy">
+    💡 <strong>類比：</strong>Mapbox 是地圖的「底紙」（就像 Google Maps），Deck.gl 是貼在上面的「透明貼紙」，上面畫著資料（例如：哪裡空氣品質差就畫紅點）。
+  </div>
+
+  <h2>路由：9 個頁面</h2>
+  <div class="file-tree">
+    <span class="keyword">/</span><span class="comment">                    → DashboardView（主儀表板）</span><br>
+    <span class="keyword">/map</span><span class="comment">                 → MapView（地圖視圖）</span><br>
+    <span class="keyword">/component</span><span class="comment">           → ComponentView（元件管理）</span><br>
+    <span class="keyword">/component/:id</span><span class="comment">       → ComponentInfoView（元件詳情）</span><br>
+    <span class="keyword">/embed/:id</span><span class="comment">           → EmbedView（可嵌入其他網站的元件）</span><br>
+    <span class="keyword">/callback</span><span class="comment">            → CallBack（OAuth 回調頁）</span><br>
+    <span class="keyword">/admin</span><span class="comment">               → AdminDashboard（管理介面）</span><br>
+    <span class="keyword">/admin/user</span><span class="comment">          → AdminUser（使用者管理）</span><br>
+    <span class="keyword">/admin/component</span><span class="comment">     → AdminEditComponent（元件編輯）</span>
+  </div>
+
+  <h2>Axios：前端怎麼跟後端說話</h2>
+  <p>所有 API 請求都透過一個統一設定的 Axios 實例，位於 <code>src/router/axios.js</code>：</p>
+
+  <div class="code-block">
+<span class="comment">// 重要設定（簡化版）</span><br>
+<span class="keyword">const</span> instance = axios.<span class="func">create</span>({<br>
+&nbsp;&nbsp;baseURL: <span class="string">'/api/dev'</span>,<span class="comment">  // 從環境變數讀取</span><br>
+})<br>
+<br>
+<span class="comment">// 每個請求自動加上 JWT Token</span><br>
+instance.interceptors.request.<span class="func">use</span>((config) => {<br>
+&nbsp;&nbsp;<span class="keyword">const</span> token = authStore.token<br>
+&nbsp;&nbsp;<span class="keyword">if</span> (token) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;config.headers.Authorization = <span class="string">`Bearer ${token}`</span><br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span class="keyword">return</span> config<br>
+})<br>
+<br>
+<span class="comment">// 處理錯誤回應</span><br>
+instance.interceptors.response.<span class="func">use</span>(null, (error) => {<br>
+&nbsp;&nbsp;<span class="keyword">if</span> (error.response.status === <span class="string">401</span>) authStore.<span class="func">logout</span>()<span class="comment"> // 未授權→登出</span><br>
+&nbsp;&nbsp;<span class="keyword">if</span> (error.response.status === <span class="string">429</span>) <span class="func">showRateLimit</span>()<span class="comment"> // 請求過多→顯示提示</span><br>
+})
+  </div>
+
+  <div class="note">
+    💡 <strong>為什麼要用攔截器（Interceptors）？</strong>如果沒有攔截器，每個 API 呼叫都要手動加 Token 和處理錯誤，重複 code 非常多。攔截器讓這些「每次都要做的事」只寫一次就好，所有請求自動套用。
+  </div>
+
+  <h2>環境變數</h2>
+  <p>前端透過 <code>.env</code> 檔案設定重要參數，這些值在 Vite 建構時注入：</p>
+  <div class="file-tree">
+    VITE_API_URL=<span class="file">/api/dev</span><span class="comment">              # 後端 API 基底路徑</span><br>
+    VITE_MAPBOXTOKEN=<span class="file">pk.xxxx...</span><span class="comment">        # Mapbox 地圖 Token</span><br>
+    VITE_MAPBOXTILE=<span class="file">mapbox://xxx</span><span class="comment">      # Mapbox 圖磚樣式</span><br>
+    VITE_TAIPEIPASS_URL=<span class="file">https://...</span><span class="comment">   # 台北通 OAuth 網址</span><br>
+    VITE_TAIPEIPASS_CLIENT_ID=<span class="file">xxx</span><span class="comment">    # 台北通 Client ID</span>
+  </div>
+
+  <div class="nav-bottom">
+    <a href="01-overview.html" class="nav-btn">← 整體架構</a>
+    <a href="03-backend.html" class="nav-btn">後端說明 →</a>
+  </div>
+
+</div>
+</body>
+</html>
