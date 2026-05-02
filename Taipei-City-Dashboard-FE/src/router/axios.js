@@ -50,6 +50,14 @@ http.interceptors.response.use(
 		contentStore.error = true;
 		contentStore.loading = false;
 
+		if (!error.response) {
+			dialogStore.showNotification(
+				"fail",
+				`網路或後端連線錯誤，請確認服務是否啟動：${error.message}`
+			);
+			return Promise.reject(error);
+		}
+
 		switch (error.response.status) {
 			case 401:
 				if (authStore.token) {

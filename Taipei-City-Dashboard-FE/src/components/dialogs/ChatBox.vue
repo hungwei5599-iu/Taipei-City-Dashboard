@@ -25,7 +25,7 @@ const isStickyOpen = ref(false);
 const dashboardCreationLoading = ref(false);
 
 const qaBtnHandler = async (text, relations) => {
-	if (text === "建立儀表板") {
+	if (text === "建立推薦儀表板" || text === "建立儀表板") {
 		if (dashboardCreationLoading.value === true) return;
 		dashboardCreationLoading.value = true;
 		// 確認個人儀表板是否超過20個
@@ -51,7 +51,7 @@ const qaBtnHandler = async (text, relations) => {
 				components: components,
 			};
 			await createDashboard();
-			saveChatLog("建立儀表板", "使用者成功建立儀表板!");
+			saveChatLog("建立推薦儀表板", "已建立推薦儀表板");
 		} else {
 			addChatData({
 				role: "bot",

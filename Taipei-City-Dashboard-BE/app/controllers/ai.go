@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"TaipeiCityDashboardBE/app/services/ai"
+	"TaipeiCityDashboardBE/app/services/ai/tools"
 	"TaipeiCityDashboardBE/app/util"
 	"context"
 	"fmt"
 	"html"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +46,8 @@ type AIChatInput struct {
 			Parameters  interface{} `json:"parameters,omitempty"`
 		} `json:"function" binding:"required"`
 	} `json:"tools,omitempty"`
-	ToolChoice interface{} `json:"tool_choice,omitempty"`
+	ToolChoice       interface{}                  `json:"tool_choice,omitempty"`
+	ComponentContext []tools.ComponentContextItem `json:"component_context,omitempty"`
 }
 
 // ChatWithTWCC is the controller for POST /api/v1/ai/chat/twai
@@ -58,6 +61,9 @@ func ChatWithTWCC(c *gin.Context) {
 		})
 		return
 	}
+
+	// Prefetch chart data and inject into the system prompt before calling the AI.
+	injectComponentContext(c.Request.Context(), &input)
 
 	// 1. Session ID Management
 	sessionID := input.SessionID
@@ -138,6 +144,40 @@ func ChatWithTWCC(c *gin.Context) {
 			"provider":    logEntry.Provider,
 		},
 	})
+}
+
+// injectComponentContext prefetches chart data for each component and appends the result
+// to the first system message so the AI has real data without needing to call a tool.
+func injectComponentContext(ctx context.Context, input *AIChatInput) {
+	if len(input.ComponentContext) == 0 {
+		return
+	}
+	log.Printf("[ai] injectComponentContext: %d components", len(input.ComponentContext))
+
+	dataCtx := tools.BuildDatasetContextFromComponents(ctx, input.ComponentContext)
+
+	var injection string
+	if dataCtx == "" {
+		log.Printf("[ai] injectComponentContext: database context empty (prefetch failed or no data)")
+		injection = "\n\ndatabase context: 圖表資料預抓失敗或沒有資料。\n\n回答規則（database context 優先）：\n" +
+			"- 圖表資料預抓失敗，不要說「目前查詢不到相關資料集」。\n" +
+			"- 不要顯示元件 index、score 或工具名稱。"
+	} else {
+		log.Printf("[ai] injectComponentContext: database context injected (%d bytes)", len(dataCtx))
+		injection = "\n\ndatabase context:\n" + dataCtx +
+			"\n\n回答規則（database context 優先）：\n" +
+			"- 若 database context 有數字，請直接用這些數字回答。\n" +
+			"- 若 database context 有 debug errors，測試階段請直接列出錯誤資訊。\n" +
+			"- 不要說「目前查詢不到相關資料」。\n" +
+			"- 不要顯示元件 index、score 或工具名稱。"
+	}
+
+	for i, m := range input.Messages {
+		if m.Role == "system" {
+			input.Messages[i].Content += injection
+			return
+		}
+	}
 }
 
 // ToServiceMessages converts input messages to langchaingo internal format
