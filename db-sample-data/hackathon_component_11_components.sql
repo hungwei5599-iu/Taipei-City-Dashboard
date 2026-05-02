@@ -41,7 +41,7 @@ new_map AS (
     'symbol',
     'geojson',
     NULL,
-    'triangle_green',
+    'Restaurant',
     '{}'::json,
     '[
       {"key":"name","name":"餐廳"},

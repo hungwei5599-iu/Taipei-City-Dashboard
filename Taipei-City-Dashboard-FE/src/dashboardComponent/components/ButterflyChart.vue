@@ -48,22 +48,26 @@ const COLOR_POOL = [
 
 // 象限背景漸層（固定，不隨資料變動）
 const QUADRANT_COLORS = {
-	tl: { from: "rgba(180,30,30,0.22)",  to: "rgba(180,30,30,0.04)" },   // 深紅
-	tr: { from: "rgba(220,120,20,0.20)", to: "rgba(220,120,20,0.04)" },  // 橙黃
-	bl: { from: "rgba(30,120,200,0.20)", to: "rgba(30,120,200,0.04)" },  // 深藍
-	br: { from: "rgba(20,160,100,0.18)", to: "rgba(20,160,100,0.04)" },  // 深綠
+	tl: { from: "rgba(170,80,80,0.12)",  to: "rgba(170,80,80,0.025)" },   // 深紅
+	tr: { from: "rgba(185,125,70,0.12)", to: "rgba(185,125,70,0.025)" },  // 橙黃
+	bl: { from: "rgba(70,120,170,0.12)", to: "rgba(70,120,170,0.025)" },  // 深藍
+	br: { from: "rgba(70,150,110,0.11)", to: "rgba(70,150,110,0.025)" },  // 深綠
 };
 
-// 各象限對應的資料點顏色（固體色，帶漸層發光）
+// 各象限對應的資料點顏色（正式儀表板低飽和色）
 // xReverse=false: TR=右上(X高Y高), TL=左上(X低Y高)
 // xReverse=true:  TL=左上(X高Y高), TR=右上(X低Y高)
 const QUADRANT_DOT_COLORS = {
 	// 位置 key 對應主色
-	tl: "#D94F4F",  // 深紅（左上）
-	tr: "#E8953A",  // 橙（右上）
-	bl: "#3A7BD5",  // 藍（左下）
-	br: "#2EBF80",  // 綠（右下）
+	tl: "#B85C5C",  // 深紅（左上）
+	tr: "#C9834A",  // 橙（右上）
+	bl: "#4F7FAE",  // 藍（左下）
+	br: "#5D9B7A",  // 綠（右下）
 };
+
+const DEFAULT_CLUSTER_RADIUS = 30;
+const MAX_CLUSTER_ITEMS = 4;
+const CLUSTER_OFFSET = 15;
 
 // ── 資料解析 ──────────────────────────────────────────────
 const parsedSeries = computed(() => {
@@ -108,22 +112,44 @@ const allPoints = computed(() => {
 	return pts;
 });
 
-// ── 重疊點聚合 + 依象限著色 ──────────────────────────────
-// 每個聚合點根據其 (x,y) 對應的象限，自動套用象限顏色
+// ── 鄰近點聚合 + 依象限著色 ──────────────────────────────
+// 避免急診資料在左下角擠成一團，使用畫面像素距離合併接近點位。
 const aggregatedSeries = computed(() => {
 	return parsedSeries.value.map(serie => {
-		const map = new Map();
+		const clusters = [];
+		const clusterRadius = props.chart_config?.cluster_radius ?? DEFAULT_CLUSTER_RADIUS;
+
 		serie.data.forEach(pt => {
-			const key = `${pt.x},${pt.y}`;
-			if (map.has(key)) {
-				map.get(key).labels.push(pt.label);
+			const px = toSvgX(pt.x);
+			const py = toSvgY(pt.y);
+			const cluster = clusters.find(item => {
+				const dx = px - item.px;
+				const dy = py - item.py;
+				return Math.sqrt(dx * dx + dy * dy) <= clusterRadius;
+			});
+
+			if (cluster) {
+				cluster.points.push(pt);
+				cluster.labels.push(pt.label);
+				cluster.x = average(cluster.points.map(item => item.x));
+				cluster.y = average(cluster.points.map(item => item.y));
+				cluster.px = toSvgX(cluster.x);
+				cluster.py = toSvgY(cluster.y);
 			} else {
-				map.set(key, { x: pt.x, y: pt.y, labels: [pt.label] });
+				clusters.push({
+					x: pt.x,
+					y: pt.y,
+					px,
+					py,
+					points: [pt],
+					labels: [pt.label],
+				});
 			}
 		});
+
 		return {
 			name: serie.name,
-			data: Array.from(map.values()).map(pt => {
+			data: splitLargeClusters(clusters).map(pt => {
 				// 依象限位置決定顏色
 				const onLeft  = xReverse.value ? pt.x >= midX.value : pt.x < midX.value;
 				const onTop   = pt.y >= midY.value;
@@ -134,13 +160,109 @@ const aggregatedSeries = computed(() => {
 					...pt,
 					color: QUADRANT_DOT_COLORS[qKey],
 					label: pt.labels.length > 1
-						? `${pt.labels[0]} +${pt.labels.length - 1}`
+						? `${pt.labels.length}家`
 						: pt.labels[0],
 				};
 			}),
 		};
 	});
 });
+
+const displaySeries = computed(() => {
+	return aggregatedSeries.value.map(serie => ({
+		name: serie.name,
+		data: layoutLabels(serie.data),
+	}));
+});
+
+function average(values) {
+	if (!values.length) return 0;
+	const value = values.reduce((sum, item) => sum + Number(item || 0), 0) / values.length;
+	return Math.round(value * 10) / 10;
+}
+
+function splitLargeClusters(clusters) {
+	return clusters.flatMap(cluster => {
+		if (cluster.points.length <= MAX_CLUSTER_ITEMS) {
+			return [{ ...cluster, offsetX: 0, offsetY: 0 }];
+		}
+
+		const chunks = [];
+		for (let i = 0; i < cluster.points.length; i += MAX_CLUSTER_ITEMS) {
+			const points = cluster.points.slice(i, i + MAX_CLUSTER_ITEMS);
+			chunks.push({
+				...cluster,
+				points,
+				labels: points.map(point => point.label),
+				x: average(points.map(point => point.x)),
+				y: average(points.map(point => point.y)),
+			});
+		}
+
+		return chunks.map((chunk, index) => {
+			const angle = -Math.PI / 2 + (index * 2 * Math.PI) / chunks.length;
+			return {
+				...chunk,
+				offsetX: Math.cos(angle) * CLUSTER_OFFSET,
+				offsetY: Math.sin(angle) * CLUSTER_OFFSET,
+			};
+		});
+	});
+}
+
+function pointSvgX(pt) {
+	const radius = Math.max(4, bubbleR.value - 1);
+	return clamp(
+		toSvgX(pt.x) + (pt.offsetX ?? 0),
+		pad.left + radius + 2,
+		svgW.value - pad.right - radius - 2,
+	);
+}
+
+function pointSvgY(pt) {
+	const radius = Math.max(4, bubbleR.value - 1);
+	return clamp(
+		toSvgY(pt.y) + (pt.offsetY ?? 0),
+		pad.top + radius + 2,
+		svgH.value - pad.bottom - radius - 2,
+	);
+}
+
+function clamp(value, min, max) {
+	return Math.min(Math.max(value, min), max);
+}
+
+function layoutLabels(points) {
+	const placed = [];
+	const sorted = points
+		.map((point, index) => ({ point, index }))
+		.sort((a, b) => pointSvgY(a.point) - pointSvgY(b.point) || pointSvgX(a.point) - pointSvgX(b.point));
+	const output = [...points];
+
+	sorted.forEach(({ point, index }, orderIndex) => {
+		const candidates = labelCandidates(point, orderIndex);
+		let best = candidates[0];
+		let bestScore = Number.POSITIVE_INFINITY;
+
+		for (const candidate of candidates) {
+			const score = placed.reduce((sum, box) => sum + overlapArea(candidate, box), 0);
+			if (score === 0) {
+				best = candidate;
+				bestScore = 0;
+				break;
+			}
+			if (score < bestScore) {
+				best = candidate;
+				bestScore = score;
+			}
+		}
+
+		placed.push(best);
+		output[index] = { ...point, labelBox: best };
+	});
+
+	return output;
+}
 
 // ── 軸標題（優先用 chart_config，否則讀 series 名稱）─────
 // 單位支援：chart_config.unit（通用）或 xaxis_unit / yaxis_unit（個別設定）
@@ -252,15 +374,68 @@ const xTicks = computed(() => niceTicks(xRange.value.min, xRange.value.max));
 const yTicks = computed(() => niceTicks(yRange.value.min, yRange.value.max));
 
 // ── 標籤偏移：避免超出邊界，緊貼氣泡旁邊 ────────────────
-function labelPos(px, py) {
-	const onRight = px >= svgMidX.value;
-	const onTop   = py <= svgMidY.value;
-	const r = bubbleR.value;
+function labelWidth(label) {
+	const text = String(label ?? "");
+	return clamp(text.length * 9 + 12, 30, 72);
+}
+
+function labelCandidates(pt, index) {
+	const main = index % 2 === 0
+		? ["top", "bottom", "right", "left"]
+		: ["bottom", "top", "left", "right"];
+	const diagonal = index % 2 === 0
+		? ["topRight", "bottomLeft", "topLeft", "bottomRight"]
+		: ["bottomRight", "topLeft", "bottomLeft", "topRight"];
+	return [...main, ...diagonal].map(side => makeLabelBox(pt, side));
+}
+
+function makeLabelBox(pt, side = "top") {
+	const px = pointSvgX(pt);
+	const py = pointSvgY(pt);
+	const width = labelWidth(pt.label);
+	const height = 15;
+	const gap = Math.max(6, bubbleR.value + 1);
+	const plotRight = svgW.value - pad.right;
+	const plotBottom = svgH.value - pad.bottom;
+	let x = px;
+
+	if (side.includes("Right")) x = px + width * 0.34;
+	if (side.includes("Left")) x = px - width * 0.34;
+	if (side === "right") x = px + width / 2 + gap;
+	if (side === "left") x = px - width / 2 - gap;
+
+	let y = py - gap - height;
+	if (side.includes("bottom") || side === "bottom") {
+		y = py + gap;
+	}
+	if (side === "right" || side === "left") {
+		y = py - height / 2;
+	}
+
+	x = clamp(x, pad.left + width / 2 + 2, plotRight - width / 2 - 2);
+	y = clamp(y, pad.top + 2, plotBottom - height - 2);
+
 	return {
-		anchor: onRight ? "start" : "end",
-		dx:     onRight ? r + 4 : -(r + 4),
-		dy:     onTop   ? -(r + 2) : r + 11,
+		x,
+		y,
+		width,
+		height,
+		textX: x,
+		textY: y + 11,
 	};
+}
+
+function labelPos(pt) {
+	return pt.labelBox ?? makeLabelBox(pt);
+}
+
+function overlapArea(a, b) {
+	const padding = 3;
+	const left = Math.max(a.x - a.width / 2 - padding, b.x - b.width / 2 - padding);
+	const right = Math.min(a.x + a.width / 2 + padding, b.x + b.width / 2 + padding);
+	const top = Math.max(a.y - padding, b.y - padding);
+	const bottom = Math.min(a.y + a.height + padding, b.y + b.height + padding);
+	return Math.max(0, right - left) * Math.max(0, bottom - top);
 }
 
 // ── Tooltip（使用全域 .chart-tooltip 樣式）────────────────────
@@ -403,21 +578,21 @@ function handleClick(si, pi, pt) {
         <line
           :x1="svgMidX" :y1="pad.top"
           :x2="svgMidX" :y2="svgH - pad.bottom"
-          stroke="rgba(255,255,255,0.30)" stroke-width="1.2"
-          stroke-dasharray="4 3"
+          stroke="rgba(255,255,255,0.18)" stroke-width="1"
+          stroke-dasharray="3 4"
         />
         <line
           :x1="pad.left" :y1="svgMidY"
           :x2="svgW - pad.right" :y2="svgMidY"
-          stroke="rgba(255,255,255,0.30)" stroke-width="1.2"
-          stroke-dasharray="4 3"
+          stroke="rgba(255,255,255,0.18)" stroke-width="1"
+          stroke-dasharray="3 4"
         />
 
         <!-- ── 象限角落文字 ── -->
         <g
           v-if="qLabels"
-          font-size="10"
-          fill="rgba(255,255,255,0.28)"
+          font-size="9.5"
+          fill="rgba(255,255,255,0.34)"
           font-weight="500"
         >
           <text v-if="qLabels.tl" :x="pad.left + 6" :y="pad.top + 14">{{ qLabels.tl }}</text>
@@ -435,17 +610,17 @@ function handleClick(si, pi, pt) {
         <!-- X 軸箭頭 -->
         <polygon
           :points="`${svgW - pad.right + 8},${svgH - pad.bottom} ${svgW - pad.right + 1},${svgH - pad.bottom - 4} ${svgW - pad.right + 1},${svgH - pad.bottom + 4}`"
-          fill="rgba(255,255,255,0.28)"
+          fill="rgba(255,255,255,0.24)"
         />
         <!-- X 軸刻度 -->
         <g
           v-for="t in xTicks" :key="`xt-${t}`"
-          font-size="9.5" fill="#777" text-anchor="middle"
+          font-size="9" fill="rgba(255,255,255,0.42)" text-anchor="middle"
         >
           <line
             :x1="toSvgX(t)" :y1="svgH - pad.bottom"
             :x2="toSvgX(t)" :y2="svgH - pad.bottom + 4"
-            stroke="rgba(255,255,255,0.18)"
+            stroke="rgba(255,255,255,0.14)"
           />
           <text :x="toSvgX(t)" :y="svgH - pad.bottom + 15">{{ t }}</text>
         </g>
@@ -459,23 +634,23 @@ function handleClick(si, pi, pt) {
         <!-- Y 軸箭頭 -->
         <polygon
           :points="`${pad.left},${pad.top - 8} ${pad.left - 4},${pad.top - 1} ${pad.left + 4},${pad.top - 1}`"
-          fill="rgba(255,255,255,0.28)"
+          fill="rgba(255,255,255,0.24)"
         />
         <!-- Y 軸刻度 -->
         <g
           v-for="t in yTicks" :key="`yt-${t}`"
-          font-size="9.5" fill="#777" text-anchor="end"
+          font-size="9" fill="rgba(255,255,255,0.42)" text-anchor="end"
         >
           <line
             :x1="pad.left - 4" :y1="toSvgY(t)"
             :x2="pad.left" :y2="toSvgY(t)"
-            stroke="rgba(255,255,255,0.18)"
+            stroke="rgba(255,255,255,0.14)"
           />
           <text :x="pad.left - 6" :y="toSvgY(t) + 3.5">{{ t }}</text>
         </g>
 
         <!-- ── 資料氣泡（使用 aggregatedSeries 展示集合點） ── -->
-        <g v-for="(serie, si) in aggregatedSeries" :key="`s${si}`">
+        <g v-for="(serie, si) in displaySeries" :key="`s${si}`">
           <g
             v-for="(pt, pi) in serie.data"
             :key="`p${si}-${pi}`"
@@ -485,44 +660,43 @@ function handleClick(si, pi, pt) {
             @mouseleave="hideTip"
             @click="handleClick(si, pi, pt)"
           >
-          <!-- 外層大光暈（象限顏色） -->
+          <!-- 透明點擊範圍 -->
             <circle
-              :cx="toSvgX(pt.x)"
-              :cy="toSvgY(pt.y)"
+              :cx="pointSvgX(pt)"
+              :cy="pointSvgY(pt)"
               :r="bubbleR + 7"
               :fill="pt.color"
-              fill-opacity="0.10"
-              class="qc-glow-outer"
-            />
-            <!-- 中層光暈 -->
-            <circle
-              :cx="toSvgX(pt.x)"
-              :cy="toSvgY(pt.y)"
-              :r="bubbleR + 3"
-              :fill="pt.color"
-              fill-opacity="0.22"
-              class="qc-glow-inner"
+              fill-opacity="0"
+              class="qc-hit-area"
             />
             <!-- 主圓（實心） -->
             <circle
-              :cx="toSvgX(pt.x)"
-              :cy="toSvgY(pt.y)"
-              :r="bubbleR"
+              :cx="pointSvgX(pt)"
+              :cy="pointSvgY(pt)"
+              :r="Math.max(4, bubbleR - 1)"
               :fill="pt.color"
-              fill-opacity="0.92"
+              fill-opacity="0.88"
               class="qc-circle"
             />
-            <!-- 標籤文字（帶黑色描邊增加可讀性） -->
+            <!-- 標籤文字 -->
+            <rect
+              :x="labelPos(pt).x - labelPos(pt).width / 2"
+              :y="labelPos(pt).y"
+              :width="labelPos(pt).width"
+              :height="labelPos(pt).height"
+              rx="3"
+              class="qc-label-bg"
+            />
             <text
-              :x="toSvgX(pt.x) + labelPos(toSvgX(pt.x), toSvgY(pt.y)).dx"
-              :y="toSvgY(pt.y) + labelPos(toSvgX(pt.x), toSvgY(pt.y)).dy"
-              :text-anchor="labelPos(toSvgX(pt.x), toSvgY(pt.y)).anchor"
-              font-size="11"
-              font-weight="500"
-              fill="#e8e8e8"
+              :x="labelPos(pt).textX"
+              :y="labelPos(pt).textY"
+              text-anchor="middle"
+              font-size="9"
+              font-weight="400"
+              fill="rgba(255,255,255,0.82)"
               paint-order="stroke"
-              stroke="rgba(0,0,0,0.65)"
-              stroke-width="3"
+              stroke="rgba(32,34,36,0.62)"
+              stroke-width="1.5"
               stroke-linejoin="round"
             >
               {{ pt.label }}
@@ -597,10 +771,10 @@ function handleClick(si, pi, pt) {
   left: 2px;
   top: 50%;
   transform: translateX(-50%) translateY(-50%) rotate(-90deg);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-complement-text, #bbb);
-  letter-spacing: 0.05em;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.58);
+  letter-spacing: 0;
   white-space: nowrap;
   pointer-events: none;
   z-index: 2;
@@ -623,34 +797,38 @@ function handleClick(si, pi, pt) {
 .qc-point {
   cursor: pointer;
 }
-.qc-point:hover .qc-glow-outer {
-  fill-opacity: 0.20;
-  transition: fill-opacity 0.2s ease;
-}
-.qc-point:hover .qc-glow-inner {
-  fill-opacity: 0.35;
-  transition: fill-opacity 0.2s ease;
-}
 .qc-point:hover .qc-circle {
-  filter: brightness(1.25);
+  fill-opacity: 1;
+  stroke: rgba(255,255,255,0.82);
+  stroke-width: 1.5;
 }
-.qc-glow-outer,
-.qc-glow-inner,
+.qc-hit-area {
+  pointer-events: all;
+}
 .qc-circle {
-  transition: fill-opacity 0.2s ease, filter 0.2s ease;
+  stroke: rgba(255,255,255,0.48);
+  stroke-width: 1;
+  transition: fill-opacity 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease;
+}
+.qc-label-bg {
+  fill: rgba(26,28,30,0.48);
+  stroke: rgba(255,255,255,0.08);
+  stroke-width: 0.5;
+  pointer-events: none;
 }
 .qc-selected .qc-circle {
-  stroke: #fff;
+  fill-opacity: 1;
+  stroke: rgba(255,255,255,0.95);
   stroke-width: 2;
 }
 
 /* X 軸標題 */
 .qc-xtitle {
   text-align: center;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-complement-text, #bbb);
-  letter-spacing: 0.05em;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.58);
+  letter-spacing: 0;
   padding: 1px 0 0;
   flex-shrink: 0;
 }
@@ -703,7 +881,7 @@ function handleClick(si, pi, pt) {
   flex-shrink: 0;
 }
 .qc-legend-name {
-  font-size: 11px;
-  color: var(--color-complement-text, #ccc);
+  font-size: 10px;
+  color: rgba(255,255,255,0.62);
 }
 </style>

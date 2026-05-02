@@ -38,36 +38,19 @@ new_map AS (
   VALUES (
     'hackathon_component_10_water_quality_ready',
     '淨水場水質檢測點位',
-    'circle',
+    'symbol',
     'geojson',
-    'big',
     NULL,
-    '{
-      "circle-color": [
-        "interpolate", ["linear"], ["get", "measured_count"],
-        0, "#8C8C8C",
-        5, "#F5C860",
-        10, "#4CB495",
-        15, "#2F80ED"
-      ],
-      "circle-radius": [
-        "interpolate", ["linear"], ["get", "item_count"],
-        10, 6,
-        30, 11,
-        60, 16
-      ],
-      "circle-opacity": 0.86,
-      "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": 1
-    }'::json,
+    'Water',
+    '{}'::json,
     '[
       {"key":"plant","name":"淨水場"},
       {"key":"county","name":"縣市"},
       {"key":"township","name":"行政區"},
       {"key":"address","name":"地址"},
-      {"key":"item_count","name":"檢測項目"},
-      {"key":"measured_count","name":"有效數值"},
-      {"key":"source","name":"來源"}
+      {"key":"item","name":"檢測結果"},
+      {"key":"itemid","name":"狀態代碼"},
+      {"key":"_source","name":"來源"}
     ]'::json
   )
   RETURNING id
@@ -76,9 +59,9 @@ new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#4CB495', '#2F80ED', '#F5C860'],
-    ARRAY['BarChart', 'ColumnChart'],
-    '項'
+    ARRAY['#6FE8A3', '#FF6B6B'],
+    ARRAY['DistrictChart', 'BarPercentChart'],
+    '座'
   FROM new_component
 ),
 new_queries AS (
@@ -92,28 +75,55 @@ new_queries AS (
     c.index,
     NULL::json,
     ARRAY[(SELECT id::integer FROM new_map)],
-    '{"mode":"byParam","byParam":{"xParam":"plant"}}'::json,
+    '{"mode":"byParam","byParam":{"xParam":"township","yParam":"item"}}'::json,
     'current',
-    NULL,
+    NULL::text,
     10,
     'minute',
     'Environment Agency',
-    '顯示臺北市各淨水場水質檢測項目數。',
-    '彙整淨水場水質檢測資料，呈現各淨水場目前可觀測的檢測項目數，並連動地圖點位。',
-    '協助民眾快速掌握不同淨水場水質檢測資訊是否完整。',
+    '顯示臺北市各行政區淨水場水質檢測結果。',
+    '以行政區圖呈現淨水場水質檢測結果。資料目前皆為合格，未來若出現非 PASS 狀態，可用於快速定位需關注行政區。',
+    '協助民眾與管理單位快速掌握淨水場水質檢測是否有異常。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
     now(),
-    'two_d',
+    'three_d',
     $$
+      WITH plant_status AS (
+        SELECT
+          township,
+          plant,
+          BOOL_OR(itemid <> 'PASS') AS has_failed
+        FROM public.hackathon_component_10_water_quality_ready
+        WHERE county = '臺北市'
+          AND township IS NOT NULL
+          AND plant IS NOT NULL
+        GROUP BY township, plant
+      ),
+      districts AS (
+        SELECT township, COUNT(*)::integer AS plant_count
+        FROM plant_status
+        GROUP BY township
+      ),
+      statuses AS (
+        SELECT '合格' AS y_axis, 'check_circle' AS icon, false AS has_failed
+        UNION ALL
+        SELECT '不合格' AS y_axis, 'warning' AS icon, true AS has_failed
+      )
       SELECT
-        plant AS x_axis,
-        COUNT(DISTINCT item)::numeric AS data
-      FROM public.hackathon_component_10_water_quality_ready
-      WHERE county = '臺北市'
-      GROUP BY plant
-      ORDER BY data DESC, plant
+        d.township AS x_axis,
+        s.y_axis,
+        s.icon,
+        COUNT(ps.plant)::integer AS data
+      FROM districts d
+      CROSS JOIN statuses s
+      LEFT JOIN plant_status ps
+        ON ps.township = d.township
+       AND ps.has_failed = s.has_failed
+      GROUP BY d.township, d.plant_count, s.y_axis, s.icon
+      ORDER BY d.plant_count DESC, d.township,
+        array_position(ARRAY['合格','不合格'], s.y_axis)
     $$,
     NULL::text,
     'taipei'
@@ -125,27 +135,54 @@ new_queries AS (
     c.index,
     NULL::json,
     ARRAY[(SELECT id::integer FROM new_map)],
-    '{"mode":"byParam","byParam":{"xParam":"plant"}}'::json,
+    '{"mode":"byParam","byParam":{"xParam":"township","yParam":"item"}}'::json,
     'current',
-    NULL,
+    NULL::text,
     10,
     'minute',
     'Environment Agency',
-    '顯示雙北各淨水場水質檢測項目數。',
-    '彙整雙北淨水場水質檢測資料，呈現各淨水場目前可觀測的檢測項目數，並連動地圖點位。',
-    '協助民眾快速掌握不同淨水場水質檢測資訊是否完整。',
+    '顯示雙北各行政區淨水場水質檢測結果。',
+    '以行政區圖呈現雙北淨水場水質檢測結果。資料目前皆為合格，未來若出現非 PASS 狀態，可用於快速定位需關注行政區。',
+    '協助民眾與管理單位快速掌握雙北淨水場水質檢測是否有異常。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
     now(),
-    'two_d',
+    'three_d',
     $$
+      WITH plant_status AS (
+        SELECT
+          township,
+          plant,
+          BOOL_OR(itemid <> 'PASS') AS has_failed
+        FROM public.hackathon_component_10_water_quality_ready
+        WHERE township IS NOT NULL
+          AND plant IS NOT NULL
+        GROUP BY township, plant
+      ),
+      districts AS (
+        SELECT township, COUNT(*)::integer AS plant_count
+        FROM plant_status
+        GROUP BY township
+      ),
+      statuses AS (
+        SELECT '合格' AS y_axis, 'check_circle' AS icon, false AS has_failed
+        UNION ALL
+        SELECT '不合格' AS y_axis, 'warning' AS icon, true AS has_failed
+      )
       SELECT
-        plant AS x_axis,
-        COUNT(DISTINCT item)::numeric AS data
-      FROM public.hackathon_component_10_water_quality_ready
-      GROUP BY plant
-      ORDER BY data DESC, plant
+        d.township AS x_axis,
+        s.y_axis,
+        s.icon,
+        COUNT(ps.plant)::integer AS data
+      FROM districts d
+      CROSS JOIN statuses s
+      LEFT JOIN plant_status ps
+        ON ps.township = d.township
+       AND ps.has_failed = s.has_failed
+      GROUP BY d.township, d.plant_count, s.y_axis, s.icon
+      ORDER BY d.plant_count DESC, d.township,
+        array_position(ARRAY['合格','不合格'], s.y_axis)
     $$,
     NULL::text,
     'metrotaipei'
