@@ -1,5 +1,22 @@
 const DEFAULT_TAIPEI_CENTER = [121.5654, 25.033];
 const PHARMACY_DENSITY_BY_TOWN_INDEX = "hackathon_component_7_pharmacy_density_by_town";
+const TOWN_BOUNDARY_INDEX = "metrotaipei_town";
+
+const getStoredUserCoordinate = () => {
+	try {
+		const rawStore = window?.localStorage?.getItem("map-user-location");
+		if (!rawStore) return null;
+		const location = JSON.parse(rawStore);
+		const timestamp = Number(location?.timestamp);
+		if (!Number.isFinite(timestamp) || Date.now() - timestamp > 30000) return null;
+		const longitude = Number(location?.longitude);
+		const latitude = Number(location?.latitude);
+		if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+		return [longitude, latitude];
+	} catch {
+		return null;
+	}
+};
 
 const LOCAL_GEOJSON_FALLBACKS = {
 	Component2_er_ready: [
@@ -115,34 +132,9 @@ const getGeojsonBounds = (features = []) => {
 	return getCoordinateBounds(coordinates);
 };
 
-const getBoundsPolygon = (bounds) => {
-	if (!Array.isArray(bounds) || bounds.length !== 2) return null;
-	const [[west, south], [east, north]] = bounds;
-	return {
-		type: "FeatureCollection",
-		features: [
-			{
-				type: "Feature",
-				geometry: {
-					type: "Polygon",
-					coordinates: [[
-						[west, south],
-						[east, south],
-						[east, north],
-						[west, north],
-						[west, south],
-					]],
-				},
-				properties: {
-					kind: "candidate_bounds",
-					name: "候選結果範圍",
-				},
-			},
-		],
-	};
-};
-
 const getUserCoordinate = async () => {
+	const storedCoordinate = getStoredUserCoordinate();
+	if (storedCoordinate) return storedCoordinate;
 	if (!navigator?.geolocation) return null;
 	return new Promise((resolve) => {
 		navigator.geolocation.getCurrentPosition(
@@ -152,8 +144,8 @@ const getUserCoordinate = async () => {
 			() => resolve(null),
 			{
 				enableHighAccuracy: true,
-				maximumAge: 30000,
-				timeout: 6000,
+				maximumAge: 15000,
+				timeout: 10000,
 			},
 		);
 	});
@@ -220,14 +212,26 @@ const getPatientCount = (feature) =>
 const getWaitingTime = (feature) =>
 	normalizeNumber(feature?.properties?.waiting_time, Number.MAX_SAFE_INTEGER);
 
-const isPharmacyQuestion = (question, component) =>
-	/藥局|藥房|pharmacy/i.test(`${question || ""} ${component?.name || ""} ${component?.index || ""}`);
+const getQuestionModule = (question, component, intent) => {
+	const text = `${question || ""} ${component?.name || ""} ${component?.index || ""} ${intent?.targetModule || ""}`.toLowerCase();
+	if (/藥局|藥房|pharmacy/.test(text)) return "pharmacy";
+	if (/急診|急救|醫院|待診|候診|hospital|emergency|(^|[^a-z])er([^a-z]|$)/.test(text)) return "emergency";
+	if (/環保餐廳|餐廳|restaurant|env_protect/.test(text)) return "restaurant";
+	if (/水質|淨水|飲水|water/.test(text)) return "water";
+	return null;
+};
 
-const isAreaAggregationQuestion = (question, component) => {
+const isAreaAggregationQuestion = (question, component, intent) => {
 	const text = String(question || "");
-	return isPharmacyQuestion(question, component) &&
-		/最多|最少|最高|最低|哪個區|哪一區|哪裡|分布|區域|行政區|top|highest|lowest/i.test(text) &&
-		!/最近|附近|離我|nearest|nearby|closest/i.test(text);
+	if (/最近|附近|離我|nearest|nearby|closest/i.test(text)) return false;
+	if (intent?.rankingMetric === "area_count" || intent?.rankingMetric === "pharmacy_count") return true;
+	if (intent?.rankingMetric === "pharmacy_per_10k") return true;
+	const module = getQuestionModule(question, component, intent);
+	const asksArea = /哪個區|哪一區|行政區|區域|分布|在哪一區/i.test(text);
+	if (module === "pharmacy") {
+		return /最多|最少|最高|最低|哪個區|哪一區|哪裡|分布|區域|行政區|top|highest|lowest/i.test(text);
+	}
+	return Boolean(module && asksArea && /最多|最少|最高|最低|top|highest|lowest/i.test(text));
 };
 
 const getAreaMetricValue = (feature, rankingBasis) => {
@@ -235,12 +239,33 @@ const getAreaMetricValue = (feature, rankingBasis) => {
 	if (rankingBasis === "area_density") {
 		return normalizeNumber(props.pharmacy_per_10k, 0);
 	}
-	return normalizeNumber(props.pharmacy_count, 0);
+	return normalizeNumber(
+		props.area_count ??
+		props.pharmacy_count ??
+		props.emergency_count ??
+		props.restaurant_count,
+		0,
+	);
 };
 
-const getRankingBasis = (question, intent) => {
+const hasPatientCountDemand = (question) =>
+	/沒人|無人|人少|最少人|人最少|待診.*少|候診.*少|空位|有空|不用等|patient|waiting\s*count/i.test(String(question || ""));
+
+const asksForZeroPatientResults = (question) =>
+	/沒人|無人|0\s*人|零人|不用等/i.test(String(question || ""));
+
+const asksForMultipleResults = (question) =>
+	/哪幾間|哪些|哪裡|幾間|列出|前\s*\d+|top\s*\d+/i.test(String(question || ""));
+
+const getRankingBasis = (question, intent, component) => {
 	const text = String(question || "");
-	if (isAreaAggregationQuestion(question)) {
+	if (hasPatientCountDemand(question)) return "patient_count";
+	if (intent?.rankingMetric === "distance") return "distance";
+	if (intent?.rankingMetric === "patient_count") return "patient_count";
+	if (intent?.rankingMetric === "waiting_time") return "waiting_time";
+	if (intent?.rankingMetric === "pharmacy_per_10k") return "area_density";
+	if (intent?.rankingMetric === "area_count" || intent?.rankingMetric === "pharmacy_count") return "area_count";
+	if (isAreaAggregationQuestion(question, component, intent)) {
 		if (/密度|每萬|per\s*10k|density/i.test(text)) return "area_density";
 		return "area_count";
 	}
@@ -263,6 +288,119 @@ const getRankingBasis = (question, intent) => {
 		return "waiting_time";
 	}
 	return "default";
+};
+
+const isPointInRing = ([lng, lat], ring = []) => {
+	let inside = false;
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+		const [lngI, latI] = ring[i];
+		const [lngJ, latJ] = ring[j];
+		const intersects =
+			(latI > lat) !== (latJ > lat) &&
+			lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI || Number.EPSILON) + lngI;
+		if (intersects) inside = !inside;
+	}
+	return inside;
+};
+
+const isPointInPolygon = (coordinate, polygon = []) => {
+	if (!Array.isArray(coordinate) || !polygon.length) return false;
+	const [outerRing, ...holes] = polygon;
+	if (!isPointInRing(coordinate, outerRing)) return false;
+	return !holes.some((ring) => isPointInRing(coordinate, ring));
+};
+
+const isPointInFeature = (coordinate, feature) => {
+	const geometry = feature?.geometry;
+	if (!geometry) return false;
+	if (geometry.type === "Polygon") return isPointInPolygon(coordinate, geometry.coordinates);
+	if (geometry.type === "MultiPolygon") {
+		return geometry.coordinates.some((polygon) => isPointInPolygon(coordinate, polygon));
+	}
+	return false;
+};
+
+const getAreaCountProperty = (module) => {
+	if (module === "emergency") return "emergency_count";
+	if (module === "restaurant") return "restaurant_count";
+	return "area_count";
+};
+
+const buildAreaAggregationGeojson = async ({ question, pointGeojson, module }) => {
+	const townGeojson = await fetchLocalGeojson({
+		index: TOWN_BOUNDARY_INDEX,
+		source: "geojson",
+	});
+	if (!townGeojson?.features?.length) return pointGeojson;
+
+	const points = (pointGeojson?.features || []).filter((feature) =>
+		matchesCityScope(feature, question),
+	);
+	const countProperty = getAreaCountProperty(module);
+	const features = townGeojson.features
+		.filter((feature) => matchesCityScope(feature, question))
+		.map((townFeature) => {
+			const count = points.filter((pointFeature) =>
+				isPointInFeature(getFeatureCoordinate(pointFeature), townFeature),
+			).length;
+			return {
+				...townFeature,
+				properties: {
+					...(townFeature.properties || {}),
+					name: getFeatureTitle(townFeature),
+					area_count: count,
+					[countProperty]: count,
+				},
+			};
+		})
+		.filter((feature) => feature.properties.area_count > 0);
+
+	return {
+		type: "FeatureCollection",
+		features,
+	};
+};
+
+const getFeatureDistrictName = (feature) => {
+	const props = feature?.properties || {};
+	return props.district || props.TNAME || props.town || props.name || null;
+};
+
+const buildDistrictHighlightGeojson = async ({ coordinate, question, preferredDistrict }) => {
+	const townGeojson = await fetchLocalGeojson({
+		index: TOWN_BOUNDARY_INDEX,
+		source: "geojson",
+	});
+	if (!townGeojson?.features?.length) return null;
+
+	const scopedTowns = townGeojson.features.filter((feature) =>
+		matchesCityScope(feature, question),
+	);
+	const towns = scopedTowns.length ? scopedTowns : townGeojson.features;
+	const matchedByName = preferredDistrict
+		? towns.find((feature) =>
+			String(getFeatureDistrictName(feature) || "") === String(preferredDistrict),
+		)
+		: null;
+	const matchedByCoordinate = coordinate
+		? towns.find((feature) => isPointInFeature(coordinate, feature))
+		: null;
+	const feature = matchedByName || matchedByCoordinate;
+	if (!feature) return null;
+
+	return {
+		type: "FeatureCollection",
+		features: [
+			{
+				...feature,
+				properties: {
+					...(feature.properties || {}),
+					name: getFeatureTitle(feature),
+					kind: "guide_district",
+				},
+			},
+		],
+	};
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -308,6 +446,33 @@ const matchesCityScope = (feature, question) => {
 	return true;
 };
 
+const getRankComparison = (a, b, rankingBasis) => {
+	if (rankingBasis === "area_count" || rankingBasis === "area_density") {
+		return getAreaMetricValue(b.feature, rankingBasis) -
+			getAreaMetricValue(a.feature, rankingBasis);
+	}
+	if (rankingBasis === "distance") {
+		return (a.distanceMeters ?? Number.MAX_SAFE_INTEGER) -
+			(b.distanceMeters ?? Number.MAX_SAFE_INTEGER) ||
+			getPatientCount(a.feature) - getPatientCount(b.feature) ||
+			getWaitingTime(a.feature) - getWaitingTime(b.feature);
+	}
+	if (rankingBasis === "patient_count") {
+		return getPatientCount(a.feature) - getPatientCount(b.feature) ||
+			(a.distanceMeters ?? Number.MAX_SAFE_INTEGER) -
+				(b.distanceMeters ?? Number.MAX_SAFE_INTEGER) ||
+			getWaitingTime(a.feature) - getWaitingTime(b.feature);
+	}
+	if (rankingBasis === "waiting_time") {
+		return getWaitingTime(a.feature) - getWaitingTime(b.feature) ||
+			getPatientCount(a.feature) - getPatientCount(b.feature) ||
+			(a.distanceMeters ?? Number.MAX_SAFE_INTEGER) -
+				(b.distanceMeters ?? Number.MAX_SAFE_INTEGER);
+	}
+	return getPatientCount(a.feature) - getPatientCount(b.feature) ||
+		getWaitingTime(a.feature) - getWaitingTime(b.feature);
+};
+
 const rankFeaturesByMetric = (features, rankingBasis, referenceCoordinate, limit) =>
 	features
 		.map((feature) => {
@@ -319,26 +484,7 @@ const rankFeaturesByMetric = (features, rankingBasis, referenceCoordinate, limit
 			};
 		})
 		.filter((item) => item.coordinate)
-		.sort((a, b) => {
-			if (rankingBasis === "area_count" || rankingBasis === "area_density") {
-				return getAreaMetricValue(b.feature, rankingBasis) -
-					getAreaMetricValue(a.feature, rankingBasis);
-			}
-			if (rankingBasis === "distance") {
-				return (a.distanceMeters ?? Number.MAX_SAFE_INTEGER) -
-					(b.distanceMeters ?? Number.MAX_SAFE_INTEGER);
-			}
-			if (rankingBasis === "patient_count") {
-				return getPatientCount(a.feature) - getPatientCount(b.feature) ||
-					getWaitingTime(a.feature) - getWaitingTime(b.feature);
-			}
-			if (rankingBasis === "waiting_time") {
-				return getWaitingTime(a.feature) - getWaitingTime(b.feature) ||
-					getPatientCount(a.feature) - getPatientCount(b.feature);
-			}
-			return getPatientCount(a.feature) - getPatientCount(b.feature) ||
-				getWaitingTime(a.feature) - getWaitingTime(b.feature);
-		})
+		.sort((a, b) => getRankComparison(a, b, rankingBasis))
 		.slice(0, limit);
 
 const filterMentionedDistrict = (features, question) => {
@@ -358,35 +504,72 @@ const summarizeResult = (item) => ({
 	distance_text: formatDistance(item.distanceMeters),
 	patient_count: item.feature?.properties?.patient_count,
 	waiting_time: item.feature?.properties?.waiting_time,
+	area_count: item.feature?.properties?.area_count,
+	emergency_count: item.feature?.properties?.emergency_count,
 	pharmacy_count: item.feature?.properties?.pharmacy_count,
 	pharmacy_per_10k: item.feature?.properties?.pharmacy_per_10k,
+	restaurant_count: item.feature?.properties?.restaurant_count,
 	district: item.feature?.properties?.district || item.feature?.properties?.TNAME,
 	data_time: item.feature?.properties?.data_time || item.feature?.properties?.last_updated,
 	properties: item.feature.properties,
 });
 
+const buildAreaCardFields = (feature, module) => {
+	const props = feature?.properties || {};
+	const countLabel = module === "emergency"
+		? "急診醫院數"
+		: module === "restaurant"
+			? "環保餐廳數"
+			: "藥局數";
+	const countValue = module === "pharmacy"
+		? props.pharmacy_count
+		: props.area_count;
+	const fields = [
+		{ label: "行政區", value: props.district || props.TNAME },
+		{ label: countLabel, value: countValue ?? "未知" },
+	];
+	if (module === "pharmacy") {
+		fields.push({
+			label: "每萬人藥局數",
+			value: props.pharmacy_per_10k ?? "未知",
+		});
+	}
+	fields.push({ label: "資料時間", value: props.data_time || props.last_updated || "未知" });
+	return fields;
+};
+
 export const executeAiPlan = async ({ question, intent, component }) => {
 	const baseMapConfig = component?.map_config?.find((config) => config?.source === "geojson");
-	const areaAggregation = isAreaAggregationQuestion(question, component);
+	const module = getQuestionModule(question, component, intent);
+	const areaAggregation = isAreaAggregationQuestion(question, component, intent);
 	const areaMapConfig = areaAggregation
 		? {
 			...(baseMapConfig || {}),
-			index: PHARMACY_DENSITY_BY_TOWN_INDEX,
+			index: module === "pharmacy" ? PHARMACY_DENSITY_BY_TOWN_INDEX : TOWN_BOUNDARY_INDEX,
 			type: "fill",
 			source: "geojson",
 			city: baseMapConfig?.city || component?.city || "metrotaipei",
 		}
 		: null;
 	const mapConfig = areaMapConfig || baseMapConfig;
-	const resultLimit = normalizeNumber(intent?.resultLimit, 5) || 5;
-	const rankingBasis = getRankingBasis(question, intent);
+	const analysisMapConfig = areaAggregation && module !== "pharmacy"
+		? baseMapConfig
+		: mapConfig;
+	const resultLimit = areaAggregation
+		? 1
+		: asksForMultipleResults(question)
+			? Math.max(normalizeNumber(intent?.resultLimit, 5) || 5, 5)
+			: normalizeNumber(intent?.resultLimit, 5) || 5;
+	const rankingBasis = getRankingBasis(question, intent, component);
 	const needsLocation = Boolean(
 		intent?.needsLocation ||
 		intent?.rankingMetric === "distance" ||
-		rankingBasis === "distance",
+		rankingBasis === "distance" ||
+		/最近|附近|離我|這邊|定位|目前位置|我的位置|gps|near|nearest|nearby|closest/i.test(String(question || "")),
 	);
+	const userCoordinate = needsLocation ? await getUserCoordinate() : null;
 	const referenceCoordinate = needsLocation
-		? (await getUserCoordinate()) || DEFAULT_TAIPEI_CENTER
+		? userCoordinate || DEFAULT_TAIPEI_CENTER
 		: null;
 
 	if (!mapConfig) {
@@ -401,28 +584,37 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 		};
 	}
 
-	const geojson = await fetchLocalGeojson(mapConfig);
+	const geojson = await fetchLocalGeojson(analysisMapConfig);
 	if (!geojson) {
 		return {
 			executionResult: {
 				status: "geojson_unavailable",
 				intent_type: intent?.type,
 				component_index: component?.index,
-				map_index: mapConfig.index,
+				map_index: analysisMapConfig?.index,
 				notes: ["The map component can still be opened, but no local GeoJSON was loaded for AI overlay."],
 			},
 			mapActions: [],
 		};
 	}
 
-	const scopedFeatures = geojson.features.filter((feature) =>
+	const analysisGeojson = areaAggregation && module !== "pharmacy"
+		? await buildAreaAggregationGeojson({ question, pointGeojson: geojson, module })
+		: geojson;
+	const scopedFeatures = analysisGeojson.features.filter((feature) =>
 		matchesCityScope(feature, question),
 	);
 	const candidateFeatures = areaAggregation
-		? filterMentionedDistrict(scopedFeatures.length ? scopedFeatures : geojson.features, question)
-		: scopedFeatures.length ? scopedFeatures : geojson.features;
+		? filterMentionedDistrict(scopedFeatures.length ? scopedFeatures : analysisGeojson.features, question)
+		: scopedFeatures.length ? scopedFeatures : analysisGeojson.features;
+	const zeroPatientFeatures = asksForZeroPatientResults(question)
+		? candidateFeatures.filter((feature) => getPatientCount(feature) === 0)
+		: [];
+	const filteredCandidateFeatures = zeroPatientFeatures.length
+		? zeroPatientFeatures
+		: candidateFeatures;
 	const ranked = rankFeaturesByMetric(
-		candidateFeatures,
+		filteredCandidateFeatures,
 		rankingBasis,
 		referenceCoordinate,
 		resultLimit,
@@ -442,6 +634,27 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 	const overlayFeatures = areaAggregation ? features.slice(0, 1) : features;
 	const bounds = getGeojsonBounds(overlayFeatures);
 	const top = ranked[0];
+	const highlightCoordinate = needsLocation && userCoordinate
+		? userCoordinate
+		: top?.coordinate;
+	const highlightDistrict = needsLocation && userCoordinate
+		? null
+		: getFeatureDistrictName(top?.feature);
+	const districtPolygon = areaAggregation
+		? null
+		: await buildDistrictHighlightGeojson({
+			coordinate: highlightCoordinate,
+			question,
+			preferredDistrict: highlightDistrict,
+		});
+	const districtBounds = districtPolygon
+		? getGeojsonBounds(districtPolygon.features)
+		: null;
+	const routeBounds = userCoordinate && top?.coordinate
+		? getCoordinateBounds([userCoordinate, top.coordinate])
+		: null;
+	const shouldUseStoreLocationForRoute = needsLocation && !userCoordinate && top?.coordinate;
+	const fitBounds = routeBounds || districtBounds || bounds;
 	const sourceId = `ai-guide-${mapConfig.index}-source`;
 	const layerId = `ai-guide-${mapConfig.index}-points`;
 	const lineSourceId = `ai-guide-${mapConfig.index}-route-source`;
@@ -467,7 +680,7 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 					id: "request-user-location",
 					type: "map.request_user_location",
 					payload: {
-						flyTo: true,
+						flyTo: false,
 						zoom: 14.5,
 						duration: 800,
 					},
@@ -488,6 +701,12 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 			payload: {
 				sourceId,
 				layerId,
+				renderMode: module === "emergency" ? "symbol" : "circle",
+				iconImage: module === "emergency" ? "hospital" : "Pharmacy",
+				iconColor: module === "emergency" ? "#facc15" : null,
+				textColor: module === "emergency" ? "#111827" : "#ffffff",
+				textHaloColor: module === "emergency" ? "#ffffff" : "#0f172a",
+				showRankLabel: true,
 				geojson: {
 					type: "FeatureCollection",
 					features,
@@ -496,12 +715,12 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 		});
 	}
 
-	const boundsPolygon = areaAggregation
+	const boundsPolygon = districtPolygon || (areaAggregation
 		? {
 			type: "FeatureCollection",
 			features: overlayFeatures,
 		}
-		: getBoundsPolygon(bounds);
+		: null);
 	if (boundsPolygon) {
 		mapActions.push({
 			id: `area-${mapConfig.index}`,
@@ -519,56 +738,70 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 		});
 	}
 
-	if (!areaAggregation && referenceCoordinate && top?.coordinate) {
+	if (!areaAggregation && (userCoordinate || shouldUseStoreLocationForRoute) && top?.coordinate) {
 		mapActions.push({
 			id: `line-${mapConfig.index}-to-top`,
 			type: "map.add_line",
 			payload: {
 				sourceId: lineSourceId,
 				layerId: lineLayerId,
-				geojson: {
-					type: "FeatureCollection",
-					features: [
-						{
-							type: "Feature",
-							geometry: {
-								type: "LineString",
-								coordinates: [referenceCoordinate, top.coordinate],
-							},
-							properties: {
-								name: "目前位置到最近結果",
-							},
+				...(userCoordinate
+					? {
+						geojson: {
+							type: "FeatureCollection",
+							features: [
+								{
+									type: "Feature",
+									geometry: {
+										type: "LineString",
+										coordinates: [userCoordinate, top.coordinate],
+									},
+									properties: {
+										name: "目前位置到最近結果",
+									},
+								},
+							],
 						},
-					],
-				},
+					}
+					: {
+						fromUserLocation: true,
+						targetCoordinate: top.coordinate,
+						properties: {
+							name: "目前位置到最近結果",
+						},
+					}),
 				lineColor: "#f97316",
 				lineWidth: 4,
 			},
 		});
 	}
 
-	if (bounds) {
+	if (fitBounds) {
 		mapActions.push({
 			id: `fit-${mapConfig.index}`,
 			type: "map.fit_bounds",
 			payload: {
-				bounds,
+				bounds: fitBounds,
+				includeUserLocation: shouldUseStoreLocationForRoute,
+				targetCoordinate: top?.coordinate,
 				padding: 90,
-				maxZoom: 15,
+				maxZoom: routeBounds || shouldUseStoreLocationForRoute ? 14.5 : 15,
 			},
 		});
 	}
 
 	if (top?.coordinate) {
-		mapActions.push({
-			id: `fly-${mapConfig.index}-top`,
-			type: "map.fly_to",
-			payload: {
-				center: top.coordinate,
-				zoom: rankingBasis === "distance" ? 15.5 : 14.5,
-				duration: 900,
-			},
-		});
+		if (!routeBounds && !shouldUseStoreLocationForRoute) {
+			mapActions.push({
+				id: `fly-${mapConfig.index}-top`,
+				type: "map.fly_to",
+				payload: {
+					center: top.coordinate,
+					zoom: rankingBasis === "distance" ? 15.5 : 14.5,
+					duration: 900,
+				},
+			});
+		}
 		mapActions.push({
 			id: `open-${mapConfig.index}-top-card`,
 			type: "map.open_card",
@@ -579,12 +812,7 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 					? `距離約 ${formatDistance(top.distanceMeters) || "未知"}`
 					: "",
 				fields: areaAggregation
-					? [
-						{ label: "行政區", value: top.feature?.properties?.district || top.feature?.properties?.TNAME },
-						{ label: "藥局數", value: top.feature?.properties?.pharmacy_count ?? "未知" },
-						{ label: "每萬人藥局數", value: top.feature?.properties?.pharmacy_per_10k ?? "未知" },
-						{ label: "資料時間", value: top.feature?.properties?.data_time ?? "未知" },
-					]
+					? buildAreaCardFields(top.feature, module)
 					: buildCardFields(top.feature, top.distanceMeters),
 			},
 		});
@@ -601,6 +829,11 @@ export const executeAiPlan = async ({ question, intent, component }) => {
 			map_index: mapConfig.index,
 			ranking_basis: rankingBasis,
 			reference_point: referenceCoordinate,
+			used_location: Boolean(userCoordinate),
+			location_failed: needsLocation && !userCoordinate,
+			highlighted_district: districtPolygon?.features?.[0]
+				? getFeatureTitle(districtPolygon.features[0])
+				: null,
 			result_count: features.length,
 			top_results: topResults,
 			top_result: topResults[0] || null,

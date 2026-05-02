@@ -9,12 +9,19 @@ export const AI_INTERACTION_TYPES = {
 
 const DEFAULT_INTENT = {
 	type: AI_INTERACTION_TYPES.ANSWER_ONLY,
+	shouldUseGuide: false,
+	targetModule: null,
 	needsMap: false,
 	needsLocation: false,
 	shouldOpenComponent: false,
 	shouldRequestUiActions: false,
 	rankingMetric: null,
 	resultLimit: 5,
+	cityScope: "metrotaipei",
+	district: null,
+	componentOnly: false,
+	confidence: 0,
+	reason: "",
 	filters: [],
 };
 
@@ -25,6 +32,34 @@ export const getDefaultAiInteractionIntent = () => ({ ...DEFAULT_INTENT });
 
 const toBoolean = (value) => value === true || value === "true";
 
+const ALLOWED_TARGET_MODULES = ["emergency", "pharmacy", "restaurant", "water"];
+const ALLOWED_RANKING_METRICS = [
+	"distance",
+	"waiting_time",
+	"patient_count",
+	"pharmacy_count",
+	"pharmacy_per_10k",
+	"area_count",
+	"default",
+];
+
+const normalizeTargetModule = (value) => {
+	const normalized = String(value || "").toLowerCase();
+	return ALLOWED_TARGET_MODULES.includes(normalized) ? normalized : null;
+};
+
+const normalizeRankingMetric = (value, fallback = null) => {
+	const normalized = String(value || "").toLowerCase();
+	if (ALLOWED_RANKING_METRICS.includes(normalized)) return normalized;
+	return fallback;
+};
+
+const clampResultLimit = (value) => {
+	const number = Number(value || 5);
+	if (!Number.isFinite(number)) return 5;
+	return Math.max(1, Math.min(20, Math.round(number)));
+};
+
 const normalizeInteractionType = (type) => {
 	const normalized = String(type || "").toLowerCase();
 	if (Object.values(AI_INTERACTION_TYPES).includes(normalized)) {
@@ -34,10 +69,26 @@ const normalizeInteractionType = (type) => {
 };
 
 export const normalizeAiInteractionIntent = (intent = {}) => {
-	const type = normalizeInteractionType(intent?.type);
+	const shouldUseGuide =
+		toBoolean(intent?.shouldUseGuide) ||
+		toBoolean(intent?.should_use_guide);
+	const componentOnly =
+		toBoolean(intent?.componentOnly) ||
+		toBoolean(intent?.component_only);
+	const targetModule = normalizeTargetModule(
+		intent?.targetModule ||
+		intent?.target_module ||
+		intent?.module_key ||
+		intent?.module,
+	);
+	const type = normalizeInteractionType(
+		intent?.type ||
+		(shouldUseGuide || targetModule ? AI_INTERACTION_TYPES.OPEN_MAP : null),
+	);
 	const needsMap =
 		toBoolean(intent?.needsMap) ||
 		toBoolean(intent?.needs_map) ||
+		shouldUseGuide ||
 		type === AI_INTERACTION_TYPES.OPEN_MAP ||
 		type === AI_INTERACTION_TYPES.NEARBY_LOOKUP ||
 		type === AI_INTERACTION_TYPES.FILTER_MAP;
@@ -50,6 +101,8 @@ export const normalizeAiInteractionIntent = (intent = {}) => {
 		...DEFAULT_INTENT,
 		...intent,
 		type,
+		shouldUseGuide,
+		targetModule,
 		needsMap,
 		needsLocation,
 		shouldOpenComponent:
@@ -61,11 +114,16 @@ export const normalizeAiInteractionIntent = (intent = {}) => {
 			toBoolean(intent?.should_request_ui_actions) ||
 			type === AI_INTERACTION_TYPES.NEARBY_LOOKUP ||
 			type === AI_INTERACTION_TYPES.FILTER_MAP,
-		rankingMetric:
-			intent?.rankingMetric ||
-			intent?.ranking_metric ||
-			(needsLocation ? "distance" : null),
-		resultLimit: Number(intent?.resultLimit || intent?.result_limit || 5),
+		rankingMetric: normalizeRankingMetric(
+			intent?.rankingMetric || intent?.ranking_metric,
+			needsLocation ? "distance" : null,
+		),
+		resultLimit: clampResultLimit(intent?.resultLimit || intent?.result_limit),
+		cityScope: intent?.cityScope || intent?.city_scope || "metrotaipei",
+		district: typeof (intent?.district) === "string" ? intent.district : null,
+		componentOnly,
+		confidence: Number.isFinite(Number(intent?.confidence)) ? Number(intent.confidence) : 0,
+		reason: typeof intent?.reason === "string" ? intent.reason : "",
 		filters: Array.isArray(intent?.filters) ? intent.filters : [],
 	};
 };
@@ -159,14 +217,24 @@ export const buildDatabaseContext = async (components = []) => {
 
 export const buildAiIntentClassificationPrompt = (question) =>
 	[
-		"You classify Taipei City Dashboard chat questions into a strict JSON intent.",
-		"Return JSON only. Do not include markdown.",
+		"你是台北城市儀表板的 AI 工具規劃器。",
+		"你的任務不是回答使用者問題，而是把問題轉成可驗證、可執行的 JSON plan。",
+		"只能輸出 JSON，不要 Markdown，不要解釋，不要包 ```json。",
+		"allowed targetModule: emergency, pharmacy, restaurant, water, null。",
+		"allowed rankingMetric: distance, waiting_time, patient_count, pharmacy_count, pharmacy_per_10k, area_count, default, null。",
+		"急診、醫院、候診、待診、等待、人最少 => targetModule emergency。",
+		"藥局、藥房 => targetModule pharmacy。",
+		"環保餐廳、餐廳 => targetModule restaurant。",
+		"水質、淨水、飲水 => targetModule water。",
+		"最近、附近、離我、目前位置、GPS => needsLocation true 且 rankingMetric distance。",
+		"急診等待時間最短 => rankingMetric waiting_time。",
+		"急診人最少、待診人數最少、候診人數最少 => rankingMetric patient_count，不要做行政區聚合。",
+		"哪一區、行政區、區域最多/最少 => rankingMetric area_count，needsLocation false。",
+		"藥局密度、每萬人 => rankingMetric pharmacy_per_10k。",
+		"resultLimit 必須是 1 到 20。",
 		"Schema:",
 		JSON.stringify(DEFAULT_INTENT),
-		"Use nearby_lookup when the user asks for nearby, closest, distance, GPS, or current location.",
-		"Use open_map when the user asks to show, open, locate, or visualize a map layer.",
-		"Use filter_map when the user asks to filter/highlight a subset on the map.",
-		"Use answer_only for plain chart or knowledge questions.",
+		"Example: {\"type\":\"open_map\",\"shouldUseGuide\":true,\"targetModule\":\"emergency\",\"needsMap\":true,\"needsLocation\":false,\"shouldOpenComponent\":true,\"shouldRequestUiActions\":true,\"rankingMetric\":\"patient_count\",\"resultLimit\":1,\"cityScope\":\"metrotaipei\",\"district\":null,\"componentOnly\":false,\"confidence\":0.92,\"reason\":\"使用者詢問急診待診人數最少。\"}",
 		`Question: ${question}`,
 	].join("\n");
 

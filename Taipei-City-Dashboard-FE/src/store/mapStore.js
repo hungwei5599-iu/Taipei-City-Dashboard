@@ -458,6 +458,18 @@ export const useMapStore = defineStore("map", {
 				latitude: location?.latitude ?? null,
 				longitude: location?.longitude ?? null,
 			};
+			if (
+				Number.isFinite(Number(this.userLocation.latitude)) &&
+				Number.isFinite(Number(this.userLocation.longitude))
+			) {
+				window.localStorage?.setItem(
+					"map-user-location",
+					JSON.stringify({
+						...this.userLocation,
+						timestamp: Date.now(),
+					}),
+				);
+			}
 		},
 		// 6. Set User Location
 		setCurrentLocation() {
@@ -488,34 +500,37 @@ export const useMapStore = defineStore("map", {
 
 			if (!navigator.geolocation) {
 				console.error("Geolocation is not supported by this browser.");
-				return false;
+				return Promise.resolve(false);
 			}
 
-			navigator.geolocation.getCurrentPosition(
-				(position) => {
-					const location = {
-						latitude: position.coords.latitude,
-						longitude: position.coords.longitude,
-					};
-					this.setUserLocation(location);
-					if (payload.flyTo !== false && this.map) {
-						this.map.flyTo({
-							center: [location.longitude, location.latitude],
-							zoom: payload.zoom ?? 14.5,
-							duration: payload.duration ?? 800,
-						});
-					}
-				},
-				(error) => {
-					console.error(error.message);
-				},
-				{
-					enableHighAccuracy: true,
-					maximumAge: payload.maximumAge ?? 30000,
-					timeout: payload.timeout ?? 8000,
-				},
-			);
-			return true;
+			return new Promise((resolve) => {
+				navigator.geolocation.getCurrentPosition(
+					(position) => {
+						const location = {
+							latitude: position.coords.latitude,
+							longitude: position.coords.longitude,
+						};
+						this.setUserLocation(location);
+						if (payload.flyTo !== false && this.map) {
+							this.map.flyTo({
+								center: [location.longitude, location.latitude],
+								zoom: payload.zoom ?? 14.5,
+								duration: payload.duration ?? 800,
+							});
+						}
+						resolve(true);
+					},
+					(error) => {
+						console.error(error.message);
+						resolve(false);
+					},
+					{
+						enableHighAccuracy: true,
+						maximumAge: payload.maximumAge ?? 30000,
+						timeout: payload.timeout ?? 8000,
+					},
+				);
+			});
 		},
 
 		/* Adding Map Layers */
@@ -567,6 +582,24 @@ export const useMapStore = defineStore("map", {
 			this.guideActiveComponent = payload || null;
 			this.guideActiveComponentIndex = payload?.componentIndex || null;
 			this.guideComponentOpenToken += 1;
+		},
+		getGuideActiveLayerIds() {
+			const guideMapConfig =
+				this.guideActiveComponent?.mapConfig ||
+				this.guideActiveComponent?.component?.map_config ||
+				[];
+			return this.getMapLayerIds(guideMapConfig);
+		},
+		clearAiGuideIfClosingMapConfig(map_config = []) {
+			const closingLayerIds = this.getMapLayerIds(map_config);
+			const guideLayerIds = this.getGuideActiveLayerIds();
+			const isClosingGuideLayer = closingLayerIds.some((layerId) =>
+				guideLayerIds.includes(layerId),
+			);
+			if (!isClosingGuideLayer) return;
+			this.clearAiGuideOverlay();
+			this.guideActiveComponent = null;
+			this.guideActiveComponentIndex = null;
 		},
 		// 1. Passes in the map_config (an Array of Objects) of a component and adds all layers to the map layer list
 		addToMapLayerList(map_config) {
@@ -812,6 +845,37 @@ export const useMapStore = defineStore("map", {
 					}
 					if (!this.map.hasImage(imageName)) {
 						this.map.addImage(imageName, image);
+					}
+					resolve();
+				});
+			});
+		},
+		ensureTintedMapImageLoaded(imageName, tintedName, color = "#facc15") {
+			return new Promise((resolve, reject) => {
+				if (!imageName || !tintedName) {
+					resolve();
+					return;
+				}
+				if (this.map.hasImage(tintedName)) {
+					resolve();
+					return;
+				}
+				this.map.loadImage(`/images/map/${imageName}.png`, (error, image) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					const canvas = document.createElement("canvas");
+					canvas.width = image.width;
+					canvas.height = image.height;
+					const context = canvas.getContext("2d");
+					context.drawImage(image, 0, 0);
+					context.globalCompositeOperation = "source-in";
+					context.fillStyle = color;
+					context.fillRect(0, 0, canvas.width, canvas.height);
+					const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+					if (!this.map.hasImage(tintedName)) {
+						this.map.addImage(tintedName, imageData);
 					}
 					resolve();
 				});
@@ -2120,6 +2184,7 @@ export const useMapStore = defineStore("map", {
 					}
 				}
 			});
+			this.clearAiGuideIfClosingMapConfig(map_config);
 		},
 
 		/* Popup Related Functions */
@@ -2531,7 +2596,7 @@ export const useMapStore = defineStore("map", {
 			}
 			return this.dispatchAiGuideActions(actions);
 		},
-		dispatchAiGuideAction(action) {
+		async dispatchAiGuideAction(action) {
 			if (!action?.type) return false;
 
 			switch (action.type) {
@@ -2546,10 +2611,10 @@ export const useMapStore = defineStore("map", {
 				return true;
 			case "map.request_user_location":
 				if (!this.map) return false;
-				return this.requestUserLocation(action.payload || {});
+				return await this.requestUserLocation(action.payload || {});
 			case "map.add_points":
 				if (!this.map) return false;
-				this.addAiGuidePoints(action.payload || {});
+				await this.addAiGuidePoints(action.payload || {});
 				return true;
 			case "map.add_polygon":
 				if (!this.map) return false;
@@ -2584,12 +2649,12 @@ export const useMapStore = defineStore("map", {
 				return false;
 			}
 		},
-		dispatchAiGuideActions(actions = []) {
+		async dispatchAiGuideActions(actions = []) {
 			if (!Array.isArray(actions)) return false;
 			let handled = false;
-			actions.forEach((action) => {
-				handled = this.dispatchAiGuideAction(action) || handled;
-			});
+			for (const action of actions) {
+				handled = await this.dispatchAiGuideAction(action) || handled;
+			}
 			return handled;
 		},
 		queueAiGuideRun(mapConfig = [], actions = []) {
@@ -2609,9 +2674,9 @@ export const useMapStore = defineStore("map", {
 			const pendingRuns = [...this.pendingAiGuideRuns];
 			this.pendingAiGuideRuns = [];
 			pendingRuns.forEach(({actions}) => {
-				setTimeout(() => {
+				setTimeout(async () => {
 					if (this.map?.isStyleLoaded?.()) {
-						this.dispatchAiGuideActions(actions);
+						await this.dispatchAiGuideActions(actions);
 					} else {
 						this.queueAiGuideRun(actions);
 					}
@@ -2696,7 +2761,7 @@ export const useMapStore = defineStore("map", {
 				this.aiGuideSourceIds.push(sourceId);
 			}
 		},
-		addAiGuidePoints(payload) {
+		async addAiGuidePoints(payload) {
 			const {sourceId} = payload;
 			const {layerId} = payload;
 			const {geojson} = payload;
@@ -2705,12 +2770,61 @@ export const useMapStore = defineStore("map", {
 				return;
 			}
 
-			this.removeAiGuideMapObjects([layerId], sourceId);
+			const labelLayerId = `${layerId}-label`;
+			this.removeAiGuideMapObjects([labelLayerId, layerId], sourceId);
 
 			this.map.addSource(sourceId, {
 				type: "geojson",
 				data: geojson,
 			});
+
+			if (payload.renderMode === "symbol") {
+				const baseIconImage = payload.iconImage || "hospital";
+				const iconImage = payload.iconColor
+					? `${baseIconImage}-${String(payload.iconColor).replace(/[^a-z0-9]/gi, "")}`
+					: baseIconImage;
+				const imageLoader = payload.iconColor
+					? this.ensureTintedMapImageLoaded(baseIconImage, iconImage, payload.iconColor)
+					: this.ensureMapImageLoaded(iconImage);
+				await imageLoader.catch((error) => {
+					console.warn("[ai-guide] failed to load point icon", baseIconImage, error);
+				});
+				this.map.addLayer({
+					id: layerId,
+					type: "symbol",
+					source: sourceId,
+					layout: {
+						"icon-image": iconImage,
+						"icon-size": [
+							"interpolate",
+							["linear"],
+							["coalesce", ["to-number", ["get", "rank"]], 5],
+							1,
+							1.05,
+							5,
+							0.86,
+						],
+						"icon-allow-overlap": true,
+						"text-field": payload.showRankLabel ? ["to-string", ["get", "rank"]] : "",
+						"text-size": 11,
+						"text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+						"text-offset": [0, -1.05],
+						"text-anchor": "center",
+						"text-allow-overlap": true,
+					},
+					paint: {
+						"text-color": payload.textColor || "#ffffff",
+						"text-halo-color": payload.textHaloColor || "#0f172a",
+						"text-halo-width": 1.2,
+						"icon-opacity": 0.95,
+					},
+				});
+
+				this.trackAiGuideMapObjects([layerId], sourceId);
+				this.bindAiGuideLayerInteractions(layerId);
+				return;
+			}
+
 			this.map.addLayer({
 				id: layerId,
 				type: "circle",
@@ -2787,7 +2901,25 @@ export const useMapStore = defineStore("map", {
 		addAiGuideLine(payload) {
 			const {sourceId} = payload;
 			const {layerId} = payload;
-			const {geojson} = payload;
+			const userCoordinate = this.userLocation?.longitude && this.userLocation?.latitude
+				? [this.userLocation.longitude, this.userLocation.latitude]
+				: null;
+			const targetCoordinate = payload.targetCoordinate || payload.toCoordinate;
+			const geojson = payload.fromUserLocation && userCoordinate && Array.isArray(targetCoordinate)
+				? {
+					type: "FeatureCollection",
+					features: [
+						{
+							type: "Feature",
+							geometry: {
+								type: "LineString",
+								coordinates: [userCoordinate, targetCoordinate],
+							},
+							properties: payload.properties || {},
+						},
+					],
+				}
+				: payload.geojson;
 			if (!sourceId || !layerId || geojson?.type !== "FeatureCollection") {
 				console.warn("[ai-guide] invalid map.add_line payload", payload);
 				return;
@@ -2814,10 +2946,23 @@ export const useMapStore = defineStore("map", {
 			this.trackAiGuideMapObjects([layerId], sourceId);
 		},
 		fitAiGuideBounds(payload) {
-			if (!Array.isArray(payload.bounds) || payload.bounds.length !== 2) {
+			let bounds = payload.bounds;
+			const userCoordinate = this.userLocation?.longitude && this.userLocation?.latitude
+				? [this.userLocation.longitude, this.userLocation.latitude]
+				: null;
+			const targetCoordinate = payload.targetCoordinate || payload.toCoordinate;
+			if (payload.includeUserLocation && userCoordinate && Array.isArray(targetCoordinate)) {
+				const lngs = [userCoordinate[0], targetCoordinate[0]].map(Number);
+				const lats = [userCoordinate[1], targetCoordinate[1]].map(Number);
+				bounds = [
+					[Math.min(...lngs), Math.min(...lats)],
+					[Math.max(...lngs), Math.max(...lats)],
+				];
+			}
+			if (!Array.isArray(bounds) || bounds.length !== 2) {
 				return;
 			}
-			this.map.fitBounds(payload.bounds, {
+			this.map.fitBounds(bounds, {
 				padding: payload.padding ?? 80,
 				duration: payload.duration ?? 800,
 				maxZoom: payload.maxZoom ?? 15,
