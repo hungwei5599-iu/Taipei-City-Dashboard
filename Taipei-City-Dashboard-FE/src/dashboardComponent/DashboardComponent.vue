@@ -29,6 +29,7 @@ import IconPercentChart from "./components/IconPercentChart.vue";
 import IndicatorChart from "./components/IndicatorChart.vue";
 import TextUnitChart from "./components/TextUnitChart.vue";
 import ButterflyChart from "./components/ButterflyChart.vue";
+import FoodSafetyPercentChart from "./components/FoodSafetyPercentChart.vue";
 
 import MapLegendSvg from "./assets/chart/MapLegend.svg";
 import DistrictChartSvg from "./assets/chart/DistrictChart.svg";
@@ -225,6 +226,8 @@ function returnChartComponent(name, svg) {
 		return svg ? TextUnitChartSvg : TextUnitChart;
 	case "ButterflyChart":
 		return svg ? ButterflyChartSvg : ButterflyChart;
+	case "FoodSafetyPercentChart":
+		return svg ? IconPercentChartSvg : FoodSafetyPercentChart;
 	default:
 		return svg ? MapLegendSvg : MapLegend;
 	}
