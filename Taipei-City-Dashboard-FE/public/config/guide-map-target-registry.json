@@ -3,7 +3,7 @@
 		"id": "emergency_access",
 		"moduleKey": "emergency",
 		"title": "急診",
-		"componentIndex": "hackathon_component_9_er_overview",
+		"componentIndex": "hackathon_component_9_flood_risk_ready",
 		"componentName": "急診壅塞概況",
 		"componentIndexes": [
 			"hackathon_component_9_er_overview",
@@ -22,6 +22,7 @@
 				"type": "circle",
 				"city": "metrotaipei",
 				"source": "geojson",
+				"role": "context",
 				"title": "ER overview",
 				"property": [
 					{
@@ -73,6 +74,7 @@
 				"type": "circle",
 				"city": "metrotaipei",
 				"source": "geojson",
+				"role": "focus",
 				"title": "急診即時壅塞",
 				"property": [
 					{

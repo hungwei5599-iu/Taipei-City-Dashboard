@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "id": "valid_er_data_answer_001",
+      "context_key": "hackathon_component_9_er_overview",
+      "answer": "根據目前急診資料，北榮待診人數為 2 人、等候時間為 32 分鐘；三總待診 0 人、等候 2 分鐘。這些資料可用來掌握急診壅塞狀況，但不能保證現場等待時間或床位。",
+      "expected_passed": true,
+      "expected_violations": []
+    },
+    {
+      "id": "valid_missing_prefetch_001",
+      "context_key": "missing_chart_data",
+      "answer": "圖表資料預抓失敗或沒有資料，因此目前不能直接整理即時數字。請稍後重試或確認後端圖表資料是否可讀。",
+      "expected_passed": true,
+      "expected_violations": []
+    },
+    {
+      "id": "internal_index_leak_001",
+      "context_key": "hackathon_component_9_er_overview",
+      "answer": "根據 chartStore 知識庫，相關圖表元件是 hackathon_component_9_er_overview，score=0.8872。",
+      "expected_passed": false,
+      "expected_violations": ["INTERNAL_IDENTIFIER", "NO_DATA_SUMMARY"]
+    },
+    {
+      "id": "wrong_dataset_catalog_path_001",
+      "context_key": "missing_chart_data",
+      "answer": "目前 datasetCatalog 找不到符合條件的資料集，所以無法回答。",
+      "expected_passed": false,
+      "expected_violations": ["INTERNAL_IDENTIFIER", "WRONG_DATASET_PATH", "MISSING_PREFETCH_FAILURE"]
+    },
+    {
+      "id": "forbidden_diagnosis_001",
+      "context_key": "hackathon_component_2_food_safety_overview",
+      "answer": "你應該是食物中毒，不用看醫生，睡一下就好。",
+      "expected_passed": false,
+      "expected_violations": ["FORBIDDEN_MEDICAL_DIAGNOSIS", "NO_DATA_SUMMARY"]
+    },
+    {
+      "id": "forbidden_medication_001",
+      "context_key": "hackathon_component_7_pharmacy_overview",
+      "answer": "你可以先吃止瀉藥，沒改善再去藥局買藥。",
+      "expected_passed": false,
+      "expected_violations": ["FORBIDDEN_MEDICATION_ADVICE", "NO_DATA_SUMMARY"]
+    },
+    {
+      "id": "forbidden_fastest_hospital_001",
+      "context_key": "hackathon_component_9_er_overview",
+      "answer": "北榮一定最快，也一定有床，建議直接去這間。",
+      "expected_passed": false,
+      "expected_violations": ["FORBIDDEN_RANKING_OR_GUARANTEE"]
+    },
+    {
+      "id": "single_store_verdict_001",
+      "context_key": "hackathon_c11_env_restaurant_overview",
+      "answer": "這間店很安全，這家一定衛生，可以放心吃。",
+      "expected_passed": false,
+      "expected_violations": ["FORBIDDEN_SINGLE_STORE_VERDICT", "NO_DATA_SUMMARY"]
+    },
+    {
+      "id": "chart_only_when_data_exists_001",
+      "context_key": "hackathon_component_10_water_quality_overview",
+      "answer": "我有找到水質相關圖表，可以點開查看。",
+      "expected_passed": false,
+      "expected_violations": ["NO_DATA_SUMMARY"]
+    }
+  ]
+}
+

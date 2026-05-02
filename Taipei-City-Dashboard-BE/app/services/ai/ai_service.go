@@ -32,11 +32,13 @@ func init() {
 }
 
 type AIChatRequest struct {
-	SessionID string                 `json:"session"`
-	UserID    string                 `json:"user_id"`
-	IPAddress string                 `json:"ip_address"`
-	Messages  []llms.MessageContent  `json:"messages"`
-	Params    map[string]interface{} `json:"params"`
+	SessionID                string                 `json:"session"`
+	UserID                   string                 `json:"user_id"`
+	IPAddress                string                 `json:"ip_address"`
+	Messages                 []llms.MessageContent  `json:"messages"`
+	Params                   map[string]interface{} `json:"params"`
+	GuideMode                bool                   `json:"guide_mode"`
+	DatabaseContextAvailable bool                   `json:"database_context_available"`
 }
 
 // ChatWithTWCC handles the AI conversation logic including retries, tool calling loop, and logging.
@@ -220,12 +222,28 @@ func (s *aiSession) finalize() (*models.AIChatLog, error) {
 
 	if s.lastResp != nil && len(s.lastResp.Choices) > 0 {
 		log.Answer = s.lastResp.Choices[0].Content
+		if s.req.GuideMode {
+			result := ValidateGuideOutput(log.Answer, s.req.DatabaseContextAvailable)
+			log.Answer = result.Answer
+			if metaJSON, err := json.Marshal(result.Metadata()); err == nil {
+				log.Tools = string(metaJSON)
+			}
+			if !result.Passed {
+				log.Status = "guardrail_fallback"
+				log.ErrorCode = "GUIDE_GUARDRAIL"
+				if violationsJSON, err := json.Marshal(result.Violations); err == nil {
+					log.ErrorMessage = string(violationsJSON)
+				}
+			}
+		}
 		log.InputTokens, log.OutputTokens = s.totalInput, s.totalOutput
 		log.TotalTokens = s.totalInput + s.totalOutput
 		if s.toolUsed {
 			log.ToolUsed = true
 			if toolJSON, err := json.Marshal(s.executedTools); err == nil {
-				log.Tools = string(toolJSON)
+				if !s.req.GuideMode {
+					log.Tools = string(toolJSON)
+				}
 			}
 		}
 	}

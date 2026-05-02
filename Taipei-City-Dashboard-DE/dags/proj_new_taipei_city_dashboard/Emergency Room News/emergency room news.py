@@ -27,24 +27,18 @@ import json
 import os
 import pandas as pd
 from datetime import datetime
-from pathlib import Path
-import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from utils.etl_utils import (
+from etl_utils import (
     extract_open_api_post,
     convert_str_to_time_format,
     load_csv,
-    load_to_db,
+    load_db,
     TAIPEI_TZ,
 )
 
-# ── 讀取 job_config.json ────────────────────────────────────
-_HERE        = os.path.dirname(os.path.abspath(__file__))
-_CONFIG_PATH = os.path.join(_HERE, "job_config.json")
-
-with open(_CONFIG_PATH, encoding="utf-8") as f:
+# ── 讀取 job_config_C9.json ────────────────────────────────────
+_HERE = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(_HERE, "job_config_C9.json"), encoding="utf-8") as f:
     _JOB = json.load(f)
 
 DAG_INFOS    = _JOB["dag_infos"]
@@ -210,10 +204,11 @@ def step_transform(df: pd.DataFrame) -> pd.DataFrame:
 # 依賴：step_transform() 輸出
 # ─────────────────────────────────────────────────────────────
 
-def step_load(df: pd.DataFrame, output_dir: str) -> str:
+def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
     print("[Step 3] Load 開始")
     filepath = load_csv(df, output_dir, OUTPUT_TABLE)
-    load_to_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)  # 無條件寫入
+    if write_db:
+        load_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
     print("[Step 3] Load 完成\n")
     return filepath
 
@@ -222,7 +217,7 @@ def step_load(df: pd.DataFrame, output_dir: str) -> str:
 # 主流程
 # ─────────────────────────────────────────────────────────────
 
-def main(output_dir: str = "./data"):
+def main(output_dir: str = "./data", write_db: bool = False):
     print("=" * 55)
     print(f"ETL 開始：{DAG_INFOS['dag_id']}")
     print("=" * 55)
@@ -235,7 +230,7 @@ def main(output_dir: str = "./data"):
     if df.empty:
         print("[ETL] Transform 結果為空，中止。"); return
 
-    step_load(df, output_dir=output_dir)
+    step_load(df, output_dir=output_dir, write_db=write_db)
 
     print("=" * 55)
     print("ETL 完成")
@@ -243,7 +238,8 @@ def main(output_dir: str = "./data"):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="C9 急診室即時資訊 ETL")
     parser.add_argument("--output", default="./data")
+    parser.add_argument("--db", action="store_true")
     args = parser.parse_args()
-    main(output_dir=args.output)
+    main(output_dir=args.output, write_db=args.db)

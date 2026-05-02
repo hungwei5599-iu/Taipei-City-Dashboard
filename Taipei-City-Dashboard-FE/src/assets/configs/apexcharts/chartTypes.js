@@ -20,6 +20,7 @@ export const chartTypes = {
 	MapLegend: "地圖圖例",
 	TextUnitChart: "文字單位圖",
 	ButterflyChart: "蝴蝶圖",
+	FoodSafetyPercentChart: "食品抽驗合格率",
 };
 
 export const chartsPerDataType = {
@@ -54,6 +55,7 @@ export const chartsPerDataType = {
 		"BarPercentChart",
 		"BarChartWithGoal",
 		"IconPercentChart",
+		"FoodSafetyPercentChart",
 	],
 	map_legend: ["MapLegend"],
 };

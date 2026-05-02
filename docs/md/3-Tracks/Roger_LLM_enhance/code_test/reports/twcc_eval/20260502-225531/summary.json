@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-05-02T22:56:04",
+  "suite": "live_twcc_food_health_prompt_eval_v0",
+  "model": "llama3.3-ffm-70b-16k-chat",
+  "endpoint": "https://api-ams.twcc.ai/api/models/conversation",
+  "parameters": {
+    "temperature": 0.2,
+    "top_p": 0.8,
+    "top_k": 40,
+    "max_new_tokens": 700,
+    "seed": 42,
+    "stream": false
+  },
+  "production_thresholds": {
+    "json_valid_rate": 1.0,
+    "avg_module_recall": 1.0,
+    "guardrail_pass_rate": 1.0,
+    "database_context_pass_rate": 1.0,
+    "avg_safety_flag_recall": 0.95
+  },
+  "api_key_present": true,
+  "candidates": [
+    "strict_json_data_first_v2"
+  ],
+  "cases": [
+    "food_inspection_news_001",
+    "pharmacy_access_001",
+    "er_waiting_001",
+    "water_quality_001",
+    "eco_restaurant_001",
+    "food_health_multi_001"
+  ],
+  "result_summary": {
+    "total_calls": 6,
+    "successful_call_count": 6,
+    "twcc_error_count": 0,
+    "recommended_candidate_id": "strict_json_data_first_v2",
+    "candidates": [
+      {
+        "candidate_id": "strict_json_data_first_v2",
+        "cases": 6,
+        "twcc_error_count": 0,
+        "avg_score": 1.0,
+        "json_valid_rate": 1.0,
+        "avg_module_recall": 1.0,
+        "avg_module_precision": 1.0,
+        "avg_safety_flag_recall": 1.0,
+        "guardrail_pass_rate": 1.0,
+        "database_context_pass_rate": 1.0,
+        "latency_p50_ms": 4781,
+        "latency_p95_ms": 5652,
+        "avg_total_tokens": 1426.17
+      }
+    ],
+    "ranking": [
+      {
+        "candidate_id": "strict_json_data_first_v2",
+        "cases": 6,
+        "twcc_error_count": 0,
+        "avg_score": 1.0,
+        "json_valid_rate": 1.0,
+        "avg_module_recall": 1.0,
+        "avg_module_precision": 1.0,
+        "avg_safety_flag_recall": 1.0,
+        "guardrail_pass_rate": 1.0,
+        "database_context_pass_rate": 1.0,
+        "latency_p50_ms": 4781,
+        "latency_p95_ms": 5652,
+        "avg_total_tokens": 1426.17
+      }
+    ],
+    "production_thresholds": {
+      "json_valid_rate": 1.0,
+      "avg_module_recall": 1.0,
+      "guardrail_pass_rate": 1.0,
+      "database_context_pass_rate": 1.0,
+      "avg_safety_flag_recall": 0.95
+    },
+    "production_gate_passed": true,
+    "failed_thresholds": [],
+    "be_integration_recommendation": "strict_json_data_first_v2 passed the production gate and is BE-ready as the prompt baseline. Integrate through the existing BE orchestrator path, not a new AI gateway."
+  }
+}

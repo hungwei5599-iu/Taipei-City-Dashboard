@@ -13,7 +13,7 @@ import http from "../../router/axios";
 const chatStore = useChatStore();
 const contentStore = useContentStore();
 const authStore = useAuthStore();
-const { addChatData, addQueryData, saveChatLog } = chatStore;
+const { addChatData, addQueryData, saveChatLog, handleGuideButton } = chatStore;
 const { createDashboard } = contentStore;
 const { chatData } = storeToRefs(chatStore);
 const { editDashboard } = storeToRefs(contentStore);
@@ -24,7 +24,12 @@ const chatAreaRef = ref(null);
 const isStickyOpen = ref(false);
 const dashboardCreationLoading = ref(false);
 
-const qaBtnHandler = async (text, relations) => {
+const qaBtnHandler = async (btn, chat) => {
+	const text = typeof btn === "string" ? btn : btn?.text;
+	if (btn?.action === "openGuideMap") {
+		await handleGuideButton(chat);
+		return;
+	}
 	if (text === "建立推薦儀表板" || text === "建立儀表板") {
 		if (dashboardCreationLoading.value === true) return;
 		dashboardCreationLoading.value = true;
@@ -39,7 +44,7 @@ const qaBtnHandler = async (text, relations) => {
 			dashboardCreationLoading.value = false;
 			return;
 		}
-		const components = Array.from(new Set(relations.map((r) => r.id))).map(
+		const components = Array.from(new Set((chat.relations || []).map((r) => r.id))).map(
 			(id) => ({ id }),
 		);
 
@@ -73,6 +78,27 @@ const sendBtnHandler = (text) => {
 
 const toggleSticky = () => {
 	isStickyOpen.value = !isStickyOpen.value;
+};
+
+const getChartMax = (items) => {
+	const values = (items || []).map((item) => Number(item.value) || 0);
+	return Math.max(...values, 1);
+};
+
+const getBarWidth = (item, items) => {
+	const value = Number(item.value) || 0;
+	return `${Math.max(6, Math.round((value / getChartMax(items)) * 100))}%`;
+};
+
+const getHighlightedRows = (table) =>
+	new Set((table.highlight || []).map((item) => item.rowIndex ?? item.row_index));
+
+const followupHandler = (prompt) => {
+	if (!prompt) return;
+	addQueryData({
+		role: "user",
+		content: prompt,
+	});
 };
 
 watch(
@@ -138,9 +164,141 @@ watch(
             >
               <p>{{ chat.content }}</p>
             </div>
+            <div
+              v-if="chat.guidePayload"
+              class="guide-response"
+            >
+              <div
+                v-if="false && chat.guidePayload.tool_steps?.length"
+                class="guide-block guide-steps"
+              >
+                <div class="guide-title">
+                  資料處理
+                </div>
+                <div
+                  v-for="step in chat.guidePayload.tool_steps"
+                  :key="step.id"
+                  class="guide-step"
+                  :data-status="step.status"
+                >
+                  <span class="guide-step-dot" />
+                  <span>{{ step.label }}</span>
+                  <small>{{ step.status }}</small>
+                </div>
+              </div>
+
+              <div
+                v-for="card in chat.guidePayload.insight_cards || []"
+                :key="card.id"
+                class="guide-block guide-card"
+              >
+                <div class="guide-title">
+                  {{ card.title }}
+                </div>
+                <p v-if="card.subtitle">
+                  {{ card.subtitle }}
+                </p>
+                <div class="guide-stats">
+                  <div
+                    v-for="stat in card.stats || []"
+                    :key="stat.label"
+                    class="guide-stat"
+                  >
+                    <span>{{ stat.label }}</span>
+                    <strong>{{ stat.value }}{{ stat.unit ? ` ${stat.unit}` : "" }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-for="chart in chat.guidePayload.mini_charts || []"
+                :key="chart.id"
+                class="guide-block guide-chart"
+              >
+                <div class="guide-title">
+                  {{ chart.title }}
+                </div>
+                <div
+                  v-for="item in chart.data || []"
+                  :key="item.label"
+                  class="guide-bar"
+                >
+                  <span>{{ item.label }}</span>
+                  <div class="guide-bar-track">
+                    <div
+                      class="guide-bar-fill"
+                      :data-color="item.colorKey || item.color_key"
+                      :style="{ width: getBarWidth(item, chart.data) }"
+                    />
+                  </div>
+                  <strong>{{ item.value }} {{ chart.unit || "" }}</strong>
+                </div>
+              </div>
+
+              <div
+                v-for="table in chat.guidePayload.comparison_tables || []"
+                :key="table.id"
+                class="guide-block guide-table-wrap"
+              >
+                <div class="guide-title">
+                  {{ table.title }}
+                </div>
+                <table class="guide-table">
+                  <thead>
+                    <tr>
+                      <th
+                        v-for="column in table.columns || []"
+                        :key="column"
+                      >
+                        {{ column }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(row, rowIndex) in table.rows || []"
+                      :key="rowIndex"
+                      :data-highlight="getHighlightedRows(table).has(rowIndex)"
+                    >
+                      <td
+                        v-for="(cell, cellIndex) in row"
+                        :key="cellIndex"
+                      >
+                        {{ cell }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                v-if="chat.guidePayload.warnings?.length"
+                class="guide-block guide-warning"
+              >
+                <div
+                  v-for="warning in chat.guidePayload.warnings"
+                  :key="warning"
+                >
+                  {{ warning }}
+                </div>
+              </div>
+
+              <div
+                v-if="chat.guidePayload.follow_up_questions?.length"
+                class="guide-followups"
+              >
+                <button
+                  v-for="question in chat.guidePayload.follow_up_questions"
+                  :key="question.id"
+                  @click="followupHandler(question.prompt)"
+                >
+                  {{ question.label }}
+                </button>
+              </div>
+            </div>
             <!-- 表格區 -->
             <div
-              v-if="chat.relations"
+              v-if="chat.showRelations && chat.relations"
               v-horizontal-wheel
               class="relation-area"
             >
@@ -180,9 +338,9 @@ watch(
               <button
                 v-for="btn in chat.button"
                 :key="btn.id"
-                @click="qaBtnHandler(btn.text, chat.relations)"
+                @click="qaBtnHandler(btn, chat)"
               >
-                {{ btn.text }}
+                {{ btn.action === "openGuideMap" ? "開啟組件" : btn.text }}
               </button>
             </div>
           </div>
@@ -427,6 +585,182 @@ $radius-20: 20px;
 							&:hover {
 								filter: brightness(0.5);
 							}
+						}
+					}
+
+					.guide-response {
+						display: grid;
+						gap: 0.5rem;
+					}
+
+					.guide-block {
+						border: 1px solid rgba(255, 255, 255, 0.16);
+						border-radius: 8px;
+						background: #20262e;
+						color: $white;
+						padding: 10px;
+					}
+
+					.guide-title {
+						font-size: 13px;
+						font-weight: 700;
+						margin-bottom: 8px;
+					}
+
+					.guide-steps {
+						background: rgba(57, 194, 215, 0.08);
+					}
+
+					.guide-step {
+						display: grid;
+						grid-template-columns: 14px minmax(0, 1fr) auto;
+						gap: 8px;
+						align-items: center;
+						font-size: 12px;
+						line-height: 1.35;
+
+						& + .guide-step {
+							margin-top: 6px;
+						}
+
+						small {
+							color: #ababab;
+						}
+					}
+
+					.guide-step-dot {
+						width: 10px;
+						height: 10px;
+						border-radius: 50%;
+						border: 2px solid #ababab;
+					}
+
+					.guide-step[data-status="done"] .guide-step-dot {
+						border-color: #7ccf8a;
+						background: #7ccf8a;
+					}
+
+					.guide-step[data-status="error"] .guide-step-dot {
+						border-color: #ff6b5f;
+						background: #ff6b5f;
+					}
+
+					.guide-card p {
+						color: #ababab;
+						font-size: 12px;
+						margin: 0 0 8px;
+					}
+
+					.guide-stats {
+						display: grid;
+						grid-template-columns: repeat(3, minmax(0, 1fr));
+						gap: 8px;
+					}
+
+					.guide-stat {
+						border: 1px solid rgba(255, 255, 255, 0.1);
+						border-radius: 8px;
+						padding: 8px;
+						min-width: 0;
+
+						span {
+							display: block;
+							color: #ababab;
+							font-size: 11px;
+							margin-bottom: 4px;
+						}
+
+						strong {
+							font-size: 16px;
+						}
+					}
+
+					.guide-bar {
+						display: grid;
+						grid-template-columns: minmax(74px, 1fr) 1.4fr auto;
+						gap: 8px;
+						align-items: center;
+						font-size: 12px;
+
+						& + .guide-bar {
+							margin-top: 8px;
+						}
+					}
+
+					.guide-bar-track {
+						height: 10px;
+						border-radius: 999px;
+						background: rgba(255, 255, 255, 0.08);
+						overflow: hidden;
+					}
+
+					.guide-bar-fill {
+						height: 100%;
+						min-width: 4px;
+						border-radius: 999px;
+						background: #39c2d7;
+					}
+
+					.guide-bar-fill[data-color="ok"] {
+						background: #7ccf8a;
+					}
+
+					.guide-bar-fill[data-color="busy"] {
+						background: #f2a65a;
+					}
+
+					.guide-bar-fill[data-color="critical"] {
+						background: #ff6b5f;
+					}
+
+					.guide-table-wrap {
+						overflow-x: auto;
+					}
+
+					.guide-table {
+						width: 100%;
+						min-width: 360px;
+						border-collapse: collapse;
+						font-size: 12px;
+
+						th,
+						td {
+							border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+							padding: 7px 6px;
+							text-align: left;
+							vertical-align: top;
+						}
+
+						th {
+							color: #ababab;
+						}
+
+						tr[data-highlight="true"] td {
+							background: rgba(124, 207, 138, 0.08);
+						}
+					}
+
+					.guide-warning {
+						border-color: rgba(255, 107, 95, 0.28);
+						background: rgba(255, 107, 95, 0.1);
+						color: #ffe0dd;
+						font-size: 12px;
+						line-height: 1.45;
+					}
+
+					.guide-followups {
+						display: flex;
+						flex-wrap: wrap;
+						gap: 0.5rem;
+
+						button {
+							background: $panel-bg;
+							color: $white;
+							font-size: 13px;
+							padding: 0.45rem 0.75rem;
+							border-radius: 999px;
+							border: 1px solid rgba(255, 255, 255, 0.14);
+							cursor: pointer;
 						}
 					}
 				}

@@ -48,10 +48,10 @@ const COLOR_POOL = [
 
 // 象限背景漸層（固定，不隨資料變動）
 const QUADRANT_COLORS = {
-	tl: { from: "rgba(215,150,60,0.14)", to: "rgba(215,150,60,0.025)" },  // 等待偏高
-	tr: { from: "rgba(225,72,72,0.26)",  to: "rgba(225,72,72,0.045)" },   // 高待診 + 高等待
+	tl: { from: "rgba(170,80,80,0.12)",  to: "rgba(170,80,80,0.025)" },   // 深紅
+	tr: { from: "rgba(185,125,70,0.12)", to: "rgba(185,125,70,0.025)" },  // 橙黃
 	bl: { from: "rgba(70,120,170,0.12)", to: "rgba(70,120,170,0.025)" },  // 深藍
-	br: { from: "rgba(215,185,70,0.13)", to: "rgba(215,185,70,0.025)" },  // 待診偏高
+	br: { from: "rgba(70,150,110,0.11)", to: "rgba(70,150,110,0.025)" },  // 深綠
 };
 
 // 各象限對應的資料點顏色（正式儀表板低飽和色）
@@ -59,10 +59,10 @@ const QUADRANT_COLORS = {
 // xReverse=true:  TL=左上(X高Y高), TR=右上(X低Y高)
 const QUADRANT_DOT_COLORS = {
 	// 位置 key 對應主色
-	tl: "#D79A45",  // 等待偏高（左上）
-	tr: "#E05A5A",  // 高壓壅塞（右上）
+	tl: "#B85C5C",  // 深紅（左上）
+	tr: "#C9834A",  // 橙（右上）
 	bl: "#4F7FAE",  // 藍（左下）
-	br: "#C6A54A",  // 待診偏高（右下）
+	br: "#5D9B7A",  // 綠（右下）
 };
 
 const DEFAULT_CLUSTER_RADIUS = 30;
@@ -156,12 +156,9 @@ const aggregatedSeries = computed(() => {
 				const qKey = onTop
 					? (onLeft ? "tl" : "tr")
 					: (onLeft ? "bl" : "br");
-				const risk = pointRisk(pt.x, pt.y);
 				return {
 					...pt,
 					color: QUADRANT_DOT_COLORS[qKey],
-					qKey,
-					risk,
 					label: pt.labels.length > 1
 						? `${pt.labels.length}家`
 						: pt.labels[0],
@@ -214,7 +211,7 @@ function splitLargeClusters(clusters) {
 }
 
 function pointSvgX(pt) {
-	const radius = pointRadius(pt);
+	const radius = Math.max(4, bubbleR.value - 1);
 	return clamp(
 		toSvgX(pt.x) + (pt.offsetX ?? 0),
 		pad.left + radius + 2,
@@ -223,27 +220,12 @@ function pointSvgX(pt) {
 }
 
 function pointSvgY(pt) {
-	const radius = pointRadius(pt);
+	const radius = Math.max(4, bubbleR.value - 1);
 	return clamp(
 		toSvgY(pt.y) + (pt.offsetY ?? 0),
 		pad.top + radius + 2,
 		svgH.value - pad.bottom - radius - 2,
 	);
-}
-
-function pointRisk(x, y) {
-	const xRatio = xRange.value.max
-		? clamp(Number(x) / xRange.value.max, 0, 1)
-		: 0;
-	const yRatio = yRange.value.max
-		? clamp(Number(y) / yRange.value.max, 0, 1)
-		: 0;
-	return Math.round(((xRatio * 0.48) + (yRatio * 0.52)) * 100) / 100;
-}
-
-function pointRadius(pt) {
-	const base = Math.max(4, bubbleR.value - 1);
-	return base + (pt?.risk ?? 0) * 3.5;
 }
 
 function clamp(value, min, max) {
@@ -283,19 +265,9 @@ function layoutLabels(points) {
 }
 
 // ── 軸標題（優先用 chart_config，否則讀 series 名稱）─────
-// 四象限圖的 X/Y 軸常是不同量綱，不沿用 chart_config.unit 作為共用單位。
-function inferAxisUnit(label, unitKey) {
-	const explicitUnit = props.chart_config?.[unitKey];
-	if (explicitUnit) return explicitUnit;
-
-	const text = String(label ?? "");
-	if (text.includes("待診") || text.includes("人數")) return "人";
-	if (text.includes("等候") || text.includes("等待") || text.includes("時間")) return "分鐘";
-	return "";
-}
-
+// 單位支援：chart_config.unit（通用）或 xaxis_unit / yaxis_unit（個別設定）
 function withUnit(label, unitKey) {
-	const u = inferAxisUnit(label, unitKey);
+	const u = props.chart_config?.[unitKey] ?? props.chart_config?.unit ?? "";
 	return u ? `${label}（${u}）` : label;
 }
 const xLabelRaw = computed(() =>
@@ -311,12 +283,7 @@ const yLabelRaw = computed(() =>
 const xLabel = computed(() => withUnit(xLabelRaw.value, "xaxis_unit"));
 const yLabel = computed(() => withUnit(yLabelRaw.value, "yaxis_unit"));
 const xReverse = computed(() => props.chart_config?.xaxis_reverse ?? false);
-const qLabels  = computed(() => props.chart_config?.quadrant_labels ?? {
-	tl: "等待偏高",
-	tr: "高待診・高等待",
-	bl: "低壓",
-	br: "待診偏高",
-});
+const qLabels  = computed(() => props.chart_config?.quadrant_labels ?? null);
 const bubbleR  = computed(() => props.chart_config?.bubble_size ?? 9);
 
 // ── 軸範圍：從 0 到最大值＋25% padding ──────────────────
@@ -331,14 +298,6 @@ function buildRange(vals) {
 
 const xRange = computed(() => buildRange(allPoints.value.map(p => p.x)));
 const yRange = computed(() => buildRange(allPoints.value.map(p => p.y)));
-const xScaleMode = computed(() =>
-	props.chart_config?.xaxis_scale
-		?? autoScaleMode(allPoints.value.map(p => p.x))
-);
-const yScaleMode = computed(() =>
-	props.chart_config?.yaxis_scale
-		?? autoScaleMode(allPoints.value.map(p => p.y))
-);
 
 // ── 中心分隔線：動態取 最大值的 50% ─────────────────────
 // 不使用資料平均，而是 max/2，確保即使點集中時也能有意義地分四象限
@@ -361,7 +320,7 @@ const midY = computed(() => {
 const svgRef = ref(null);
 const svgW   = ref(440);
 const svgH   = ref(300);
-const pad    = { top: 20, right: 20, bottom: 36, left: 52 };
+const pad    = { top: 20, right: 20, bottom: 52, left: 52 };
 
 let ro = null;
 onMounted(() => {
@@ -379,45 +338,15 @@ onMounted(() => {
 onUnmounted(() => ro?.disconnect());
 
 // ── 座標轉換：資料值 → SVG 像素 ──────────────────────────
-// 若資料有明顯離群值，使用 sqrt 智慧壓縮，避免低值群全部擠在座標軸底部。
-function autoScaleMode(values) {
-	const nums = values
-		.map(Number)
-		.filter(value => Number.isFinite(value) && value >= 0)
-		.sort((a, b) => a - b);
-	if (nums.length < 6) return "linear";
-
-	const max = nums[nums.length - 1];
-	const p75 = percentile(nums, 0.75);
-	if (max <= 0 || p75 <= 0) return "linear";
-
-	return max / p75 >= 3 ? "sqrt" : "linear";
-}
-
-function percentile(sortedValues, p) {
-	if (!sortedValues.length) return 0;
-	const index = (sortedValues.length - 1) * p;
-	const lower = Math.floor(index);
-	const upper = Math.ceil(index);
-	if (lower === upper) return sortedValues[lower];
-	const weight = index - lower;
-	return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
-}
-
-function scaledRatio(val, range, mode) {
-	const rawRatio = (val - range.min) / (range.max - range.min);
-	const ratio = clamp(rawRatio, 0, 1);
-	if (mode === "sqrt") return Math.sqrt(ratio);
-	return ratio;
-}
-
 function toSvgX(val) {
-	const ratio = scaledRatio(val, xRange.value, xScaleMode.value);
+	const { min, max } = xRange.value;
+	const ratio = (val - min) / (max - min);
 	const eff   = xReverse.value ? 1 - ratio : ratio;
 	return pad.left + eff * (svgW.value - pad.left - pad.right);
 }
 function toSvgY(val) {
-	const ratio = scaledRatio(val, yRange.value, yScaleMode.value);
+	const { min, max } = yRange.value;
+	const ratio = (val - min) / (max - min);
 	return svgH.value - pad.bottom - ratio * (svgH.value - pad.top - pad.bottom);
 }
 
@@ -441,24 +370,8 @@ function niceTicks(min, max, count = 5) {
 		ticks.push(Math.round(v * 1e6) / 1e6);
 	return ticks;
 }
-const xTicks = computed(() => smartTicks(xRange.value, xScaleMode.value));
-const yTicks = computed(() => smartTicks(yRange.value, yScaleMode.value));
-
-function smartTicks(range, scaleMode) {
-	if (scaleMode !== "sqrt") return niceTicks(range.min, range.max);
-
-	const max = range.max;
-	let candidates;
-	if (max <= 20) {
-		candidates = [0, 1, 2, 5, 10, 15, 20];
-	} else if (max <= 120) {
-		candidates = [0, 5, 10, 20, 40, 60, 80, 100, 120];
-	} else {
-		candidates = [0, 10, 25, 50, 100, 200, 500, 1000];
-	}
-
-	return candidates.filter(value => value >= range.min && value <= max);
-}
+const xTicks = computed(() => niceTicks(xRange.value.min, xRange.value.max));
+const yTicks = computed(() => niceTicks(yRange.value.min, yRange.value.max));
 
 // ── 標籤偏移：避免超出邊界，緊貼氣泡旁邊 ────────────────
 function labelWidth(label) {
@@ -481,7 +394,7 @@ function makeLabelBox(pt, side = "top") {
 	const py = pointSvgY(pt);
 	const width = labelWidth(pt.label);
 	const height = 15;
-	const gap = Math.max(6, pointRadius(pt) + 1);
+	const gap = Math.max(6, bubbleR.value + 1);
 	const plotRight = svgW.value - pad.right;
 	const plotBottom = svgH.value - pad.bottom;
 	let x = px;
@@ -609,21 +522,69 @@ function handleClick(si, pi, pt) {
       >
         <defs>
           <!-- 四象限漸層 -->
-          <linearGradient id="qcg-tl" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" :stop-color="QUADRANT_COLORS.tl.to" />
-            <stop offset="100%" :stop-color="QUADRANT_COLORS.tl.from" />
+          <linearGradient
+            id="qcg-tl"
+            x1="0%"
+            y1="100%"
+            x2="100%"
+            y2="0%"
+          >
+            <stop
+              offset="0%"
+              :stop-color="QUADRANT_COLORS.tl.to"
+            />
+            <stop
+              offset="100%"
+              :stop-color="QUADRANT_COLORS.tl.from"
+            />
           </linearGradient>
-          <linearGradient id="qcg-tr" x1="100%" y1="100%" x2="0%" y2="0%">
-            <stop offset="0%" :stop-color="QUADRANT_COLORS.tr.to" />
-            <stop offset="100%" :stop-color="QUADRANT_COLORS.tr.from" />
+          <linearGradient
+            id="qcg-tr"
+            x1="100%"
+            y1="100%"
+            x2="0%"
+            y2="0%"
+          >
+            <stop
+              offset="0%"
+              :stop-color="QUADRANT_COLORS.tr.to"
+            />
+            <stop
+              offset="100%"
+              :stop-color="QUADRANT_COLORS.tr.from"
+            />
           </linearGradient>
-          <linearGradient id="qcg-bl" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" :stop-color="QUADRANT_COLORS.bl.from" />
-            <stop offset="100%" :stop-color="QUADRANT_COLORS.bl.to" />
+          <linearGradient
+            id="qcg-bl"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
+            <stop
+              offset="0%"
+              :stop-color="QUADRANT_COLORS.bl.from"
+            />
+            <stop
+              offset="100%"
+              :stop-color="QUADRANT_COLORS.bl.to"
+            />
           </linearGradient>
-          <linearGradient id="qcg-br" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :stop-color="QUADRANT_COLORS.br.from" />
-            <stop offset="100%" :stop-color="QUADRANT_COLORS.br.to" />
+          <linearGradient
+            id="qcg-br"
+            x1="100%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <stop
+              offset="0%"
+              :stop-color="QUADRANT_COLORS.br.from"
+            />
+            <stop
+              offset="100%"
+              :stop-color="QUADRANT_COLORS.br.to"
+            />
           </linearGradient>
         </defs>
 
@@ -663,15 +624,21 @@ function handleClick(si, pi, pt) {
 
         <!-- ── 象限分隔線 ── -->
         <line
-          :x1="svgMidX" :y1="pad.top"
-          :x2="svgMidX" :y2="svgH - pad.bottom"
-          stroke="rgba(255,255,255,0.18)" stroke-width="1"
+          :x1="svgMidX"
+          :y1="pad.top"
+          :x2="svgMidX"
+          :y2="svgH - pad.bottom"
+          stroke="rgba(255,255,255,0.18)"
+          stroke-width="1"
           stroke-dasharray="3 4"
         />
         <line
-          :x1="pad.left" :y1="svgMidY"
-          :x2="svgW - pad.right" :y2="svgMidY"
-          stroke="rgba(255,255,255,0.18)" stroke-width="1"
+          :x1="pad.left"
+          :y1="svgMidY"
+          :x2="svgW - pad.right"
+          :y2="svgMidY"
+          stroke="rgba(255,255,255,0.18)"
+          stroke-width="1"
           stroke-dasharray="3 4"
         />
 
@@ -682,17 +649,38 @@ function handleClick(si, pi, pt) {
           fill="rgba(255,255,255,0.34)"
           font-weight="500"
         >
-          <text v-if="qLabels.tl" :x="pad.left + 6" :y="pad.top + 14">{{ qLabels.tl }}</text>
-          <text v-if="qLabels.tr" :x="svgW - pad.right - 6" :y="pad.top + 14" text-anchor="end">{{ qLabels.tr }}</text>
-          <text v-if="qLabels.bl" :x="pad.left + 6" :y="svgH - pad.bottom - 7">{{ qLabels.bl }}</text>
-          <text v-if="qLabels.br" :x="svgW - pad.right - 6" :y="svgH - pad.bottom - 7" text-anchor="end">{{ qLabels.br }}</text>
+          <text
+            v-if="qLabels.tl"
+            :x="pad.left + 6"
+            :y="pad.top + 14"
+          >{{ qLabels.tl }}</text>
+          <text
+            v-if="qLabels.tr"
+            :x="svgW - pad.right - 6"
+            :y="pad.top + 14"
+            text-anchor="end"
+          >{{ qLabels.tr }}</text>
+          <text
+            v-if="qLabels.bl"
+            :x="pad.left + 6"
+            :y="svgH - pad.bottom - 7"
+          >{{ qLabels.bl }}</text>
+          <text
+            v-if="qLabels.br"
+            :x="svgW - pad.right - 6"
+            :y="svgH - pad.bottom - 7"
+            text-anchor="end"
+          >{{ qLabels.br }}</text>
         </g>
 
         <!-- ── X 軸 ── -->
         <line
-          :x1="pad.left - 4" :y1="svgH - pad.bottom"
-          :x2="svgW - pad.right + 4" :y2="svgH - pad.bottom"
-          stroke="rgba(255,255,255,0.22)" stroke-width="1"
+          :x1="pad.left - 4"
+          :y1="svgH - pad.bottom"
+          :x2="svgW - pad.right + 4"
+          :y2="svgH - pad.bottom"
+          stroke="rgba(255,255,255,0.22)"
+          stroke-width="1"
         />
         <!-- X 軸箭頭 -->
         <polygon
@@ -701,22 +689,33 @@ function handleClick(si, pi, pt) {
         />
         <!-- X 軸刻度 -->
         <g
-          v-for="t in xTicks" :key="`xt-${t}`"
-          font-size="9" fill="rgba(255,255,255,0.42)" text-anchor="middle"
+          v-for="t in xTicks"
+          :key="`xt-${t}`"
+          font-size="9"
+          fill="rgba(255,255,255,0.42)"
+          text-anchor="middle"
         >
           <line
-            :x1="toSvgX(t)" :y1="svgH - pad.bottom"
-            :x2="toSvgX(t)" :y2="svgH - pad.bottom + 4"
+            :x1="toSvgX(t)"
+            :y1="svgH - pad.bottom"
+            :x2="toSvgX(t)"
+            :y2="svgH - pad.bottom + 4"
             stroke="rgba(255,255,255,0.14)"
           />
-          <text :x="toSvgX(t)" :y="svgH - pad.bottom + 15">{{ t }}</text>
+          <text
+            :x="toSvgX(t)"
+            :y="svgH - pad.bottom + 15"
+          >{{ t }}</text>
         </g>
 
         <!-- ── Y 軸 ── -->
         <line
-          :x1="pad.left" :y1="pad.top - 4"
-          :x2="pad.left" :y2="svgH - pad.bottom + 4"
-          stroke="rgba(255,255,255,0.22)" stroke-width="1"
+          :x1="pad.left"
+          :y1="pad.top - 4"
+          :x2="pad.left"
+          :y2="svgH - pad.bottom + 4"
+          stroke="rgba(255,255,255,0.22)"
+          stroke-width="1"
         />
         <!-- Y 軸箭頭 -->
         <polygon
@@ -725,19 +724,30 @@ function handleClick(si, pi, pt) {
         />
         <!-- Y 軸刻度 -->
         <g
-          v-for="t in yTicks" :key="`yt-${t}`"
-          font-size="9" fill="rgba(255,255,255,0.42)" text-anchor="end"
+          v-for="t in yTicks"
+          :key="`yt-${t}`"
+          font-size="9"
+          fill="rgba(255,255,255,0.42)"
+          text-anchor="end"
         >
           <line
-            :x1="pad.left - 4" :y1="toSvgY(t)"
-            :x2="pad.left" :y2="toSvgY(t)"
+            :x1="pad.left - 4"
+            :y1="toSvgY(t)"
+            :x2="pad.left"
+            :y2="toSvgY(t)"
             stroke="rgba(255,255,255,0.14)"
           />
-          <text :x="pad.left - 6" :y="toSvgY(t) + 3.5">{{ t }}</text>
+          <text
+            :x="pad.left - 6"
+            :y="toSvgY(t) + 3.5"
+          >{{ t }}</text>
         </g>
 
         <!-- ── 資料氣泡（使用 aggregatedSeries 展示集合點） ── -->
-        <g v-for="(serie, si) in displaySeries" :key="`s${si}`">
+        <g
+          v-for="(serie, si) in displaySeries"
+          :key="`s${si}`"
+        >
           <g
             v-for="(pt, pi) in serie.data"
             :key="`p${si}-${pi}`"
@@ -747,32 +757,22 @@ function handleClick(si, pi, pt) {
             @mouseleave="hideTip"
             @click="handleClick(si, pi, pt)"
           >
-          <!-- 透明點擊範圍 -->
+            <!-- 透明點擊範圍 -->
             <circle
               :cx="pointSvgX(pt)"
               :cy="pointSvgY(pt)"
-              :r="pointRadius(pt) + 7"
+              :r="bubbleR + 7"
               :fill="pt.color"
               fill-opacity="0"
               class="qc-hit-area"
-            />
-            <!-- 高待診 + 高等待的壓力區點位光暈 -->
-            <circle
-              v-if="pt.qKey === 'tr'"
-              :cx="pointSvgX(pt)"
-              :cy="pointSvgY(pt)"
-              :r="pointRadius(pt) + 6"
-              :fill="pt.color"
-              fill-opacity="0.18"
-              class="qc-risk-halo"
             />
             <!-- 主圓（實心） -->
             <circle
               :cx="pointSvgX(pt)"
               :cy="pointSvgY(pt)"
-              :r="pointRadius(pt)"
+              :r="Math.max(4, bubbleR - 1)"
               :fill="pt.color"
-              :fill-opacity="pt.qKey === 'tr' ? 0.96 : 0.88"
+              fill-opacity="0.88"
               class="qc-circle"
             />
             <!-- 標籤文字 -->
@@ -809,22 +809,30 @@ function handleClick(si, pi, pt) {
           class="chart-tooltip qc-tooltip"
           :style="{
             left: tooltip.flipX ? (tooltip.tx - TIP_W - 8) + 'px' : (tooltip.tx + 14) + 'px',
-            top:  tooltip.flipY ? (tooltip.ty - TIP_H - 8) + 'px' : (tooltip.ty - 10) + 'px',
+            top: tooltip.flipY ? (tooltip.ty - TIP_H - 8) + 'px' : (tooltip.ty - 10) + 'px',
           }"
         >
-          <span class="qc-tooltip-dot" :style="{ background: tooltip.color }" />
+          <span
+            class="qc-tooltip-dot"
+            :style="{ background: tooltip.color }"
+          />
           <!-- 醫院列表 -->
-          <h6 v-for="(lbl, i) in tooltip.labels" :key="i">{{ lbl }}</h6>
+          <h6
+            v-for="(lbl, i) in tooltip.labels"
+            :key="i"
+          >
+            {{ lbl }}
+          </h6>
           <!-- 待诊人數：X 軸，單位獲取 xaxis_unit -->
           <span>{{ xLabelRaw }}：{{ tooltip.sx }}
-            <template v-if="inferAxisUnit(xLabelRaw, 'xaxis_unit')">
-              {{ inferAxisUnit(xLabelRaw, 'xaxis_unit') }}
+            <template v-if="props.chart_config?.xaxis_unit">
+              {{ props.chart_config.xaxis_unit }}
             </template>
           </span>
           <!-- 等候時間：Y 軸，單位獲取 yaxis_unit -->
           <span>{{ yLabelRaw }}：{{ tooltip.sy }}
-            <template v-if="inferAxisUnit(yLabelRaw, 'yaxis_unit')">
-              {{ inferAxisUnit(yLabelRaw, 'yaxis_unit') }}
+            <template v-if="props.chart_config?.yaxis_unit">
+              {{ props.chart_config.yaxis_unit }}
             </template>
           </span>
         </div>
@@ -837,13 +845,19 @@ function handleClick(si, pi, pt) {
     </div>
 
     <!-- 圖例（多系列時顯示） -->
-    <div v-if="parsedSeries.length > 1" class="qc-legend">
+    <div
+      v-if="parsedSeries.length > 1"
+      class="qc-legend"
+    >
       <div
         v-for="(s, i) in parsedSeries"
         :key="`leg${i}`"
         class="qc-legend-item"
       >
-        <span class="qc-legend-dot" :style="{ background: s.color }" />
+        <span
+          class="qc-legend-dot"
+          :style="{ background: s.color }"
+        />
         <span class="qc-legend-name">{{ s.name }}</span>
       </div>
     </div>

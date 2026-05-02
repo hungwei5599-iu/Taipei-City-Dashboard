@@ -1,0 +1,144 @@
+{
+  "version": "five_component_food_health_v0",
+  "dashboard_index": "hackathon_food_health",
+  "contract": {
+    "request_endpoint": "/ai/chat/twai",
+    "request_component_context_required_fields": ["id", "index", "name", "city"],
+    "response_required_fields": ["status", "data.content", "data.usage", "data.tool_used", "data.latency_ms"],
+    "user_answer_forbidden_terms": [
+      "hackathon_",
+      "component index",
+      "component_id",
+      "score",
+      "chartStore",
+      "tool",
+      "API",
+      "datasetCatalog",
+      "query_dashboard_dataset",
+      "search_dashboard_datasets"
+    ]
+  },
+  "components": [
+    {
+      "module_id": "food_inspection",
+      "component_index": "hackathon_component_2_food_safety_overview",
+      "title": "食品抽驗合格率",
+      "query_type": "percent",
+      "sample_component_context": {
+        "id": 2,
+        "index": "hackathon_component_2_food_safety_overview",
+        "name": "食品抽驗合格率",
+        "city": "metrotaipei",
+        "score": 0.91
+      },
+      "guide_keywords": ["食品", "食安", "抽驗", "合格率", "不合格", "食品中毒", "稽查", "餐廳新聞"],
+      "safe_use": "Route food-safety questions to official inspection trend data. Do not judge a single product or store.",
+      "forbidden_claims": ["單一店家安全", "單一商品安全", "這間店危險"],
+      "action": {
+        "type": "navigate_focus_component",
+        "path": "/dashboard",
+        "query": {
+          "index": "hackathon_food_health",
+          "focusComponent": "hackathon_component_2_food_safety_overview"
+        }
+      }
+    },
+    {
+      "module_id": "pharmacy_access",
+      "component_index": "hackathon_component_7_pharmacy_overview",
+      "title": "藥局資源分布概況",
+      "query_type": "two_d",
+      "sample_component_context": {
+        "id": 7,
+        "index": "hackathon_component_7_pharmacy_overview",
+        "name": "藥局資源分布概況",
+        "city": "metrotaipei",
+        "score": 0.9
+      },
+      "guide_keywords": ["藥局", "健保藥局", "領藥", "附近藥局", "藥師", "藥房"],
+      "safe_use": "Guide users to pharmacy resource distribution. Do not provide medication advice.",
+      "forbidden_claims": ["建議吃藥", "自行用藥", "服用抗生素"],
+      "action": {
+        "type": "navigate_focus_component",
+        "path": "/dashboard",
+        "query": {
+          "index": "hackathon_food_health",
+          "focusComponent": "hackathon_component_7_pharmacy_overview"
+        }
+      }
+    },
+    {
+      "module_id": "medical_access",
+      "component_index": "hackathon_component_9_er_overview",
+      "title": "急診待診人數和等候時間",
+      "query_type": "three_d",
+      "sample_component_context": {
+        "id": 9,
+        "index": "hackathon_component_9_er_overview",
+        "name": "急診待診人數和等候時間",
+        "city": "metrotaipei",
+        "score": 0.95
+      },
+      "guide_keywords": ["急診", "待診", "等候時間", "醫院", "急診壅塞", "發燒", "拉肚子", "嘔吐", "不舒服"],
+      "safe_use": "Guide users to ER access and congestion data. Warn users to call 119 for emergencies.",
+      "forbidden_claims": ["最快醫院", "一定有床", "不用就醫", "診斷為食物中毒"],
+      "action": {
+        "type": "navigate_focus_component",
+        "path": "/dashboard",
+        "query": {
+          "index": "hackathon_food_health",
+          "focusComponent": "hackathon_component_9_er_overview"
+        }
+      }
+    },
+    {
+      "module_id": "water_quality",
+      "component_index": "hackathon_component_10_water_quality_overview",
+      "title": "淨水場水質檢測概況",
+      "query_type": "two_d",
+      "sample_component_context": {
+        "id": 10,
+        "index": "hackathon_component_10_water_quality_overview",
+        "name": "淨水場水質檢測概況",
+        "city": "metrotaipei",
+        "score": 0.88
+      },
+      "guide_keywords": ["水質", "淨水場", "飲用水", "檢測", "自來水", "水源"],
+      "safe_use": "Summarize official water-quality monitoring coverage. Do not claim household tap water is safe or unsafe.",
+      "forbidden_claims": ["你家水安全", "你家水危險", "可以直接飲用"],
+      "action": {
+        "type": "navigate_focus_component",
+        "path": "/dashboard",
+        "query": {
+          "index": "hackathon_food_health",
+          "focusComponent": "hackathon_component_10_water_quality_overview"
+        }
+      }
+    },
+    {
+      "module_id": "eco_restaurant",
+      "component_index": "hackathon_c11_env_restaurant_overview",
+      "title": "環保餐廳分布概況",
+      "query_type": "two_d",
+      "sample_component_context": {
+        "id": 11,
+        "index": "hackathon_c11_env_restaurant_overview",
+        "name": "環保餐廳分布概況",
+        "city": "metrotaipei",
+        "score": 0.86
+      },
+      "guide_keywords": ["環保餐廳", "餐廳", "外食", "親子餐廳", "附近吃", "餐飲", "店家"],
+      "safe_use": "Guide users to official eco restaurant distribution. Do not judge a single restaurant's food safety.",
+      "forbidden_claims": ["這間店安全", "這間店危險", "這家一定衛生"],
+      "action": {
+        "type": "navigate_focus_component",
+        "path": "/dashboard",
+        "query": {
+          "index": "hackathon_food_health",
+          "focusComponent": "hackathon_c11_env_restaurant_overview"
+        }
+      }
+    }
+  ]
+}
+

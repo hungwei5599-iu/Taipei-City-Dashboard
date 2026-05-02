@@ -2,6 +2,7 @@ package tools
 
 import (
 	"TaipeiCityDashboardBE/app/models"
+	"TaipeiCityDashboardBE/app/services/mapdata"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,11 +65,21 @@ type ComponentContextItem struct {
 
 // execChartQuery executes the chart query for a known component ID and city.
 func execChartQuery(componentID int, city string) (string, error) {
+	if city == "" {
+		city = "metrotaipei"
+	}
+	componentIndex, _ := models.GetComponentIndexByID(componentID)
 	queryType, queryString, err := models.GetComponentChartDataQuery(componentID, city)
 	if err != nil {
+		if data, ok := fallbackChartJSON(componentIndex, city); ok {
+			return data, nil
+		}
 		return "", fmt.Errorf("query lookup failed: %v", err)
 	}
-	if queryString == "" {
+	if queryString == "" || queryType == "" {
+		if data, ok := fallbackChartJSON(componentIndex, city); ok {
+			return data, nil
+		}
 		return "", fmt.Errorf("no chart query for component id=%d city=%q", componentID, city)
 	}
 
@@ -81,14 +92,30 @@ func execChartQuery(componentID int, city string) (string, error) {
 	case "two_d":
 		data, err := models.GetTwoDimensionalData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 			return "", fmt.Errorf(errQueryFailed, err)
+		}
+		if len(data) == 0 {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 		}
 		out, _ := json.Marshal(data)
 		return string(out), nil
 	case "three_d", "percent":
 		data, cats, err := models.GetThreeDimensionalData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 			return "", fmt.Errorf(errQueryFailed, err)
+		}
+		if len(data) == 0 || len(cats) == 0 {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 		}
 		type threeDResult struct {
 			Categories []string                            `json:"categories"`
@@ -99,20 +126,48 @@ func execChartQuery(componentID int, city string) (string, error) {
 	case "time":
 		data, err := models.GetTimeSeriesData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 			return "", fmt.Errorf(errQueryFailed, err)
+		}
+		if len(data) == 0 {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 		}
 		out, _ := json.Marshal(data)
 		return string(out), nil
 	case "map_legend":
 		data, err := models.GetMapLegendData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 			return "", fmt.Errorf(errQueryFailed, err)
+		}
+		if len(data) == 0 {
+			if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+				return fallback, nil
+			}
 		}
 		out, _ := json.Marshal(data)
 		return string(out), nil
 	default:
+		if fallback, ok := fallbackChartJSON(componentIndex, city); ok {
+			return fallback, nil
+		}
 		return "", fmt.Errorf("unknown query type: %s", queryType)
 	}
+}
+
+func fallbackChartJSON(componentIndex string, city string) (string, bool) {
+	fallback, ok, err := mapdata.BuildFallbackChartData(componentIndex, city)
+	if !ok || err != nil || len(fallback.Data) == 0 {
+		return "", false
+	}
+	out, _ := json.Marshal(fallback)
+	return string(out), true
 }
 
 // FetchComponentChartDataByID fetches chart data using a known component ID directly,
@@ -130,6 +185,9 @@ func FetchComponentChartData(_ context.Context, componentIndex string, city stri
 	}
 	if err := models.DBManager.Table("components").Select("id").
 		Where("index = ?", componentIndex).First(&comp).Error; err != nil {
+		if data, ok := fallbackChartJSON(componentIndex, city); ok {
+			return data, nil
+		}
 		return "", fmt.Errorf("component %q not found", componentIndex)
 	}
 	return execChartQuery(comp.ID, city)

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"TaipeiCityDashboardBE/app/models"
+	"TaipeiCityDashboardBE/app/services/mapdata"
 	"TaipeiCityDashboardBE/app/util"
 
 	"github.com/gin-gonic/gin"
@@ -28,27 +29,35 @@ func GetComponentChartData(c *gin.Context) {
 	// 1.1 Get the city name from the URL
 	var query componentQuery
 	c.ShouldBindQuery(&query)
-	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == ""){
+	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == "") {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
 
-	if query.City == ""{
+	if query.City == "" {
 		query.City = "taipei"
 	}
+
+	componentIndex, _ := models.GetComponentIndexByID(id)
 
 	// 2. Get the chart data query and chart data type from the database
 	queryType, queryString, err := models.GetComponentChartDataQuery(id, query.City)
 	if err != nil {
+		if writeMapDataFallbackChart(c, componentIndex, query.City) {
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
 	if (queryString == "") || (queryType == "") {
+		if writeMapDataFallbackChart(c, componentIndex, query.City) {
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "No chart data available"})
 		return
 	}
 
-	timeFrom, timeTo, err:= util.GetTime(c)
+	timeFrom, timeTo, err := util.GetTime(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
 		return
@@ -58,32 +67,87 @@ func GetComponentChartData(c *gin.Context) {
 	if queryType == "two_d" {
 		chartData, err := models.GetTwoDimensionalData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 			return
+		}
+		if len(chartData) == 0 {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": chartData})
 	} else if queryType == "three_d" || queryType == "percent" {
 		chartData, categories, err := models.GetThreeDimensionalData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 			return
+		}
+		if len(chartData) == 0 || len(categories) == 0 {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": chartData, "categories": categories})
 	} else if queryType == "time" {
 		chartData, err := models.GetTimeSeriesData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 			return
+		}
+		if len(chartData) == 0 {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": chartData})
 	} else if queryType == "map_legend" {
 		chartData, err := models.GetMapLegendData(&queryString, timeFrom, timeTo)
 		if err != nil {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
+		if len(chartData) == 0 {
+			if writeMapDataFallbackChart(c, componentIndex, query.City) {
+				return
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": chartData})
+	} else {
+		if writeMapDataFallbackChart(c, componentIndex, query.City) {
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Unknown chart query type"})
 	}
+}
+
+func writeMapDataFallbackChart(c *gin.Context, componentIndex string, city string) bool {
+	fallback, ok, err := mapdata.BuildFallbackChartData(componentIndex, city)
+	if !ok || err != nil || len(fallback.Data) == 0 {
+		return false
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":          "success",
+		"source":          fallback.Source,
+		"component_index": fallback.ComponentIndex,
+		"city":            fallback.City,
+		"data":            fallback.Data,
+		"categories":      fallback.Categories,
+		"records":         fallback.Records,
+	})
+	return true
 }
 
 /*
@@ -109,19 +173,19 @@ func GetComponentHistoryData(c *gin.Context) {
 	// 1.1 Get the city name from the URL
 	var query componentQuery
 	c.ShouldBindQuery(&query)
-	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == ""){
+	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == "") {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
 
-	if query.City == ""{
+	if query.City == "" {
 		query.City = "taipei"
 	}
 
 	timeFrom, timeTo, err := util.GetTime(c)
-		if err != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+		return
 	}
 	// 2. Get the history data query from the database
 	queryHistory, err := models.GetComponentHistoryDataQuery(id, query.City, timeFrom, timeTo)

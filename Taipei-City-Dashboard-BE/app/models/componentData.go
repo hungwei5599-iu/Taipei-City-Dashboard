@@ -20,6 +20,10 @@ type HistoryDataQuery struct {
 	QueryHistory string `json:"query_history" gorm:"column:query_history"`
 }
 
+type ComponentIndex struct {
+	Index string `gorm:"column:index"`
+}
+
 /*
 TwoDimensionalData Json Format:
 
@@ -113,6 +117,19 @@ type MapLegendData struct {
 }
 
 /* ----- Handlers ----- */
+
+func GetComponentIndexByID(id int) (string, error) {
+	var component ComponentIndex
+	err := DBManager.
+		Table("components").
+		Select("index").
+		Where("id = ?", id).
+		First(&component).Error
+	if err != nil {
+		return "", err
+	}
+	return component.Index, nil
+}
 
 func GetComponentChartDataQuery(id int, city string) (queryType string, queryString string, err error) {
 	var chartDataQuery ChartDataQuery

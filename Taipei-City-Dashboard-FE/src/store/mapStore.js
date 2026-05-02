@@ -58,6 +58,17 @@ import {
 	mrtLineColor,
 } from "../assets/utilityFunctions/getThematicColor.js";
 
+function normalizeAiGuideArray(value) {
+	if (Array.isArray(value)) return value;
+	if (typeof value !== "string") return [];
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+}
+
 export const useMapStore = defineStore("map", {
 	state: () => ({
 		// Array of layer IDs that are in the map
@@ -84,6 +95,7 @@ export const useMapStore = defineStore("map", {
 		tempMarkerCoordinates: null,
 		// Store the user's current location,
 		userLocation: { latitude: null, longitude: null },
+		geoLocateControl: null,
 		// 3D Mrt Map 相關參數
 		// 模型及圖徵是否預載中
 		isPreloading: true,
@@ -95,6 +107,14 @@ export const useMapStore = defineStore("map", {
 		layerUpdateTime: {
 			// [layerId]: Date
 		},
+		aiGuideSourceIds: [],
+		aiGuideLayerIds: [],
+		aiGuideHoverHandlers: {},
+		pendingAiGuideRuns: [],
+		pendingMapConfigOpens: [],
+		guideActiveComponent: null,
+		guideActiveComponentIndex: null,
+		guideComponentOpenToken: 0,
 	}),
 	actions: {
 		/* Initialize Mapbox */
@@ -117,6 +137,7 @@ export const useMapStore = defineStore("map", {
 				trackUserLocation: true,
 				showUserHeading: true,
 			});
+			this.geoLocateControl = geoLocate;
 			this.map.addControl(geoLocate);
 			this.map.addControl(new mapboxGl.NavigationControl());
 			this.map.doubleClickZoom.disable();
@@ -130,6 +151,8 @@ export const useMapStore = defineStore("map", {
 					});
 					this.map.addControl(this.overlay);
 					this.initializeBasicLayers();
+					this.flushPendingMapConfigOpens();
+					this.flushPendingAiGuideRuns();
 				})
 				.on("click", (event) => {
 					if (this.popup) {
@@ -161,7 +184,11 @@ export const useMapStore = defineStore("map", {
 			this.renderMarkers();
 
 			// 使用者點擊定位功能後觸發GA自訂事件
-			geoLocate.on("geolocate", () => {
+			geoLocate.on("geolocate", (event) => {
+				this.setUserLocation({
+					latitude: event.coords.latitude,
+					longitude: event.coords.longitude,
+				});
 				gtag("event", "map_actions", {
 					action_type: "所在位置定位",
 					time: Date.now(),
@@ -405,15 +432,21 @@ export const useMapStore = defineStore("map", {
 			// 	this.map.setLayoutProperty("tp_village", "visibility", "none");
 			// }
 		},
+		setUserLocation(location) {
+			this.userLocation = {
+				latitude: location?.latitude ?? null,
+				longitude: location?.longitude ?? null,
+			};
+		},
 		// 6. Set User Location
 		setCurrentLocation() {
 			if (navigator.geolocation) {
 				navigator.geolocation.getCurrentPosition(
 					(position) => {
-						this.userLocation = {
+						this.setUserLocation({
 							latitude: position.coords.latitude,
 							longitude: position.coords.longitude,
-						};
+						});
 					},
 					(error) => {
 						console.error(error.message);
@@ -425,6 +458,52 @@ export const useMapStore = defineStore("map", {
 		},
 
 		/* Adding Map Layers */
+		getMapLayerIds(map_config = []) {
+			return (map_config || [])
+				.filter((element) => element?.index && element?.type && element?.city)
+				.map((element) => `${element.index}-${element.type}-${element.city}`);
+		},
+		isMapConfigVisible(map_config = []) {
+			const layerIds = this.getMapLayerIds(map_config);
+			if (layerIds.length === 0) return false;
+			return layerIds.some((layerId) =>
+				this.currentVisibleLayers.includes(layerId),
+			);
+		},
+		openMapConfig(map_config = []) {
+			if (!map_config?.length) return;
+			if (!this.map?.isStyleLoaded?.()) {
+				this.queueMapConfigOpen(map_config);
+				return;
+			}
+			this.addToMapLayerList(map_config);
+		},
+		queueMapConfigOpen(map_config = []) {
+			if (!map_config?.length) return;
+			this.pendingMapConfigOpens = [map_config];
+			this.flushPendingMapConfigOpens();
+		},
+		flushPendingMapConfigOpens() {
+			if (!this.map?.isStyleLoaded?.() || this.pendingMapConfigOpens.length === 0) {
+				return false;
+			}
+			const pending = [...this.pendingMapConfigOpens];
+			this.pendingMapConfigOpens = [];
+			pending.forEach((mapConfig) => {
+				this.addToMapLayerList(mapConfig);
+			});
+			return true;
+		},
+		closeMapConfig(map_config = []) {
+			if (!map_config?.length) return;
+			this.clearByParamFilter(map_config);
+			this.turnOffMapLayerVisibility(map_config);
+		},
+		openGuideComponent(payload) {
+			this.guideActiveComponent = payload || null;
+			this.guideActiveComponentIndex = payload?.componentIndex || null;
+			this.guideComponentOpenToken += 1;
+		},
 		// 1. Passes in the map_config (an Array of Objects) of a component and adds all layers to the map layer list
 		addToMapLayerList(map_config) {
 			console.log("[map-debug] addToMapLayerList", map_config);
@@ -2353,6 +2432,411 @@ export const useMapStore = defineStore("map", {
 				duration: 1000,
 			});
 		},
+		dispatchAiGuideAction(action) {
+			if (!action?.type) return false;
+
+			switch (action.type) {
+			case "chart.focus_component":
+			case "navigate_focus_component":
+			case "component.open":
+				this.openGuideComponent(action.payload || {});
+				return true;
+			case "map.clear_ai_overlay":
+				if (!this.map) return false;
+				this.clearAiGuideOverlay();
+				return true;
+			case "map.add_points":
+				if (!this.map) return false;
+				this.addAiGuidePoints(action.payload || {});
+				return true;
+			case "map.add_polygon":
+				if (!this.map) return false;
+				this.addAiGuidePolygon(action.payload || {});
+				return true;
+			case "map.add_line":
+				if (!this.map) return false;
+				this.addAiGuideLine(action.payload || {});
+				return true;
+			case "map.fit_bounds":
+				if (!this.map) return false;
+				this.fitAiGuideBounds(action.payload || {});
+				return true;
+			case "map.fly_to":
+				if (!this.map) return false;
+				this.flyToAiGuideTarget(action.payload || {});
+				return true;
+			case "map.open_card":
+				if (!this.map) return false;
+				this.openAiGuideCard(action.payload || {});
+				return true;
+			case "map.highlight_feature":
+				if (!this.map) return false;
+				this.highlightAiGuideFeature(action.payload || {});
+				return true;
+			case "map.set_filter":
+				if (!this.map) return false;
+				this.setAiGuideFilter(action.payload || {});
+				return true;
+			default:
+				console.warn("[ai-guide] unsupported action", action);
+				return false;
+			}
+		},
+		dispatchAiGuideActions(actions = []) {
+			if (!Array.isArray(actions)) return false;
+			let handled = false;
+			actions.forEach((action) => {
+				handled = this.dispatchAiGuideAction(action) || handled;
+			});
+			return handled;
+		},
+		queueAiGuideRun(mapConfig = [], actions = []) {
+			const nextActions = actions.length ? actions : mapConfig;
+			this.pendingAiGuideRuns = [
+				{
+					actions: nextActions,
+				},
+			];
+			this.flushPendingAiGuideRuns();
+		},
+		flushPendingAiGuideRuns() {
+			if (!this.map?.isStyleLoaded?.() || this.pendingAiGuideRuns.length === 0) {
+				return false;
+			}
+
+			const pendingRuns = [...this.pendingAiGuideRuns];
+			this.pendingAiGuideRuns = [];
+			pendingRuns.forEach(({actions}) => {
+				setTimeout(() => {
+					if (this.map?.isStyleLoaded?.()) {
+						this.dispatchAiGuideActions(actions);
+					} else {
+						this.queueAiGuideRun(actions);
+					}
+				}, 800);
+			});
+			return true;
+		},
+		clearAiGuideOverlay() {
+			Object.entries(this.aiGuideHoverHandlers).forEach(
+				([layerId, handlers]) => {
+					if (!this.map?.getLayer(layerId)) return;
+					this.map.off("mouseenter", layerId, handlers.onMouseEnter);
+					this.map.off("mouseleave", layerId, handlers.onMouseLeave);
+					this.map.off("click", layerId, handlers.onClick);
+				},
+			);
+			this.aiGuideHoverHandlers = {};
+
+			const styleLayerIds = (this.map?.getStyle?.()?.layers || [])
+				.map((layer) => layer.id)
+				.filter((layerId) =>
+					String(layerId).startsWith("ai-guide-") ||
+					String(layerId).startsWith("guide-highlight") ||
+					String(layerId).startsWith("guide-boundary"),
+				);
+			const layerIds = Array.from(
+				new Set([...this.aiGuideLayerIds, ...styleLayerIds]),
+			);
+			layerIds.slice().reverse().forEach((layerId) => {
+				if (this.map?.getLayer(layerId)) {
+					this.map.removeLayer(layerId);
+				}
+			});
+			const styleSourceIds = Object.keys(this.map?.getStyle?.()?.sources || {})
+				.filter((sourceId) =>
+					String(sourceId).startsWith("ai-guide-") ||
+					String(sourceId).startsWith("guide-highlight") ||
+					String(sourceId).startsWith("guide-boundary"),
+				);
+			const sourceIds = Array.from(
+				new Set([...this.aiGuideSourceIds, ...styleSourceIds]),
+			);
+			sourceIds.slice().reverse().forEach((sourceId) => {
+				if (this.map?.getSource(sourceId)) {
+					this.map.removeSource(sourceId);
+				}
+			});
+			this.aiGuideLayerIds = [];
+			this.aiGuideSourceIds = [];
+			this.removePopup();
+		},
+		removeAiGuideMapObjects(layerIds = [], sourceId) {
+			layerIds.forEach((layerId) => {
+				if (layerId && this.map.getLayer(layerId)) {
+					const handlers = this.aiGuideHoverHandlers[layerId];
+					if (handlers) {
+						this.map.off("mouseenter", layerId, handlers.onMouseEnter);
+						this.map.off("mouseleave", layerId, handlers.onMouseLeave);
+						this.map.off("click", layerId, handlers.onClick);
+						delete this.aiGuideHoverHandlers[layerId];
+					}
+					this.map.removeLayer(layerId);
+				}
+			});
+			if (sourceId && this.map.getSource(sourceId)) {
+				this.map.removeSource(sourceId);
+			}
+			this.aiGuideLayerIds = this.aiGuideLayerIds.filter(
+				(layerId) => !layerIds.includes(layerId),
+			);
+			this.aiGuideSourceIds = this.aiGuideSourceIds.filter(
+				(id) => id !== sourceId,
+			);
+		},
+		trackAiGuideMapObjects(layerIds = [], sourceId) {
+			layerIds.forEach((layerId) => {
+				if (layerId && !this.aiGuideLayerIds.includes(layerId)) {
+					this.aiGuideLayerIds.push(layerId);
+				}
+			});
+			if (sourceId && !this.aiGuideSourceIds.includes(sourceId)) {
+				this.aiGuideSourceIds.push(sourceId);
+			}
+		},
+		addAiGuidePoints(payload) {
+			const {sourceId} = payload;
+			const {layerId} = payload;
+			const {geojson} = payload;
+			if (!sourceId || !layerId || geojson?.type !== "FeatureCollection") {
+				console.warn("[ai-guide] invalid map.add_points payload", payload);
+				return;
+			}
+
+			this.removeAiGuideMapObjects([layerId], sourceId);
+
+			this.map.addSource(sourceId, {
+				type: "geojson",
+				data: geojson,
+			});
+			this.map.addLayer({
+				id: layerId,
+				type: "circle",
+				source: sourceId,
+				paint: {
+					"circle-radius": [
+						"interpolate",
+						["linear"],
+						["coalesce", ["to-number", ["get", "rank"]], 5],
+						1,
+						10,
+						5,
+						7,
+					],
+					"circle-color": [
+						"match",
+						["get", "status_level"],
+						"ok",
+						"#22c55e",
+						"busy",
+						"#f59e0b",
+						"critical",
+						"#ef4444",
+						"#38bdf8",
+					],
+					"circle-opacity": 0.82,
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 1.5,
+				},
+			});
+
+			this.trackAiGuideMapObjects([layerId], sourceId);
+			this.bindAiGuideLayerInteractions(layerId);
+		},
+		addAiGuidePolygon(payload) {
+			const {sourceId} = payload;
+			const {layerId} = payload;
+			const outlineLayerId = payload.outlineLayerId || `${layerId}-outline`;
+			const {geojson} = payload;
+			if (!sourceId || !layerId || geojson?.type !== "FeatureCollection") {
+				console.warn("[ai-guide] invalid map.add_polygon payload", payload);
+				return;
+			}
+
+			this.removeAiGuideMapObjects([outlineLayerId, layerId], sourceId);
+
+			this.map.addSource(sourceId, {
+				type: "geojson",
+				data: geojson,
+			});
+			this.map.addLayer({
+				id: layerId,
+				type: "fill",
+				source: sourceId,
+				paint: {
+					"fill-color": payload.fillColor || "#38bdf8",
+					"fill-opacity": payload.fillOpacity ?? 0.14,
+				},
+			});
+			this.map.addLayer({
+				id: outlineLayerId,
+				type: "line",
+				source: sourceId,
+				paint: {
+					"line-color": payload.lineColor || "#38bdf8",
+					"line-width": payload.lineWidth ?? 2,
+					"line-opacity": payload.lineOpacity ?? 0.75,
+					"line-dasharray": payload.lineDasharray || [2, 2],
+				},
+			});
+
+			this.trackAiGuideMapObjects([layerId, outlineLayerId], sourceId);
+		},
+		addAiGuideLine(payload) {
+			const {sourceId} = payload;
+			const {layerId} = payload;
+			const {geojson} = payload;
+			if (!sourceId || !layerId || geojson?.type !== "FeatureCollection") {
+				console.warn("[ai-guide] invalid map.add_line payload", payload);
+				return;
+			}
+
+			this.removeAiGuideMapObjects([layerId], sourceId);
+
+			this.map.addSource(sourceId, {
+				type: "geojson",
+				data: geojson,
+			});
+			this.map.addLayer({
+				id: layerId,
+				type: "line",
+				source: sourceId,
+				paint: {
+					"line-color": payload.lineColor || "#f97316",
+					"line-width": payload.lineWidth ?? 4,
+					"line-opacity": payload.lineOpacity ?? 0.9,
+					"line-dasharray": payload.lineDasharray || [1, 1.4],
+				},
+			});
+
+			this.trackAiGuideMapObjects([layerId], sourceId);
+		},
+		fitAiGuideBounds(payload) {
+			if (!Array.isArray(payload.bounds) || payload.bounds.length !== 2) {
+				return;
+			}
+			this.map.fitBounds(payload.bounds, {
+				padding: payload.padding ?? 80,
+				duration: payload.duration ?? 800,
+				maxZoom: payload.maxZoom ?? 15,
+			});
+		},
+		flyToAiGuideTarget(payload) {
+			const center = payload.center || payload.coordinate;
+			if (!Array.isArray(center)) return;
+			this.map.flyTo({
+				center,
+				zoom: payload.zoom ?? 15,
+				pitch: payload.pitch ?? 0,
+				duration: payload.duration ?? 900,
+			});
+		},
+		openAiGuideCard(payload) {
+			if (!Array.isArray(payload.coordinate)) return;
+			this.removePopup();
+			const fields = normalizeAiGuideArray(payload.fields);
+			const body = document.createElement("div");
+			body.className = "ai-guide-popup";
+
+			const title = document.createElement("h3");
+			title.textContent = payload.title || "AI 導覽資訊";
+			body.appendChild(title);
+
+			if (payload.summary) {
+				const summary = document.createElement("p");
+				summary.textContent = payload.summary;
+				body.appendChild(summary);
+			}
+
+			fields.forEach((field) => {
+				const row = document.createElement("div");
+				row.className = "ai-guide-popup-row";
+				const label = document.createElement("strong");
+				label.textContent = field.label || "";
+				const value = document.createElement("span");
+				value.textContent = String(field.value ?? "");
+				row.appendChild(label);
+				row.appendChild(value);
+				body.appendChild(row);
+			});
+
+			this.popup = new mapboxGl.Popup({ closeButton: true })
+				.setLngLat(payload.coordinate)
+				.setDOMContent(body)
+				.addTo(this.map);
+		},
+		highlightAiGuideFeature(payload) {
+			const {layerId} = payload;
+			const {featureId} = payload;
+			const featureIdProperty = payload.featureIdProperty || "id";
+			if (!layerId || !this.map.getLayer(layerId)) return;
+			this.map.setFilter(layerId, [
+				"==",
+				["to-string", ["get", featureIdProperty]],
+				String(featureId),
+			]);
+		},
+		setAiGuideFilter(payload) {
+			if (!payload.layerId || !this.map.getLayer(payload.layerId)) return;
+			this.map.setFilter(payload.layerId, payload.filter || null);
+		},
+		bindAiGuideLayerInteractions(layerId) {
+			if (!this.map || this.aiGuideHoverHandlers[layerId]) return;
+
+			const tooltip = new mapboxGl.Popup({
+				closeButton: false,
+				closeOnClick: false,
+				offset: 12,
+			});
+
+			const onMouseEnter = (event) => {
+				this.map.getCanvas().style.cursor = "pointer";
+				const feature = event.features?.[0];
+				if (!feature) return;
+				const props = feature.properties || {};
+				const coordinate = feature.geometry?.coordinates?.slice();
+				if (!coordinate) return;
+
+				const root = document.createElement("div");
+				root.className = "ai-guide-tooltip";
+				const title = document.createElement("strong");
+				title.textContent = props.tooltip_title || props.name || props.hospital_name || "資訊";
+				root.appendChild(title);
+				normalizeAiGuideArray(props.tooltip_lines).forEach((line) => {
+					const item = document.createElement("p");
+					item.textContent = String(line);
+					root.appendChild(item);
+				});
+
+				tooltip.setLngLat(coordinate).setDOMContent(root).addTo(this.map);
+			};
+			const onMouseLeave = () => {
+				this.map.getCanvas().style.cursor = "";
+				tooltip.remove();
+			};
+			const onClick = (event) => {
+				event.originalEvent?.stopPropagation?.();
+				const feature = event.features?.[0];
+				if (!feature) return;
+				const props = feature.properties || {};
+				this.openAiGuideCard({
+					coordinate: feature.geometry?.coordinates?.slice(),
+					feature_id: props.hospital_id || props.pharmacy_id || props.id,
+					title: props.card_title || props.name || props.hospital_name,
+					summary: props.card_summary || "",
+					fields: normalizeAiGuideArray(props.card_fields),
+				});
+			};
+
+			this.map.on("mouseenter", layerId, onMouseEnter);
+			this.map.on("mouseleave", layerId, onMouseLeave);
+			this.map.on("click", layerId, onClick);
+			this.aiGuideHoverHandlers[layerId] = {
+				onMouseEnter,
+				onMouseLeave,
+				onClick,
+			};
+		},
 		// 3. Force map to resize after sidebar collapses
 		resizeMap() {
 			if (this.map) {
@@ -2622,6 +3106,7 @@ export const useMapStore = defineStore("map", {
 		/* Clearing the map */
 		// 1. Called when the user is switching between maps
 		clearOnlyLayers() {
+			this.clearAiGuideOverlay();
 			this.currentLayers.forEach((element) => {
 				this.map.removeLayer(element);
 				if (this.map.getSource(`${element}-source`)) {
@@ -2635,6 +3120,9 @@ export const useMapStore = defineStore("map", {
 		},
 		// 2. Called when user navigates away from the map
 		clearEntireMap() {
+			if (this.map) {
+				this.clearAiGuideOverlay();
+			}
 			this.currentLayers = [];
 			this.mapConfigs = {};
 			this.map = null;

@@ -1,0 +1,2 @@
+[33m[1m(!) %VITE_APP_VERSION% is not defined in env variables found in /index.html. Is the variable mistyped?[22m[39m
+[33m[1m(!) %VITE_APP_TITLE% is not defined in env variables found in /index.html. Is the variable mistyped?[22m[39m

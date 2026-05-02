@@ -15,7 +15,7 @@
       "retry_delay": 30
     },
     "ready_data_db": "postgres_default",
-    "ready_data_default_table": "Component2_er_ready",
+    "ready_data_default_table": "hackathon_component_9_er_ready",
     "ready_data_history_table": "",
     "raw_data_db": "postgres_default",
     "raw_data_table": "",

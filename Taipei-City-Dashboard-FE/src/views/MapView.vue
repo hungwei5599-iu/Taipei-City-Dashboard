@@ -12,13 +12,13 @@ Testing: Jack Huang (Data Scientist), Ian Huang (Data Analysis Intern)
 
 <script setup>
 /* global gtag */
-import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { computed, nextTick, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import http from "../router/axios";
 import DashboardComponent from "../dashboardComponent/DashboardComponent.vue";
 import { useContentStore } from "../store/contentStore";
 import { useDialogStore } from "../store/dialogStore";
 import { useMapStore } from "../store/mapStore";
-import { useUiActionStore } from "../store/uiActionStore";
 import MapContainer from "../components/map/MapContainer.vue";
 import MoreInfo from "../components/dialogs/MoreInfo.vue";
 import ReportIssue from "../components/dialogs/ReportIssue.vue";
@@ -26,29 +26,12 @@ import ReportIssue from "../components/dialogs/ReportIssue.vue";
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
 const mapStore = useMapStore();
-const uiActionStore = useUiActionStore();
 const route = useRoute();
-const router = useRouter();
 
 const toggleOn = ref({
-	hasMap: [],
 	noMap: [],
-	mapLayer: [],
-	basicLayer: [],
 });
-const pendingAiComponentOpen = ref(null);
-
-function getRouteAiOpenRequest() {
-	if (!route.query.aiOpen) return null;
-
-	return {
-		requestId: Number(route.query.aiOpenTs) || Date.now(),
-		componentIndex: String(route.query.aiOpen),
-		dashboardIndex: String(route.query.index || "hackathon_food_health"),
-		city: String(route.query.city || "metrotaipei"),
-		source: "route-query",
-	};
-}
+const handledGuideComponentToken = ref(0);
 
 // Separate components with maps from those without
 const parseMapLayers = computed(() => {
@@ -67,16 +50,7 @@ watch(
 	(newIndex, oldIndex) => {
 		if (newIndex !== oldIndex) {
 			toggleOn.value = {
-				hasMap: new Array(parseMapLayers.value.hasMap?.length).fill(
-					false,
-				),
 				noMap: new Array(parseMapLayers.value.noMap?.length).fill(
-					false,
-				),
-				mapLayer: new Array(
-					contentStore.currentDashboard.components?.length,
-				).fill(false),
-				basicLayer: new Array(contentStore.mapLayers?.length).fill(
 					false,
 				),
 			};
@@ -104,10 +78,9 @@ function handleToggle(value, map_config) {
 		return;
 	}
 	if (value) {
-		mapStore.addToMapLayerList(map_config);
+		mapStore.openMapConfig(map_config);
 	} else {
-		mapStore.clearByParamFilter(map_config);
-		mapStore.turnOffMapLayerVisibility(map_config);
+		mapStore.closeMapConfig(map_config);
 	}
 }
 
@@ -153,185 +126,192 @@ function popularBasicLayerGA(map_config) {
 	}
 }
 
-function getComponentSection(componentIndex) {
-	if (contentStore.currentDashboard.index?.includes("map-layers")) {
-		const arrayIdx = contentStore.currentDashboard.components?.findIndex(
-			(item) => item.index === componentIndex,
-		);
-		if (arrayIdx >= 0) {
-			return {
-				section: "mapLayer",
-				arrayIdx,
-				component: contentStore.currentDashboard.components[arrayIdx],
-			};
-		}
-	}
+const hasUsableMapConfig = (component) =>
+	Array.isArray(component?.map_config) &&
+	component.map_config.length > 0 &&
+	Boolean(component.map_config[0]);
 
-	const hasMapIdx = parseMapLayers.value.hasMap?.findIndex(
-		(item) => item.index === componentIndex,
+const sameGuideComponent = (component, payload) => {
+	if (!component || !payload) return false;
+	const ids = [payload.componentId, payload.component?.id]
+		.filter(Boolean)
+		.map(String);
+	const indexes = [
+		payload.componentIndex,
+		...(payload.componentIndexes || []),
+		payload.component?.index,
+	]
+		.filter(Boolean)
+		.map(String);
+	const componentId = String(component.id || "");
+	const componentIndex = String(component.index || "");
+	const sameCity =
+		!payload.city ||
+		!component.city ||
+		component.city === payload.city ||
+		payload.city === "metrotaipei";
+
+	return sameCity && (
+		ids.includes(componentId) ||
+		indexes.includes(componentIndex)
 	);
-	if (hasMapIdx >= 0) {
-		return {
-			section: "hasMap",
-			arrayIdx: hasMapIdx,
-			component: parseMapLayers.value.hasMap[hasMapIdx],
-		};
+};
+
+const findGuideComponentInStores = (payload) => {
+	const pools = [
+		payload?.component,
+		...(contentStore.currentDashboard.components || []),
+		...(contentStore.cityDashboard.components || []),
+		...(contentStore.mapLayers || []),
+		...(contentStore.allMapLayers || []),
+	].filter(Boolean);
+
+	return pools.find((component) => sameGuideComponent(component, payload));
+};
+
+const fetchGuideComponent = async (payload) => {
+	const componentId = payload?.componentId || payload?.component?.id;
+	if (!componentId) return null;
+
+	try {
+		const response = await http.get(`/component/${componentId}`, {
+			params: {
+				city: payload.city || payload.component?.city || "metrotaipei",
+			},
+		});
+		return response.data?.data || null;
+	} catch (error) {
+		console.warn("[ai-guide] component fetch failed", error);
+		return null;
 	}
+};
 
-	const noMapIdx = parseMapLayers.value.noMap?.findIndex(
-		(item) => item.index === componentIndex,
-	);
-	if (noMapIdx >= 0) {
-		return {
-			section: "noMap",
-			arrayIdx: noMapIdx,
-			component: parseMapLayers.value.noMap[noMapIdx],
-		};
+const ensureGuideComponentListed = (component) => {
+	if (!component || !hasUsableMapConfig(component)) return;
+	const exists = [
+		...(contentStore.currentDashboard.components || []),
+		...(contentStore.mapLayers || []),
+	].some((item) => sameGuideComponent(item, {
+		componentId: component.id,
+		componentIndex: component.index,
+		city: component.city,
+	}));
+	if (!exists) {
+		contentStore.mapLayers = [
+			...contentStore.mapLayers,
+			component,
+		];
 	}
+};
 
-	const basicLayerIdx = contentStore.mapLayers?.findIndex(
-		(item) => item.index === componentIndex,
-	);
-	if (basicLayerIdx >= 0) {
-		return {
-			section: "basicLayer",
-			arrayIdx: basicLayerIdx,
-			component: contentStore.mapLayers[basicLayerIdx],
-		};
-	}
-
-	return null;
-}
-
-function openComponentFromAi(request, retryCount = 0) {
-	if (!request?.componentIndex) return;
-
-	pendingAiComponentOpen.value = request;
-	console.log("[ai-ui] open request", {
-		request,
-		retryCount,
-		currentDashboard: contentStore.currentDashboard.index,
-		currentCity: contentStore.currentDashboard.city,
-		components: contentStore.currentDashboard.components?.map((item) => ({
-			index: item.index,
-			city: item.city,
-			hasMap: !!item.map_config?.[0],
-		})),
-		isPreloading: mapStore.isPreloading,
-		loadingLayers: mapStore.loadingLayers,
-	});
-
-	if (
-		request.dashboardIndex &&
-		contentStore.currentDashboard.index !== request.dashboardIndex
-	) {
-		if (
-			route.path !== "/mapview" ||
-			route.query.index !== request.dashboardIndex ||
-			route.query.city !== request.city
-		) {
-			router.push({
-				path: "/mapview",
-				query: {
-					index: request.dashboardIndex,
-					city: request.city || contentStore.currentDashboard.city,
-					aiOpen: request.componentIndex,
-					aiOpenTs: request.requestId || Date.now(),
-				},
-			});
-		}
-		return;
-	}
-
-	const target = getComponentSection(request.componentIndex);
-	if (!target?.component) {
-		console.log("[ai-ui] target component not ready", request.componentIndex);
-		if (retryCount < 20) {
-			setTimeout(() => openComponentFromAi(request, retryCount + 1), 250);
-		}
-		return;
-	}
-
-	const mapConfig = target.component.map_config || [];
-	if (mapConfig?.[0] && shouldDisable(mapConfig)) {
-		console.log("[ai-ui] target map layer still loading", mapConfig);
-		if (retryCount < 20) {
-			setTimeout(() => openComponentFromAi(request, retryCount + 1), 250);
-		}
-		return;
-	}
-
-	handleToggle(true, mapConfig);
-	toggleSwitchBtn(true, target.section, target.arrayIdx);
-	console.log("[ai-ui] component opened", {
-		section: target.section,
-		arrayIdx: target.arrayIdx,
-		component: target.component.index,
-		mapConfig,
-	});
-	if (mapConfig?.[0]) {
-		popularThematicLayerGA(mapConfig);
-	}
-	uiActionStore.clearComponentOpenRequest(request.requestId);
-	pendingAiComponentOpen.value = null;
-}
-
-watch(
-	() => uiActionStore.componentOpenRequest,
-	(request) => {
-		if (!request) return;
-		nextTick(() => openComponentFromAi(request));
+const createGuideComponentFromPayload = (payload, mapConfig) => ({
+	id: `ai-guide-${payload?.componentIndex || mapConfig?.[0]?.index || "component"}`,
+	index: payload?.componentIndex || mapConfig?.[0]?.index || "ai-guide-component",
+	name:
+		payload?.title ||
+		mapConfig?.find((item) => item.role === "focus")?.title ||
+		mapConfig?.[0]?.title ||
+		"AI 開啟組件",
+	city: payload?.city || mapConfig?.[0]?.city || "metrotaipei",
+	map_config: mapConfig,
+	map_filter: null,
+	chart_config: {
+		types: ["MapLegend"],
+		color: ["#38bdf8"],
+		unit: "",
 	},
-	{ deep: true, immediate: true },
-);
+	chart_data: [
+		{
+			name:
+				mapConfig?.find((item) => item.role === "focus")?.title ||
+				mapConfig?.[0]?.title ||
+				"AI 開啟圖層",
+			type: mapConfig?.[0]?.type || "circle",
+		},
+	],
+	time_from: "static",
+	time_to: "static",
+	update_freq: null,
+	update_freq_unit: null,
+});
+
+const waitForGuideContentReady = (timeout = 8000) =>
+	new Promise((resolve) => {
+		const started = Date.now();
+		const tick = () => {
+			const hasDashboard =
+				Array.isArray(contentStore.currentDashboard.components) &&
+				contentStore.currentDashboard.components.length > 0;
+			const hasMapLayers =
+				Array.isArray(contentStore.mapLayers) &&
+				contentStore.mapLayers.length > 0;
+			const hasAllMapLayers =
+				Array.isArray(contentStore.allMapLayers) &&
+				contentStore.allMapLayers.length > 0;
+			if (!contentStore.loading && (hasDashboard || hasMapLayers || hasAllMapLayers)) {
+				resolve(true);
+				return;
+			}
+			if (Date.now() - started > timeout) {
+				resolve(false);
+				return;
+			}
+			setTimeout(tick, 100);
+		};
+		tick();
+	});
+
+const openGuideComponentPayload = async (payload) => {
+	if (!payload?.componentIndex && !payload?.component && !payload?.componentId && !payload?.mapConfig?.length) {
+		return false;
+	}
+
+	await nextTick();
+	await waitForGuideContentReady();
+
+	let component = findGuideComponentInStores(payload);
+	if (!hasUsableMapConfig(component)) {
+		component = await fetchGuideComponent(payload);
+	}
+
+	const mapConfig = hasUsableMapConfig(component)
+		? component.map_config
+		: payload.mapConfig;
+
+	if (!Array.isArray(mapConfig) || mapConfig.length === 0) return false;
+	ensureGuideComponentListed(
+		hasUsableMapConfig(component)
+			? component
+			: createGuideComponentFromPayload(payload, mapConfig),
+	);
+	mapStore.openMapConfig(mapConfig);
+	return true;
+};
 
 watch(
-	() => [route.query.aiOpen, route.query.aiOpenTs],
-	() => {
-		const request = getRouteAiOpenRequest();
-		if (request) {
-			nextTick(() => openComponentFromAi(request));
+	[
+		() => mapStore.guideComponentOpenToken,
+		() => route.name,
+		() => contentStore.loading,
+		() => contentStore.currentDashboard.index,
+		() => contentStore.mapLayers.length,
+		() => contentStore.allMapLayers.length,
+	],
+	async () => {
+		if (route.name !== "mapview") return;
+		if (
+			!mapStore.guideComponentOpenToken ||
+			handledGuideComponentToken.value === mapStore.guideComponentOpenToken
+		) {
+			return;
+		}
+		const handled = await openGuideComponentPayload(mapStore.guideActiveComponent);
+		if (handled) {
+			handledGuideComponentToken.value = mapStore.guideComponentOpenToken;
 		}
 	},
 	{ immediate: true },
 );
-
-watch(
-	() => contentStore.currentDashboard.components,
-	() => {
-		if (pendingAiComponentOpen.value) {
-			nextTick(() => openComponentFromAi(pendingAiComponentOpen.value));
-		}
-	},
-	{ deep: true },
-);
-
-watch(
-	() => [
-		contentStore.currentDashboard.index,
-		contentStore.currentDashboard.city,
-		contentStore.currentDashboard.components?.length,
-		mapStore.isPreloading,
-		mapStore.loadingLayers.length,
-	],
-	() => {
-		if (pendingAiComponentOpen.value || uiActionStore.componentOpenRequest) {
-			nextTick(() =>
-				openComponentFromAi(
-					pendingAiComponentOpen.value || uiActionStore.componentOpenRequest,
-				),
-			);
-		}
-	},
-);
-
-onMounted(() => {
-	const savedRequest = uiActionStore.getSavedComponentOpenRequest();
-	const routeRequest = getRouteAiOpenRequest();
-	if (routeRequest || savedRequest) {
-		nextTick(() => openComponentFromAi(routeRequest || savedRequest));
-	}
-});
 </script>
 
 <template>
@@ -345,7 +325,7 @@ onMounted(() => {
         class="map-charts"
       >
         <DashboardComponent
-          v-for="(item, arrayIdx) in contentStore.currentDashboard
+          v-for="item in contentStore.currentDashboard
             .components"
           :key="`map-layer-${item.index}-${item.city}`"
           :config="item"
@@ -369,7 +349,7 @@ onMounted(() => {
             )
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.mapLayer[arrayIdx]"
+          :toggle-on="mapStore.isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -378,7 +358,6 @@ onMounted(() => {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'mapLayer', arrayIdx);
               popularThematicLayerGA(map_config);
             }
           "
@@ -427,13 +406,8 @@ onMounted(() => {
                 );
 
               if (selectedData) {
-                mapStore.clearByParamFilter(item.map_config);
-                mapStore.turnOffMapLayerVisibility(
-                  item.map_config,
-                );
-                mapStore.addToMapLayerList(
-                  selectedData.map_config,
-                );
+                mapStore.closeMapConfig(item.map_config);
+                mapStore.openMapConfig(selectedData.map_config);
 
                 contentStore.setComponentData(
                   componentIndex,
@@ -447,12 +421,13 @@ onMounted(() => {
       <!-- 2. Dashboards that have components -->
       <div
         v-else-if="
-          contentStore.currentDashboard.components?.length !== 0
+          contentStore.currentDashboard.components?.length !== 0 ||
+            contentStore.mapLayers.length > 0
         "
         class="map-charts"
       >
         <DashboardComponent
-          v-for="(item, arrayIdx) in parseMapLayers.hasMap"
+          v-for="item in parseMapLayers.hasMap"
           :key="`map-layer-${item.index}-${item.city}`"
           :config="item"
           mode="map"
@@ -484,7 +459,7 @@ onMounted(() => {
               : contentStore.cityManager.getTagList(item.city)
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.hasMap[arrayIdx]"
+          :toggle-on="mapStore.isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -493,7 +468,6 @@ onMounted(() => {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'hasMap', arrayIdx);
               popularThematicLayerGA(map_config);
             }
           "
@@ -547,13 +521,8 @@ onMounted(() => {
                 );
 
               if (selectedData) {
-                mapStore.clearByParamFilter(item.map_config);
-                mapStore.turnOffMapLayerVisibility(
-                  item.map_config,
-                );
-                mapStore.addToMapLayerList(
-                  selectedData.map_config,
-                );
+                mapStore.closeMapConfig(item.map_config);
+                mapStore.openMapConfig(selectedData.map_config);
 
                 contentStore.setComponentData(
                   componentIndex,
@@ -590,7 +559,7 @@ onMounted(() => {
             )
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.basicLayer[arrayIdx]"
+          :toggle-on="mapStore.isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -599,7 +568,6 @@ onMounted(() => {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'basicLayer', arrayIdx);
               popularBasicLayerGA(map_config);
             }
           "
@@ -642,13 +610,8 @@ onMounted(() => {
               );
 
               if (selectedData) {
-                mapStore.clearByParamFilter(item.map_config);
-                mapStore.turnOffMapLayerVisibility(
-                  item.map_config,
-                );
-                mapStore.addToMapLayerList(
-                  selectedData.map_config,
-                );
+                mapStore.closeMapConfig(item.map_config);
+                mapStore.openMapConfig(selectedData.map_config);
 
                 contentStore.setMapLayerData(
                   arrayIdx,
