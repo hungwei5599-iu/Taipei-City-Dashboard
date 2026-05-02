@@ -17,6 +17,7 @@ export const chartTypes: chartType = {
 	HeatmapChart: "熱力圖", // V
 	PolarAreaChart: "極區圖", // V
 	ColumnLineChart: "長條折線圖", // V
+	CategoryColumnLineChart: "類別長條折線圖", // V
 	BarChartWithGoal: "橫條圖(目標)", // V
 	IconPercentChart: "圖示比例圖", // V
 	SpeedometerChart: "速度儀表圖", // 尚未使用
