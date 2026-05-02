@@ -19,6 +19,7 @@ export const chartTypes = {
 	IndicatorChart: "指標圖",
 	MapLegend: "地圖圖例",
 	TextUnitChart: "文字單位圖",
+	ButterflyChart: "蝴蝶圖",
 };
 
 export const chartsPerDataType = {
@@ -41,6 +42,7 @@ export const chartsPerDataType = {
 		"IndicatorChart",
 		"PolarAreaChart",
 		"TextUnitChart",
+		"ButterflyChart",
 	],
 	time: ["TimelineSeparateChart", "TimelineStackedChart", "ColumnLineChart"],
 	percent: [
