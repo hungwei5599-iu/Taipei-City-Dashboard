@@ -1,6 +1,5 @@
 {
-  "_default": "C3_文化設施密度",
-
+  "_default": "C11_雙北環保餐廳地圖",
   "C1_藝文活動": {
     "dag_id": "C1_藝文活動",
     "output_table": "hackathon_component_1_event_map_ready",
@@ -23,17 +22,7 @@
     "source_dept": "文化局",
     "source_type": "data.taipei API",
     "RID": "7ddefbf9-01e5-4365-b5b6-db0a28043108",
-    "PAGE_ID": "46119295-2534-4ac9-82d5-5f4653ba15bb",
-    "keep_cols": [
-      "data_time",
-      "個案名稱",
-      "資產類別",
-      "資產種類",
-      "所屬主管機關",
-      "機關代碼",
-      "所在地理區域",
-      "縣市別代碼"
-    ]
+    "PAGE_ID": "46119295-2534-4ac9-82d5-5f4653ba15bb"
   },
   "新北市文化資產": {
     "dag_id": "新北市文化資產",
@@ -41,27 +30,11 @@
     "source_dept": "新北市政府文化局/文化資產科/無形資產股",
     "source_type": "data.ntpc API",
     "RID": "",
-    "PAGE_ID": "d8eb898f-6c59-4689-9191-48dbbef16606",
-    "keep_cols": [
-      "data_time",
-      "name",
-      "affection",
-      "category",
-      "rank",
-      "yyyy",
-      "address"
-    ]
-  },
-  "C4_AED急救": {
-    "dag_id": "C4_AED急救",
-    "output_table": "hackathon_component_4_aed_ready",
-    "source_dept": "消防局",
-    "source_type": "data.taipei API",
-    "RID": "cd050577-0f57-410a-9d95-885141040339",
-    "PAGE_ID": ""
+    "PAGE_ID": "d8eb898f-6c59-4689-9191-48dbbef16606"
   },
   "C5_急診壅塞": {
     "dag_id": "C5_急診壅塞",
+    "transform_module": "C9_急診室即時資訊",
     "output_table": "hackathon_component_5_er_ready",
     "source_dept": "健保署 NHI",
     "source_type": "open_api_post",
@@ -84,33 +57,6 @@
     "output_table": "C8_台北收容_raw",
     "source_dept": "教育局",
     "source_type": "data.taipei API",
-    "keep_cols": [
-      "data_time",
-      "收容所編號",
-      "名稱",
-      "縣市",
-      "郵遞區號",
-      "鄉鎮",
-      "村里",
-      "門牌地址",
-      "類型",
-      "水災",
-      "震災",
-      "土石流",
-      "海嘯",
-      "救濟支站",
-      "無障礙設施",
-      "室內",
-      "室外",
-      "服務里別",
-      "容納人數",
-      "收容所面積（平方公尺）",
-      "聯絡人姓名",
-      "聯絡人連絡電話",
-      "管理人姓名",
-      "管理人連絡電話",
-      "備考"
-    ],
     "RID": "4c92dbd4-d259-495a-8390-52628119a4dd",
     "PAGE_ID": "aaf97773-3631-40e2-b3cc-da87bf2ce1d5"
   },
@@ -119,33 +65,6 @@
     "output_table": "C8_新北收容_raw",
     "source_dept": "新北市政府社會局/社會救助科",
     "source_type": "data.ntpc API",
-    "keep_cols": [
-      "data_time",
-      "no",
-      "provide_contain",
-      "provide_shelter",
-      "provide_goods",
-      "code",
-      "countycode",
-      "name",
-      "district",
-      "areacode",
-      "village",
-      "address",
-      "floor",
-      "service_village",
-      "contact_person",
-      "contact_cellphone",
-      "suit_for_weak",
-      "person",
-      "floorspacebuildingothers_area",
-      "floorspacebuildingfactory_area",
-      "suit_for_flood",
-      "suit_for_mudflow",
-      "suit_for_eqrthquake",
-      "suit_for_tsunami",
-      "standing_shelter"
-    ],
     "RID": "",
     "PAGE_ID": "25e439ab-49e7-4e5e-85ce-a25c13fd2770"
   },
@@ -154,115 +73,6 @@
     "output_table": "C8_台北人口_raw",
     "source_dept": "民政局",
     "source_type": "data.taipei API",
-    "keep_cols": [
-      "data_time",
-      "年份",
-      "月份",
-      "區域別",
-      "性別",
-      "總計",
-      "0歲數量",
-      "1歲數量",
-      "2歲數量",
-      "3歲數量",
-      "4歲數量",
-      "5歲數量",
-      "6歲數量",
-      "7歲數量",
-      "8歲數量",
-      "9歲數量",
-      "10歲數量",
-      "11歲數量",
-      "12歲數量",
-      "13歲數量",
-      "14歲數量",
-      "15歲數量",
-      "16歲數量",
-      "17歲數量",
-      "18歲數量",
-      "19歲數量",
-      "20歲數量",
-      "21歲數量",
-      "22歲數量",
-      "23歲數量",
-      "24歲數量",
-      "25歲數量",
-      "26歲數量",
-      "27歲數量",
-      "28歲數量",
-      "29歲數量",
-      "30歲數量",
-      "31歲數量",
-      "32歲數量",
-      "33歲數量",
-      "34歲數量",
-      "35歲數量",
-      "36歲數量",
-      "37歲數量",
-      "38歲數量",
-      "39歲數量",
-      "40歲數量",
-      "41歲數量",
-      "42歲數量",
-      "43歲數量",
-      "44歲數量",
-      "45歲數量",
-      "46歲數量",
-      "47歲數量",
-      "48歲數量",
-      "49歲數量",
-      "50歲數量",
-      "51歲數量",
-      "52歲數量",
-      "53歲數量",
-      "54歲數量",
-      "55歲數量",
-      "56歲數量",
-      "57歲數量",
-      "58歲數量",
-      "59歲數量",
-      "60歲數量",
-      "61歲數量",
-      "62歲數量",
-      "63歲數量",
-      "64歲數量",
-      "65歲數量",
-      "66歲數量",
-      "67歲數量",
-      "68歲數量",
-      "69歲數量",
-      "70歲數量",
-      "71歲數量",
-      "72歲數量",
-      "73歲數量",
-      "74歲數量",
-      "75歲數量",
-      "76歲數量",
-      "77歲數量",
-      "78歲數量",
-      "79歲數量",
-      "80歲數量",
-      "81歲數量",
-      "82歲數量",
-      "83歲數量",
-      "84歲數量",
-      "85歲數量",
-      "86歲數量",
-      "87歲數量",
-      "88歲數量",
-      "89歲數量",
-      "90歲數量",
-      "91歲數量",
-      "92歲數量",
-      "93歲數量",
-      "94歲數量",
-      "95歲數量",
-      "96歲數量",
-      "97歲數量",
-      "98歲數量",
-      "99歲數量",
-      "100歲以上"
-    ],
     "RID": "edf9a589-7095-4f18-995f-f8657c0d8c1a",
     "PAGE_ID": "64c8a3a0-3b9a-4f49-a13a-fb1eb2ffa4b1"
   },
@@ -271,42 +81,6 @@
     "output_table": "C8_新北人口_raw",
     "source_dept": "新北市政府主計處/公務統計科",
     "source_type": "data.ntpc API",
-    "keep_cols": [
-      "data_time",
-      "field1",
-      "percent2",
-      "percent3",
-      "percent4",
-      "percent5",
-      "percent6",
-      "percent7",
-      "percent8",
-      "percent9",
-      "percent10",
-      "percent11",
-      "percent12",
-      "percent13",
-      "percent14",
-      "percent15",
-      "percent16",
-      "percent17",
-      "percent18",
-      "percent19",
-      "percent20",
-      "percent21",
-      "percent22",
-      "percent23",
-      "percent24",
-      "percent25",
-      "percent26",
-      "percent27",
-      "percent28",
-      "percent29",
-      "percent30",
-      "percent31",
-      "percent32",
-      "percent33"
-    ],
     "RID": "",
     "PAGE_ID": "8308ab58-62d1-424e-8314-24b65b7ab492"
   },
@@ -317,5 +91,321 @@
     "source_type": "data.taipei API",
     "RID": "192f155c-15ba-4122-863a-23743f553a1c",
     "PAGE_ID": ""
+  },
+  "D1_雙北AED急救": {
+    "dag_id": "D1_雙北AED急救",
+    "output_table": "hackathon_component_4_aed_map_ready",
+    "source_type": "merged",
+    "sources": [
+      "D1_台北AED",
+      "D1_新北AED"
+    ]
+  },
+  "D1_台北AED": {
+    "dag_id": "D1_台北AED",
+    "output_table": "D1_台北AED_raw",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "438c61ad-24f6-4e54-a1cc-e2cfe0e7051e",
+    "PAGE_ID": "cd050577-115f-4299-b37a-012ff490a632"
+  },
+  "D1_新北AED": {
+    "dag_id": "D1_新北AED",
+    "output_table": "D1_新北AED_raw",
+    "source_dept": "新北市政府衛生局/醫事管理科/緊急救護股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "61b29f27-219a-4394-9722-af97a5707598"
+  },
+  "臺北市食品衛生管理查驗工作": {
+    "dag_id": "臺北市食品衛生管理查驗工作",
+    "output_table": "臺北市食品衛生管理查驗工作",
+    "source_dept": "主計處",
+    "source_type": "other",
+    "RID": "",
+    "PAGE_ID": "c3ae074c-f65f-4f69-bf65-2c00a674e870"
+  },
+  "市售食品抽驗合格率": {
+    "dag_id": "市售食品抽驗合格率",
+    "output_table": "市售食品抽驗合格率",
+    "source_dept": "新北市政府衛生局/食品藥物管理科/食品股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "d2d69f7e-e283-406e-859b-e9e5dc98ac50"
+  },
+  "市售食品標示合格率": {
+    "dag_id": "市售食品標示合格率",
+    "output_table": "市售食品標示合格率",
+    "source_dept": "新北市政府衛生局/食品藥物管理科/食品股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "b57c14e9-593c-4416-8edd-d1ac8cdceb48"
+  },
+  "新北市食品抽驗資料": {
+    "dag_id": "新北市食品抽驗資料",
+    "output_table": "新北市食品抽驗資料",
+    "source_dept": "新北市政府衛生局/食品藥物管理科/食品股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "078cb722-15ac-4e1e-b541-e75bfe0aa440"
+  },
+  "D2_雙北食品抽驗": {
+    "dag_id": "D2_雙北食品抽驗",
+    "output_table": "hackathon_component_2_food_safety_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市食品衛生管理查驗工作",
+      "市售食品抽驗合格率",
+      "市售食品標示合格率",
+      "新北市食品抽驗資料"
+    ]
+  },
+  "C5_雙北圖書館與閱讀資源地圖": {
+    "dag_id": "C5_雙北圖書館與閱讀資源地圖",
+    "output_table": "hackathon_component_5_library_map_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市立圖書館各分館暨民眾閱覽室",
+      "臺北市各級學校圖書館概況",
+      "臺北市立圖書館查詢座位狀況API",
+      "新北市立圖書館地址電話一覽表"
+    ]
+  },
+  "臺北市立圖書館各分館暨民眾閱覽室": {
+    "dag_id": "臺北市立圖書館各分館暨民眾閱覽室",
+    "output_table": "臺北市立圖書館各分館暨民眾閱覽室",
+    "source_dept": "教育局",
+    "source_type": "data.taipei API",
+    "RID": "fb6cc268-e2b8-43a7-86f2-e79702291a2b",
+    "PAGE_ID": "43772803-6504-469c-894d-35904342a53b"
+  },
+  "臺北市各級學校圖書館概況": {
+    "dag_id": "臺北市各級學校圖書館概況",
+    "output_table": "臺北市各級學校圖書館概況",
+    "source_dept": "教育局",
+    "source_type": "data.taipei API",
+    "RID": "ed4b45ef-fd80-4456-a381-0ce0038e33da",
+    "PAGE_ID": "67769480-7fe4-4976-88e2-1726fac9e5b8"
+  },
+  "臺北市立圖書館查詢座位狀況API": {
+    "dag_id": "臺北市立圖書館查詢座位狀況API",
+    "output_table": "臺北市立圖書館查詢座位狀況API",
+    "source_dept": "教育局圖書館",
+    "source_type": "open_api",
+    "api_url": "https://seat.tpml.edu.tw/sm/service/getAllArea"
+  },
+  "新北市立圖書館地址電話一覽表": {
+    "dag_id": "新北市立圖書館地址電話一覽表",
+    "output_table": "新北市立圖書館地址電話一覽表",
+    "source_dept": "新北市政府文化局/新北市立圖書館/綜合規劃組",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "6be524a8-ef72-4cd7-82de-e75c9f46821d"
+  },
+  "C6_雙北宗教場所與社會服務分布": {
+    "dag_id": "C6_雙北宗教場所與社會服務分布",
+    "output_table": "hackathon_component_6_religion_map_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市宗教概況(教會堂神職人員數)",
+      "臺北市宗教概況(寺廟教會及信徒人數)",
+      "臺北市宗教社會服務概況",
+      "臺北市宗教建築3D模型庫",
+      "新北市寺廟資料",
+      "宗教教務概況"
+    ]
+  },
+  "臺北市宗教概況(教會堂神職人員數)": {
+    "dag_id": "臺北市宗教概況(教會堂神職人員數)",
+    "output_table": "臺北市宗教概況(教會堂神職人員數)",
+    "source_dept": "主計處",
+    "source_type": "other",
+    "RID": "",
+    "PAGE_ID": "c55e150a-74bf-41bd-b602-abeb98f6c178"
+  },
+  "臺北市宗教概況(寺廟教會及信徒人數)": {
+    "dag_id": "臺北市宗教概況(寺廟教會及信徒人數)",
+    "output_table": "臺北市宗教概況",
+    "source_dept": "主計處",
+    "source_type": "other",
+    "RID": "",
+    "PAGE_ID": "3a08ded7-dbcc-49ea-85ac-b2fdac928b7a"
+  },
+  "臺北市宗教社會服務概況": {
+    "dag_id": "臺北市宗教社會服務概況",
+    "output_table": "臺北市宗教社會服務概況",
+    "source_dept": "主計處",
+    "source_type": "other",
+    "RID": "",
+    "PAGE_ID": "92291ffd-3af8-4952-88ce-60147e1a9058"
+  },
+  "臺北市宗教建築3D模型庫": {
+    "dag_id": "臺北市宗教建築3D模型庫",
+    "output_table": "臺北市宗教建築3D模型庫",
+    "source_dept": "民政局",
+    "source_type": "data.taipei API",
+    "RID": "bf338b29-e36b-4131-aab5-25c7342b2139",
+    "PAGE_ID": "d8718826-54cf-4cba-ba92-088b1658c7c6"
+  },
+  "新北市寺廟資料": {
+    "dag_id": "新北市寺廟資料",
+    "output_table": "新北市寺廟資料",
+    "source_dept": "新北市政府民政局/宗教禮俗科",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "f0e1879f-3c5b-429f-a12b-9540acac26e8"
+  },
+  "宗教教務概況": {
+    "dag_id": "宗教教務概況",
+    "output_table": "宗教教務概況",
+    "source_dept": "新北市政府主計處/公務統計科",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "a4d5ee34-a8ce-41f0-b7f6-a20687ad6698"
+  },
+  "C7_雙北藥局分布與可及性分析": {
+    "dag_id": "C7_雙北藥局分布與可及性分析",
+    "output_table": "hackathon_component_7_pharmacy_map_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市藥局",
+      "新北市健保特約藥局名單",
+      "新北市非健保特約藥局名單"
+    ]
+  },
+  "臺北市藥局": {
+    "dag_id": "臺北市藥局",
+    "output_table": "臺北市藥局",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "42cfc382-f2b8-4c3a-87ad-37249634f78e",
+    "PAGE_ID": "6fa3ed67-e60e-44d9-a366-ce7008e322de"
+  },
+  "新北市健保特約藥局名單": {
+    "dag_id": "新北市健保特約藥局名單",
+    "output_table": "新北市健保特約藥局名單",
+    "source_dept": "新北市政府衛生局/食品藥物管理科/藥物股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "fdbefc45-7005-49ab-a56d-41881e435dc2"
+  },
+  "新北市非健保特約藥局名單": {
+    "dag_id": "新北市非健保特約藥局名單",
+    "output_table": "新北市非健保特約藥局名單",
+    "source_dept": "新北市政府衛生局/食品藥物管理科/藥物股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "f379e6dc-5a60-49a7-a47b-d3887566e157"
+  },
+  "雙北緊急救護服務效能看板": {
+    "dag_id": "雙北緊急救護服務效能看板",
+    "transform_module": "雙北緊急救護服務效能看板",
+    "output_table": "hackathon_component_10_emergency_response_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市各年度消防緊急救護服務",
+      "臺北市消防各年度急救成功人數",
+      "臺北市各年度消防緊急救護到院前心肺功能停止傷病患統計",
+      "緊急救護服務",
+      "新北市急救責任醫院"
+    ]
+  },
+  "臺北市各年度消防緊急救護服務": {
+    "dag_id": "臺北市各年度消防緊急救護服務",
+    "output_table": "臺北市各年度消防緊急救護服務",
+    "source_dept": "消防局",
+    "source_type": "data.taipei API",
+    "RID": "4f20b1bc-80ef-4699-8e62-3c8d4c67e7f9",
+    "PAGE_ID": "d24529ee-7bbf-4836-ad9e-600634484566"
+  },
+  "臺北市消防各年度急救成功人數": {
+    "dag_id": "臺北市消防各年度急救成功人數",
+    "output_table": "臺北市消防各年度急救成功人數",
+    "source_dept": "消防局",
+    "source_type": "data.taipei API",
+    "RID": "8c30d7a0-63d7-4a52-8a38-28197b870150",
+    "PAGE_ID": "72c356d3-9cdb-4474-8bfb-ffcc79d0d469"
+  },
+  "臺北市各年度消防緊急救護到院前心肺功能停止傷病患統計": {
+    "dag_id": "臺北市各年度消防緊急救護到院前心肺功能停止傷病患統計",
+    "output_table": "臺北市各年度消防緊急救護到院前心肺功能停止傷病患統計",
+    "source_dept": "消防局",
+    "source_type": "data.taipei API",
+    "RID": "37ff28ec-0be6-4964-badc-2fbfc3649506",
+    "PAGE_ID": "2f4cc0c2-dcae-4926-9139-c403cd0e3500"
+  },
+  "緊急救護服務": {
+    "dag_id": "緊急救護服務",
+    "output_table": "緊急救護服務",
+    "source_dept": "消防局",
+    "source_type": "data.taipei API",
+    "RID": "4f20b1bc-80ef-4699-8e62-3c8d4c67e7f9",
+    "PAGE_ID": "d24529ee-7bbf-4836-ad9e-600634484566"
+  },
+  "新北市急救責任醫院": {
+    "dag_id": "新北市急救責任醫院",
+    "output_table": "新北市急救責任醫院",
+    "source_dept": "新北市政府衛生局/醫事管理科/緊急救護股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "c2f23210-03c7-4461-b9d3-9ee4df24c3e9"
+  },
+  "C9_急診室即時資訊": {
+    "dag_id": "C9_急診室即時資訊",
+    "output_table": "hackathon_component_9_Emergency Room News_ready",
+    "source_dept": "健保署 NHI",
+    "source_type": "open_api_post",
+    "api_url": "https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002"
+  },
+  "C10_水質檢測資訊": {
+    "dag_id": "C10_水質檢測資訊",
+    "output_table": "hackathon_component_10_water_quality_ready",
+    "source_type": "open_api_csv",
+    "api_url": "https://data.moenv.gov.tw/api/v2/dws_p_28",
+    "api_params": {
+      "api_key": "e75b1660-e564-4107-aad5-a8be1f905dd9",
+      "limit": 1000,
+      "sort": "ImportDate desc",
+      "format": "CSV"
+    },
+    "pagination_type": "offset",
+    "max_pages": 110,
+    "encoding": "utf-8",
+    "transform_strategy": "water_quality",
+    "load_behavior": "replace"
+  },
+  "臺北市環保餐廳": {
+    "dag_id": "臺北市環保餐廳",
+    "output_table": "臺北市環保餐廳",
+    "source_dept": "環保局",
+    "source_type": "data.taipei API",
+    "RID": "d706f428-b2c7-4591-9ebf-9f5cd7408f47",
+    "PAGE_ID": "845818d9-c432-44b4-85dd-03d71bd867b2"
+  },
+  "新北市環保餐廳": {
+    "dag_id": "新北市環保餐廳",
+    "output_table": "新北市環保餐廳",
+    "source_dept": "新北市政府環境保護局/綜合規劃科/教育宣導股",
+    "source_type": "data.ntpc API",
+    "RID": "",
+    "PAGE_ID": "e90d14f8-5995-4ebb-af19-8f8fd7d396c8"
+  },
+  "臺北市通過餐飲衛生管理分級評核業者": {
+    "dag_id": "臺北市通過餐飲衛生管理分級評核業者",
+    "output_table": "臺北市通過餐飲衛生管理分級評核業者",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "c5646d80-9118-4439-b924-075f96371d75",
+    "PAGE_ID": "59579c19-a561-4564-8c0f-545bfb32c0f6"
+  },
+  "C11_雙北環保餐廳地圖": {
+    "dag_id": "C11_雙北環保餐廳地圖",
+    "transform_module": "C11_雙北環保餐廳地圖",
+    "output_table": "hackathon_component_11_environmental_protection_restaurants_ready",
+    "source_type": "merged",
+    "sources": [
+      "臺北市環保餐廳",
+      "新北市環保餐廳"
+    ]
   }
 }

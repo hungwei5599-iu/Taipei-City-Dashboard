@@ -24,8 +24,8 @@ import json
 from datetime import datetime
 import os
 import argparse
-<<<<<<< HEAD
 from copy import deepcopy
+from io import StringIO
 
 
 from transform_utils import (
@@ -34,10 +34,6 @@ from transform_utils import (
     get_source_last_modified,
     transform_single,
 )
-=======
-
-from transform_utils import TAIPEI_TZ, get_source_last_modified, transform_single
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
 
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _DE_ROOT     = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -50,7 +46,6 @@ def _load_configs() -> tuple[dict, str]:
     with open(_CONFIG_PATH, encoding="utf-8") as f:
         raw = json.load(f)
     default = raw.pop("_default", "")
-<<<<<<< HEAD
     for key, cfg in list(raw.items()):
         alias_of = cfg.get("alias_of")
         if alias_of:
@@ -58,8 +53,6 @@ def _load_configs() -> tuple[dict, str]:
             base.update(cfg)
             base.pop("alias_of", None)
             raw[key] = base
-=======
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
     for cfg in raw.values():
         cfg["output_dir"] = OUTPUT_DIR
     if not default or default not in raw:
@@ -79,10 +72,6 @@ LIMIT    = 1000
 # 統一回傳 dict[source_id, DataFrame]
 # ─────────────────────────────────────────────
 def extract(config: dict) -> dict[str, pd.DataFrame]:
-<<<<<<< HEAD
-=======
-    """根據 source_type 分派，統一回傳 {source_id: DataFrame}。"""
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
     source_type = config.get("source_type", "data.taipei API")
     dag_id      = config["dag_id"]
 
@@ -94,18 +83,13 @@ def extract(config: dict) -> dict[str, pd.DataFrame]:
         return {dag_id: _extract_post_api(config["api_url"], config.get("api_body", {}))}
     elif source_type == "data.ntpc API":
         return {dag_id: _extract_ntpc(config["PAGE_ID"])}
-<<<<<<< HEAD
     elif source_type == "data.taipei CSV":
         return {dag_id: _extract_data_taipei_csv(config["PAGE_ID"])}
     elif source_type == "other":
         return _extract_other(config)
+    elif source_type == "open_api_csv":
+    	return {dag_id: _extract_open_api_csv(config)}
     else:
-=======
-    elif source_type == "other":
-        print("[警告] 此資料集需自行實作 extract 邏輯。")
-        return {}
-    else:  # data.taipei API
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
         return {dag_id: _extract_data_taipei(config["RID"])}
 
 
@@ -116,7 +100,6 @@ def _extract_merged(config: dict) -> dict[str, pd.DataFrame]:
         results.update(extract(DATASET_CONFIGS[source_id]))
     return results
 
-<<<<<<< HEAD
 def _extract_other(config: dict) -> dict[str, pd.DataFrame]:
     """source_type='other' 的資料集，依 dag_id 動態載入 extract/{dag_id}.py。"""
     dag_id = config["dag_id"]
@@ -126,9 +109,145 @@ def _extract_other(config: dict) -> dict[str, pd.DataFrame]:
     except ModuleNotFoundError:
         print(f"[警告] extract/{dag_id}.py 不存在，跳過。")
         return {}
-
-=======
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
+def _extract_open_api_csv(config: dict) -> pd.DataFrame:
+    """
+    從 CSV 格式的 Open API 分頁抓取資料
+    
+    配置範例：
+    {
+        "api_url": "https://data.moenv.gov.tw/api/v2/dws_p_28",
+        "api_params": {
+            "api_key": "xxx",
+            "limit": 1000,  # 每頁筆數
+            "sort": "ImportDate desc",
+            "format": "CSV"
+        },
+        "encoding": "utf-8",
+        "pagination_type": "offset",  # 可選：offset, page, none
+        "max_pages": 10  # 可選：最多抓幾頁（避免無限迴圈）
+    }
+    """
+    api_url = config["api_url"]
+    api_params = config.get("api_params", {}).copy()
+    encoding = config.get("encoding", "utf-8")
+    pagination_type = config.get("pagination_type", "offset")  # 預設 offset
+    max_pages = config.get("max_pages", 100)  # 預設最多 100 頁
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://data.moenv.gov.tw/",
+        "Accept": "text/csv, */*"
+    }
+    
+    print(f"[Extract] 開始從 CSV API 分頁抓取：{api_url}")
+    print(f"[Extract] 分頁方式：{pagination_type}")
+    
+    all_records = []
+    page_count = 0
+    
+    # ===== 分頁抓取邏輯 =====
+    if pagination_type == "offset":
+        # 方式1：offset/limit 分頁
+        limit = api_params.get("limit", 1000)
+        offset = 0
+        
+        while page_count < max_pages:
+            page_count += 1
+            params = api_params.copy()
+            params["offset"] = offset
+            params["limit"] = limit
+            
+            print(f"[Extract] 第 {page_count} 頁（offset={offset}, limit={limit}）...")
+            
+            try:
+                resp = requests.get(api_url, params=params, headers=headers, timeout=60, verify=False)
+                resp.raise_for_status()
+                resp.encoding = encoding
+                
+                # 解析 CSV
+                df = pd.read_csv(StringIO(resp.text), encoding=encoding)
+                
+                if df.empty:
+                    print(f"[Extract] 第 {page_count} 頁無資料，停止分頁")
+                    break
+                
+                print(f"[Extract]   ✅ 取得 {len(df)} 筆")
+                all_records.extend(df.to_dict('records'))
+                
+                # 如果本頁資料少於 limit，代表已是最後一頁
+                if len(df) < limit:
+                    print(f"[Extract] 資料不足 {limit} 筆，停止分頁")
+                    break
+                
+                offset += limit
+                
+            except Exception as e:
+                print(f"[Extract] 第 {page_count} 頁抓取失敗：{e}")
+                break
+    
+    elif pagination_type == "page":
+        # 方式2：page/pagesize 分頁
+        pagesize = api_params.get("pagesize", api_params.get("limit", 1000))
+        page = 1
+        
+        while page <= max_pages:
+            params = api_params.copy()
+            params["page"] = page
+            params["pagesize"] = pagesize
+            
+            print(f"[Extract] 第 {page} 頁（page={page}, pagesize={pagesize}）...")
+            
+            try:
+                resp = requests.get(api_url, params=params, headers=headers, timeout=60, verify=False)
+                resp.raise_for_status()
+                resp.encoding = encoding
+                
+                df = pd.read_csv(StringIO(resp.text), encoding=encoding)
+                
+                if df.empty:
+                    print(f"[Extract] 第 {page} 頁無資料，停止分頁")
+                    break
+                
+                print(f"[Extract]   ✅ 取得 {len(df)} 筆")
+                all_records.extend(df.to_dict('records'))
+                
+                if len(df) < pagesize:
+                    print(f"[Extract] 資料不足 {pagesize} 筆，停止分頁")
+                    break
+                
+                page += 1
+                
+            except Exception as e:
+                print(f"[Extract] 第 {page} 頁抓取失敗：{e}")
+                break
+    
+    else:  # pagination_type == "none"
+        # 方式3：單次抓取（不分頁）
+        print(f"[Extract] 單次抓取（無分頁）...")
+        
+        try:
+            resp = requests.get(api_url, params=api_params, headers=headers, timeout=60, verify=False)
+            resp.raise_for_status()
+            resp.encoding = encoding
+            
+            df = pd.read_csv(StringIO(resp.text), encoding=encoding)
+            
+            print(f"[Extract]   ✅ 取得 {len(df)} 筆")
+            return df
+            
+        except Exception as e:
+            print(f"[Extract] 抓取失敗：{e}")
+            raise
+    
+    # ===== 合併所有頁的資料 =====
+    if all_records:
+        result_df = pd.DataFrame(all_records)
+        print(f"\n[Extract] 分頁完成：共 {page_count} 頁，{len(result_df):,} 筆資料")
+        print(f"[Extract] 欄位：{list(result_df.columns)}")
+        return result_df
+    else:
+        print(f"[Extract] 無資料")
+        return pd.DataFrame()
 
 def _extract_data_taipei(rid: str) -> pd.DataFrame:
     """分頁取回 data.taipei 資料集。"""
@@ -159,7 +278,6 @@ def _extract_data_taipei(rid: str) -> pd.DataFrame:
     return df
 
 
-<<<<<<< HEAD
 def _extract_data_taipei_csv(page_id: str, rid: str = None) -> pd.DataFrame:
     """
     下載 data.taipei CSV 資料集。
@@ -203,8 +321,6 @@ def _extract_data_taipei_csv(page_id: str, rid: str = None) -> pd.DataFrame:
     print(f"[Extract] 共取得 {len(df)} 筆，欄位：{list(df.columns)}")
     return df
 
-=======
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
 def _extract_open_api(api_url: str) -> pd.DataFrame:
     """直接 GET 即時 API 並轉為 DataFrame。"""
     resp = requests.get(api_url, timeout=30, verify=False)
@@ -251,7 +367,6 @@ def _extract_post_api(api_url: str, json_body: dict) -> pd.DataFrame:
 
 
 def _extract_ntpc(ntpc_id: str) -> pd.DataFrame:
-<<<<<<< HEAD
     """分頁取回 data.ntpc.gov.tw 資料集（修正版）。"""
     import time
     records = []
@@ -291,28 +406,6 @@ def _extract_ntpc(ntpc_id: str) -> pd.DataFrame:
 
     df = pd.DataFrame(records)
     print(f"[Extract] 完畢！共取得 {len(records)} 筆資料，欄位：{list(df.columns)}")
-=======
-    """分頁取回 data.ntpc.gov.tw 資料集。"""
-    records = []
-    offset  = 0
-    limit   = 1000
-    url     = f"https://data.ntpc.gov.tw/api/datasets/{ntpc_id}/json"
-
-    while True:
-        resp  = requests.get(url, params={"limit": limit, "offset": offset},
-                             timeout=30, verify=False)
-        resp.raise_for_status()
-        batch = resp.json()
-        if not batch:
-            break
-        records.extend(batch)
-        offset += len(batch)
-        if len(batch) < limit:
-            break
-
-    df = pd.DataFrame(records)
-    print(f"[Extract] 共取得 {len(records)} 筆原始資料（NTPC），欄位：{list(df.columns)}")
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
     return df
 
 
@@ -342,11 +435,7 @@ def extract_api(
         return _extract_open_api(endpoint)
     else:
         raise ValueError("extract_api() 需要提供 rid 或 endpoint 其中之一")
-<<<<<<< HEAD
     
-=======
-
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
 
 # ─────────────────────────────────────────────
 # 2. Transform
@@ -355,39 +444,19 @@ def extract_api(
 # ─────────────────────────────────────────────
 def transform(raw: dict[str, pd.DataFrame], data_time: str, config: dict) -> pd.DataFrame:
     """
-<<<<<<< HEAD
     依 transform_module 或 dag_id 尋找 transforms/{module}.py。
-    找到則呼叫其 transform(raw, data_time, config=config, dataset_configs=DATASET_CONFIGS)。
+    找到則呼叫其 transform(raw, data_time, config)。
     找不到則以 transform_single 通用清洗。
     """
     module_name = config.get("transform_module") or config["dag_id"]
     try:
         mod = importlib.import_module(f"transforms.{module_name}")
-        try:
-            return mod.transform(
-                raw,
-                data_time,
-                config=config,
-                dataset_configs=DATASET_CONFIGS,
-            )
-        except TypeError:
-            return mod.transform(raw, data_time)
-=======
-    依 dag_id 尋找 transforms/{dag_id}.py。
-    找到則呼叫其 transform(raw, data_time, config, DATASET_CONFIGS)。
-    找不到則以 transform_single 通用清洗。
-    """
-    dag_id = config["dag_id"]
-    try:
-        mod = importlib.import_module(f"transforms.{dag_id}")
-        return mod.transform(raw, data_time, config, DATASET_CONFIGS)
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
+        return mod.transform(raw, data_time, config)
     except ModuleNotFoundError:
         df = next(iter(raw.values()))
         return transform_single(df, data_time, config)
 
 
-<<<<<<< HEAD
 def add_wkb_geometry_if_possible(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """
     對齊 DAG 的 ready-data 習慣：若輸出資料有經緯度但尚無 wkb_geometry，
@@ -436,8 +505,6 @@ def normalize_output_tables(result, config: dict) -> tuple[tuple[pd.DataFrame, .
     return (result,), [config["output_table"]]
 
 
-=======
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
 # ─────────────────────────────────────────────
 # 3. Load — CSV
 # ─────────────────────────────────────────────
@@ -454,7 +521,6 @@ def load(df: pd.DataFrame, output_dir: str, table_name: str) -> str:
 # ─────────────────────────────────────────────
 # 3b. Load — PostgreSQL
 # ─────────────────────────────────────────────
-<<<<<<< HEAD
 def load_to_db(
     df: pd.DataFrame,
     table_name: str,
@@ -462,9 +528,6 @@ def load_to_db(
     load_behavior: str = "replace",
     history_table: str = None,
 ) -> None:
-=======
-def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
     """
     將 DataFrame 寫入 PostgreSQL。
     修正重點：
@@ -485,17 +548,10 @@ def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
     if db_url is None:
         user = os.environ.get("DB_DASHBOARD_USER", "postgres")
         pwd  = os.environ.get("DB_DASHBOARD_PASSWORD", "postgres")
-<<<<<<< HEAD
         host = os.environ.get("DB_DASHBOARD_HOST", "192.168.8.80")
         port = os.environ.get("DB_DASHBOARD_PORT", "5433")
         db   = os.environ.get("DB_DASHBOARD_DBNAME", "dashboard")
-        db_url = f"postgresql+pg8000://{user}:{pwd}@{host}:{port}/{db}"
-=======
-        host = os.environ.get("DB_DASHBOARD_HOST", "localhost")
-        port = os.environ.get("DB_DASHBOARD_PORT", "5433")
-        db   = os.environ.get("DB_DASHBOARD_DBNAME", "dashboard")
-        db_url = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
+        #db_url = f"postgresql+pg8000://{user}:{pwd}@{host}:{port}/{db}"
 
     try:
         engine = create_engine(db_url)
@@ -512,7 +568,6 @@ def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
         if "data_time" in write_df.columns:
             dtype_map["data_time"] = Text()
 
-<<<<<<< HEAD
         if load_behavior == "append":
             write_df.to_sql(
                 table_name,
@@ -556,18 +611,6 @@ def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
             )
         else:
             raise ValueError("load_behavior 必須是 append、replace 或 current+history。")
-=======
-        # ── 修正 3：replace 模式（重建表結構）──
-        write_df.to_sql(
-            table_name,
-            engine,
-            if_exists="replace",
-            index=False,
-            method="multi",
-            chunksize=500,
-            dtype=dtype_map if dtype_map else None,
-        )
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
         print(f"[LoadDB] 已寫入 {len(write_df)} 筆 → PostgreSQL 表：{table_name}")
 
         # ── 更新 dataset_info（表不存在時略過）──
@@ -600,14 +643,10 @@ def update_meta(df: pd.DataFrame, output_path: str, config: dict):
     meta_dir  = os.path.dirname(output_path)
     meta_path = os.path.join(meta_dir, "etl_meta.csv")
 
-<<<<<<< HEAD
     if "data_time" in df.columns:
         lasttime = df["data_time"].dropna().max() if len(df["data_time"].dropna()) > 0 else ""
     else:
         lasttime = ""
-=======
-    lasttime = df["data_time"].max() if "data_time" in df.columns else ""
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
     meta = {
         "dag_id":           config["dag_id"],
         "output_file":      os.path.basename(output_path),
@@ -644,7 +683,6 @@ def main(config: dict):
     else:
         data_time = get_source_last_modified(config.get("PAGE_ID", ""))
 
-<<<<<<< HEAD
     result = transform(raw, data_time, config)
     dfs, output_tables = normalize_output_tables(result, config)
 
@@ -661,15 +699,6 @@ def main(config: dict):
                 load_behavior=config.get("load_behavior", "replace"),
                 history_table=config.get("history_table"),
             )
-=======
-    ready_df    = transform(raw, data_time, config)
-    output_path = load(ready_df, config["output_dir"], config["output_table"])
-    update_meta(ready_df, output_path, config)
-
-    # hackathon 組件自動寫入 DB
-    if config["output_table"].startswith("hackathon_"):
-        load_to_db(ready_df, config["output_table"])
->>>>>>> 6d8187d791b70fe66bdedb8df7b95001a8565eae
 
     print("=" * 50)
     print("ETL 完成")
