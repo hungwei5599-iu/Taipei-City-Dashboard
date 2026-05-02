@@ -1,0 +1,85 @@
+{
+  "samples": {
+    "hackathon_component_2_food_safety_overview": {
+      "query_type": "percent",
+      "component_title": "食品抽驗合格率",
+      "database_context": {
+        "status": "success",
+        "categories": ["臺北市", "新北市"],
+        "data": [
+          {"name": "合格率", "data": [96, 94]},
+          {"name": "不合格率", "data": [4, 6]}
+        ]
+      }
+    },
+    "hackathon_component_7_pharmacy_overview": {
+      "query_type": "two_d",
+      "component_title": "藥局資源分布概況",
+      "database_context": {
+        "status": "success",
+        "data": [
+          {
+            "data": [
+              {"x": "新北市板橋區", "y": 118},
+              {"x": "臺北市中山區", "y": 74},
+              {"x": "臺北市大安區", "y": 68}
+            ]
+          }
+        ]
+      }
+    },
+    "hackathon_component_9_er_overview": {
+      "query_type": "three_d",
+      "component_title": "急診待診人數和等候時間",
+      "database_context": {
+        "status": "success",
+        "categories": ["三總", "北市聯醫", "北榮"],
+        "data": [
+          {"name": "待診人數", "data": [0, 0, 2]},
+          {"name": "等候時間", "data": [2, 0, 32]}
+        ]
+      }
+    },
+    "hackathon_component_10_water_quality_overview": {
+      "query_type": "two_d",
+      "component_title": "淨水場水質檢測概況",
+      "database_context": {
+        "status": "success",
+        "data": [
+          {
+            "data": [
+              {"x": "直潭淨水場", "y": 18},
+              {"x": "長興淨水場", "y": 14},
+              {"x": "板新淨水場", "y": 11}
+            ]
+          }
+        ]
+      }
+    },
+    "hackathon_c11_env_restaurant_overview": {
+      "query_type": "two_d",
+      "component_title": "環保餐廳分布概況",
+      "database_context": {
+        "status": "success",
+        "data": [
+          {
+            "data": [
+              {"x": "臺北市信義區", "y": 36},
+              {"x": "新北市板橋區", "y": 31},
+              {"x": "臺北市中山區", "y": 24}
+            ]
+          }
+        ]
+      }
+    },
+    "missing_chart_data": {
+      "query_type": "unknown",
+      "component_title": "圖表資料預抓失敗",
+      "database_context": {
+        "status": "error",
+        "error": "圖表資料預抓失敗或沒有資料。"
+      }
+    }
+  }
+}
+
