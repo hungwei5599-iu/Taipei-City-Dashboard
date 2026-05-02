@@ -1,0 +1,67 @@
+{
+  "dag_infos": {
+    "dag_id": "C10_水質檢測資訊",
+    "start_date": "2026-05-02",
+    "schedule_interval": "0 3 * * *",
+    "catchup": false,
+    "tags": ["hackathon", "C10", "環保署", "水質", "water_quality"],
+    "description": "環保署 CSV API — 雙北自來水水質檢測合格紀錄，附淨水場座標",
+    "default_args": {
+      "owner": "hackathon_de",
+      "email": [],
+      "email_on_retry": false,
+      "email_on_failure": false,
+      "retries": 1,
+      "retry_delay": 60
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "hackathon_component_10_water_quality_ready",
+    "ready_data_history_table": "",
+    "raw_data_db": "postgres_default",
+    "raw_data_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "水質檢測資訊",
+    "airflow_update_freq": "daily at 03:00",
+    "sources": [
+      {
+        "dag_id": "C10_水質檢測資訊",
+        "source_type": "open_api_csv",
+        "source_dept": "行政院環境保護署",
+        "api_url": "https://data.moenv.gov.tw/api/v2/dws_p_28",
+        "api_params": {
+          "api_key": "e75b1660-e564-4107-aad5-a8be1f905dd9",
+          "limit": 1000,
+          "sort": "ImportDate desc",
+          "format": "CSV"
+        },
+        "encoding": "utf-8",
+        "pagination_type": "offset",
+        "max_pages": 110
+      }
+    ],
+    "gis_format": "Point",
+    "output_coordinate": "EPSG:4326",
+    "is_geometry": 1,
+    "dataset_description": "過濾雙北地區 itemid=PASS 的飲用水水質合格紀錄，補齊淨水場靜態座標，其餘透過 ArcGIS 地理編碼。",
+    "etl_description": "CSV API paged → filter county → filter PASS → dedup by plant+date → attach coordinates",
+    "sensitivity": "public",
+    "output_schema": {
+      "data_time":  "timestamp — 資料時間",
+      "county":     "text — 縣市",
+      "township":   "text — 鄉鎮市區",
+      "plant":      "text — 淨水場名稱",
+      "address":    "text — 地址",
+      "latitude":   "float — 緯度",
+      "longitude":  "float — 經度",
+      "ckdate":     "date — 採樣日期",
+      "itemid":     "text — 檢測項目代碼（PASS=整體合格）",
+      "item":       "text — 檢測項目名稱",
+      "itemval":    "float — 檢測值",
+      "standards":  "text — 標準值",
+      "_fetch_time":"timestamp — 本次抓取時間",
+      "_source":    "text — 資料來源機關"
+    }
+  }
+}

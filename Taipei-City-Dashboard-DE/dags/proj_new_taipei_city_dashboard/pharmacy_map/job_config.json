@@ -1,0 +1,68 @@
+{
+  "dag_infos": {
+    "dag_id": "C7_雙北藥局分布與可及性分析",
+    "start_date": "2026-05-02",
+    "schedule_interval": "0 2 * * *",
+    "catchup": false,
+    "tags": ["hackathon", "C7", "衛生局", "藥局", "pharmacy_map"],
+    "description": "整合臺北市藥局、新北市健保特約藥局、新北市非健保特約藥局，計算各區每萬人藥局數。",
+    "default_args": {
+      "owner": "hackathon_de",
+      "email": [],
+      "email_on_retry": false,
+      "email_on_failure": false,
+      "retries": 1,
+      "retry_delay": 60
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "hackathon_component_7_pharmacy_map_ready",
+    "ready_data_history_table": "",
+    "raw_data_db": "postgres_default",
+    "raw_data_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "雙北藥局分布與可及性分析",
+    "airflow_update_freq": "daily at 02:00",
+    "sources": [
+      {
+        "dag_id": "臺北市藥局",
+        "source_type": "data.taipei API",
+        "source_dept": "衛生局",
+        "RID": "42cfc382-f2b8-4c3a-87ad-37249634f78e",
+        "PAGE_ID": "6fa3ed67-e60e-44d9-a366-ce7008e322de"
+      },
+      {
+        "dag_id": "新北市健保特約藥局名單",
+        "source_type": "data.ntpc API",
+        "source_dept": "新北市政府衛生局/食品藥物管理科/藥物股",
+        "PAGE_ID": "fdbefc45-7005-49ab-a56d-41881e435dc2"
+      },
+      {
+        "dag_id": "新北市非健保特約藥局名單",
+        "source_type": "data.ntpc API",
+        "source_dept": "新北市政府衛生局/食品藥物管理科/藥物股",
+        "PAGE_ID": "f379e6dc-5a60-49a7-a47b-d3887566e157"
+      }
+    ],
+    "gis_format": "Point",
+    "output_coordinate": "EPSG:4326",
+    "is_geometry": 1,
+    "dataset_description": "整合雙北藥局清冊，標記健保特約與否，並計算各行政區每萬人藥局可及性指標。",
+    "etl_description": "merge 3 sources → standardize columns → validate coordinates → dedup → compute pharmacy_per_10k",
+    "sensitivity": "public",
+    "output_schema": {
+      "data_time":         "timestamp — 資料時間",
+      "id":                "integer — 流水號",
+      "name":              "text — 藥局名稱",
+      "address":           "text — 地址",
+      "telephone":         "text — 電話",
+      "longitude":         "float — 經度 (WGS84)",
+      "latitude":          "float — 緯度 (WGS84)",
+      "district":          "text — 行政區",
+      "city":              "text — 城市 (臺北市 / 新北市)",
+      "nhi":               "boolean — 是否為健保特約藥局",
+      "pharmacy_per_10k":  "float — 所在行政區每萬人藥局數"
+    }
+  }
+}
