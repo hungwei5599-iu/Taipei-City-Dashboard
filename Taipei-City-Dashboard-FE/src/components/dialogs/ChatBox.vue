@@ -162,7 +162,16 @@ watch(
               v-if="chat.content"
               class="message--bubble"
             >
-              <p>{{ chat.content }}</p>
+              <!-- eslint-disable vue/no-v-html -->
+              <div
+                v-if="chat.html || chat.guidePayload?.html"
+                class="message--html"
+                v-html="chat.html || chat.guidePayload.html"
+              />
+              <!-- eslint-enable vue/no-v-html -->
+              <p v-else>
+                {{ chat.content }}
+              </p>
             </div>
             <div
               v-if="chat.guidePayload"
@@ -563,6 +572,94 @@ $radius-20: 20px;
 							padding-left: 16px;
 							padding-right: 16px;
 							font-size: 16px;
+						}
+					}
+
+					.message--html {
+						padding: 12px 14px;
+						color: $white;
+						font-size: 14px;
+						line-height: 1.6;
+
+						:deep(.guide-html-card),
+						:deep(.guide-html-core) {
+							display: grid;
+							gap: 10px;
+						}
+
+						:deep(.guide-html-eyebrow) {
+							color: #7ccf8a;
+							font-size: 12px;
+							font-weight: 700;
+						}
+
+						:deep(h4) {
+							margin: 0;
+							font-size: 18px;
+							line-height: 1.3;
+						}
+
+						:deep(p) {
+							margin: 0;
+							padding: 0;
+							font-size: 14px;
+						}
+
+						:deep(.guide-html-metrics) {
+							display: grid;
+							grid-template-columns: repeat(3, minmax(0, 1fr));
+							gap: 8px;
+						}
+
+						:deep(.guide-html-metrics div) {
+							border: 1px solid rgba(255, 255, 255, 0.12);
+							border-radius: 8px;
+							background: rgba(255, 255, 255, 0.05);
+							padding: 8px;
+							min-width: 0;
+						}
+
+						:deep(.guide-html-metrics span) {
+							display: block;
+							color: #ababab;
+							font-size: 11px;
+							margin-bottom: 4px;
+						}
+
+						:deep(.guide-html-metrics strong) {
+							font-size: 15px;
+						}
+
+						:deep(.guide-html-table) {
+							width: 100%;
+							border-collapse: collapse;
+							font-size: 12px;
+						}
+
+						:deep(.guide-html-table th),
+						:deep(.guide-html-table td) {
+							border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+							padding: 6px 4px;
+							text-align: left;
+						}
+
+						:deep(.guide-html-table th) {
+							color: #ababab;
+							font-weight: 700;
+						}
+
+						:deep(.guide-html-action) {
+							display: inline-flex;
+							align-items: center;
+							width: fit-content;
+							border: 1px solid rgba(57, 194, 215, 0.5);
+							border-radius: 8px;
+							color: #061014;
+							background: #39c2d7;
+							padding: 7px 10px;
+							font-size: 13px;
+							font-weight: 700;
+							text-decoration: none;
 						}
 					}
 

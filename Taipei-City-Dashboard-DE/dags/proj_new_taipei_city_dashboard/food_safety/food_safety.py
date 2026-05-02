@@ -33,6 +33,10 @@ from datetime import datetime
 from pathlib import Path
 import sys
 
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
 from utils.extract_utils import (
     extract_data_taipei_csv,
     extract_ntpc,
@@ -43,13 +47,14 @@ from utils.load_utils import (
 	load_csv,
 	load_to_db,
 )
+
 # 臺北市食品衛生查驗的特殊 extract（tsis.dbas.gov.taipei，兩段 URL CSV）
 from utils.utils_extract_d2 import extract_taipei_food_inspection
 
 
 # ── 讀取 job_config_D2.json ────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_HERE, "job_config_D2.json"), encoding="utf-8") as f:
+with open(os.path.join(_HERE, "job_config.json"), encoding="utf-8") as f:
     _JOB = json.load(f)
 
 DAG_INFOS    = _JOB["dag_infos"]
@@ -84,22 +89,26 @@ _TP_REASON_MAP = {
 # Step 1 — Extract
 # 兩個來源互相獨立，無前置依賴
 # ─────────────────────────────────────────────────────────────
-
 def step_extract() -> dict[str, pd.DataFrame]:
+    """
+    1a. 臺北市 — tsis.dbas.gov.taipei 自訂 CSV（兩段 URL 合併）
+        使用 utils_extract_d2.extract_taipei_food_inspection()
+    1b. 新北市 — 標準 data.ntpc API
+    兩者互相獨立。
+    """
     print("[Step 1] Extract 開始（兩來源獨立擷取）")
-
-    # 1a. 臺北市 CSV（data.taipei，page_id 查 CSV 資源再下載）
-    tp_df   = extract_data_taipei_csv(page_id=TP_PAGE_ID)
-
-    # 1b. 新北市 API
-    ntpc_df = extract_ntpc(NTPC_ID)
-
-    raw = {"臺北市食品衛生管理查驗工作": tp_df, "市售食品抽驗合格率": ntpc_df}
+ 
+    tp_df   = extract_taipei_food_inspection()   # 1a. 臺北市（特殊來源）
+    ntpc_df = extract_ntpc(NTPC_ID)              # 1b. 新北市（標準 ntpc）
+ 
+    raw = {
+        "臺北市食品衛生管理查驗工作": tp_df,
+        "市售食品抽驗合格率":         ntpc_df,
+    }
     for name, df in raw.items():
         print(f"  [{name}] {len(df)} 筆")
     print("[Step 1] Extract 完成\n")
     return raw
-
 
 # ─────────────────────────────────────────────────────────────
 # Step 2 — Transform
