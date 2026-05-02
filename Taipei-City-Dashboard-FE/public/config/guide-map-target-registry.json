@@ -1,0 +1,346 @@
+[
+	{
+		"id": "emergency_access",
+		"moduleKey": "emergency",
+		"title": "急診",
+		"componentIndex": "hackathon_component_9_er_overview",
+		"componentName": "急診壅塞概況",
+		"componentIndexes": [
+			"hackathon_component_9_er_overview",
+			"hackathon_component_9_flood_risk_ready"
+		],
+		"keywords": [
+			"急診",
+			"急救",
+			"醫院",
+			"emergency",
+			"er"
+		],
+		"mapConfig": [
+			{
+				"index": "hackathon_component_9_er_overview",
+				"type": "circle",
+				"city": "metrotaipei",
+				"source": "geojson",
+				"title": "ER overview",
+				"property": [
+					{
+						"key": "hospital_name",
+						"name": "Hospital"
+					},
+					{
+						"key": "patient_count",
+						"name": "Patient count"
+					},
+					{
+						"key": "waiting_time",
+						"name": "Waiting time"
+					},
+					{
+						"key": "data_time",
+						"name": "Data time"
+					}
+				],
+				"paint": {
+					"circle-color": [
+						"step",
+						[
+							"coalesce",
+							[
+								"to-number",
+								[
+									"get",
+									"waiting_time"
+								]
+							],
+							0
+						],
+						"#22c55e",
+						10,
+						"#facc15",
+						20,
+						"#fb923c",
+						40,
+						"#ef4444"
+					],
+					"circle-opacity": 0.7,
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 1
+				}
+			},
+			{
+				"index": "hackathon_component_9_flood_risk_ready",
+				"type": "circle",
+				"city": "metrotaipei",
+				"source": "geojson",
+				"title": "急診即時壅塞",
+				"property": [
+					{
+						"key": "hospital_name",
+						"name": "醫院"
+					},
+					{
+						"key": "patient_count",
+						"name": "候診人數"
+					},
+					{
+						"key": "waiting_time",
+						"name": "等待時間"
+					},
+					{
+						"key": "data_time",
+						"name": "資料時間"
+					}
+				],
+				"paint": {
+					"circle-color": [
+						"step",
+						[
+							"coalesce",
+							[
+								"to-number",
+								[
+									"get",
+									"patient_count"
+								]
+							],
+							0
+						],
+						"#22c55e",
+						1,
+						"#facc15",
+						3,
+						"#fb923c",
+						6,
+						"#ef4444"
+					],
+					"circle-radius": [
+						"interpolate",
+						[
+							"linear"
+						],
+						[
+							"coalesce",
+							[
+								"to-number",
+								[
+									"get",
+									"patient_count"
+								]
+							],
+							0
+						],
+						0,
+						6,
+						1,
+						8,
+						5,
+						16
+					],
+					"circle-opacity": 0.8,
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 1
+				}
+			}
+		],
+		"featureFilter": {
+			"key": "patient_count",
+			"operator": "==",
+			"value": 0
+		},
+		"referencePoint": {
+			"name": "taipei_main_station_fallback",
+			"coordinates": [
+				121.5175,
+				25.0478
+			]
+		},
+		"dataSemantics": {
+			"primaryNameKey": "hospital_name",
+			"sortableMetrics": [
+				"patient_count",
+				"waiting_time",
+				"bed_utilization"
+			]
+		},
+		"zoom": 14
+	},
+	{
+		"id": "pharmacy_access",
+		"moduleKey": "pharmacy",
+		"title": "藥局",
+		"componentIndex": "hackathon_component_7_pharmacy_map",
+		"componentName": "藥局分布",
+		"componentIndexes": [
+			"hackathon_component_7_pharmacy_map",
+			"hackathon_component_7_pharmacy_map_ready"
+		],
+		"keywords": [
+			"藥局",
+			"藥房",
+			"pharmacy"
+		],
+		"mapConfig": [
+			{
+				"index": "hackathon_component_7_pharmacy_density_by_town",
+				"type": "fill",
+				"city": "metrotaipei",
+				"source": "geojson",
+				"role": "area",
+				"title": "Pharmacy density by district",
+				"property": [
+					{
+						"key": "district",
+						"name": "District"
+					},
+					{
+						"key": "pharmacy_count",
+						"name": "Pharmacy count"
+					},
+					{
+						"key": "pharmacy_per_10k",
+						"name": "Pharmacies per 10k"
+					},
+					{
+						"key": "data_time",
+						"name": "Data time"
+					}
+				],
+				"paint": {
+					"fill-color": [
+						"step",
+						[
+							"coalesce",
+							[
+								"to-number",
+								[
+									"get",
+									"pharmacy_per_10k"
+								]
+							],
+							0
+						],
+						"#ef4444",
+						2,
+						"#fb923c",
+						3,
+						"#facc15",
+						5,
+						"#22c55e"
+					],
+					"fill-opacity": 0.38,
+					"fill-outline-color": "#ffffff"
+				}
+			},
+			{
+				"index": "hackathon_component_7_pharmacy_map",
+				"type": "circle",
+				"city": "metrotaipei",
+				"source": "geojson",
+				"title": "Pharmacy map",
+				"property": [
+					{
+						"key": "name",
+						"name": "Pharmacy"
+					},
+					{
+						"key": "address",
+						"name": "Address"
+					},
+					{
+						"key": "telephone",
+						"name": "Phone"
+					},
+					{
+						"key": "pharmacy_per_10k",
+						"name": "Pharmacies per 10k"
+					},
+					{
+						"key": "data_time",
+						"name": "Data time"
+					}
+				],
+				"paint": {
+					"circle-color": "#38bdf8",
+					"circle-opacity": 0.55,
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 1
+				},
+				"role": "context"
+			},
+			{
+				"index": "hackathon_component_7_pharmacy_map_ready",
+				"type": "circle",
+				"city": "metrotaipei",
+				"source": "geojson",
+				"title": "藥局分布",
+				"property": [
+					{
+						"key": "name",
+						"name": "藥局"
+					},
+					{
+						"key": "address",
+						"name": "地址"
+					},
+					{
+						"key": "telephone",
+						"name": "電話"
+					},
+					{
+						"key": "pharmacy_per_10k",
+						"name": "每萬人藥局數"
+					},
+					{
+						"key": "data_time",
+						"name": "資料時間"
+					}
+				],
+				"paint": {
+					"circle-color": [
+						"step",
+						[
+							"coalesce",
+							[
+								"to-number",
+								[
+									"get",
+									"pharmacy_per_10k"
+								]
+							],
+							0
+						],
+						"#ef4444",
+						2,
+						"#fb923c",
+						3,
+						"#facc15",
+						5,
+						"#22c55e"
+					],
+					"circle-opacity": 0.75,
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 1
+				},
+				"role": "focus"
+			}
+		],
+		"referencePoint": {
+			"name": "taipei_main_station_fallback",
+			"coordinates": [
+				121.5175,
+				25.0478
+			]
+		},
+		"dataSemantics": {
+			"primaryNameKey": "name",
+			"sortableMetrics": [
+				"pharmacy_per_10k"
+			]
+		},
+		"zoom": 15,
+		"focusMode": "point",
+		"focusLayerIndex": "hackathon_component_7_pharmacy_map_ready",
+		"areaLayerIndex": "hackathon_component_7_pharmacy_density_by_town"
+	}
+]
