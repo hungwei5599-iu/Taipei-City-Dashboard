@@ -75,10 +75,12 @@ services:
       TWCC_TIMEOUT: ${TWCC_TIMEOUT}
       TWCC_MAX_RETRY: ${TWCC_MAX_RETRY}
       TWCC_MAX_CONCURRENT: ${TWCC_MAX_CONCURRENT}
+      MAPDATA_DIR: ${MAPDATA_DIR:-/opt/Taipei-City-Dashboard-FE/public/mapData}
       GOPROXY: ${GOPROXY:-https://goproxy.io,direct}
       GOSUMDB: ${GOSUMDB:-off}
     volumes:
       - ../Taipei-City-Dashboard-BE:/opt/Taipei-City-Dashboard-BE
+      - ../Taipei-City-Dashboard-FE/public/mapData:/opt/Taipei-City-Dashboard-FE/public/mapData:ro
     working_dir: /opt/Taipei-City-Dashboard-BE
     ports:
       - "8088:${PORT:-8080}"
