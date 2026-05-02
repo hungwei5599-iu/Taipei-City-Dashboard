@@ -24,6 +24,7 @@ import MetroChart from "./components/MetroChart.vue";
 import HeatmapChart from "./components/HeatmapChart.vue";
 import PolarAreaChart from "./components/PolarAreaChart.vue";
 import ColumnLineChart from "./components/ColumnLineChart.vue";
+import CategoryColumnLineChart from "./components/CategoryColumnLineChart.vue";
 import BarChartWithGoal from "./components/BarChartWithGoal.vue";
 import IconPercentChart from "./components/IconPercentChart.vue";
 import IndicatorChart from "./components/IndicatorChart.vue";
@@ -218,6 +219,8 @@ function returnChartComponent(name, svg) {
 		return svg ? HeatmapChartSvg : HeatmapChart;
 	case "ColumnLineChart":
 		return svg ? ColumnLineChartSvg : ColumnLineChart;
+	case "CategoryColumnLineChart":
+		return svg ? ColumnLineChartSvg : CategoryColumnLineChart;
 	case "BarChartWithGoal":
 		return svg ? BarChartWithGoalSvg : BarChartWithGoal;
 	case "IndicatorChart":
