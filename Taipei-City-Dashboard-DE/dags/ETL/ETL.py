@@ -24,9 +24,15 @@ import json
 from datetime import datetime
 import os
 import argparse
+from copy import deepcopy
 
 
-from transform_utils import TAIPEI_TZ, get_source_last_modified, transform_single
+from transform_utils import (
+    TAIPEI_TZ,
+    add_point_wkbgeometry_column_to_df,
+    get_source_last_modified,
+    transform_single,
+)
 
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _DE_ROOT     = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -39,6 +45,13 @@ def _load_configs() -> tuple[dict, str]:
     with open(_CONFIG_PATH, encoding="utf-8") as f:
         raw = json.load(f)
     default = raw.pop("_default", "")
+    for key, cfg in list(raw.items()):
+        alias_of = cfg.get("alias_of")
+        if alias_of:
+            base = deepcopy(raw[alias_of])
+            base.update(cfg)
+            base.pop("alias_of", None)
+            raw[key] = base
     for cfg in raw.values():
         cfg["output_dir"] = OUTPUT_DIR
     if not default or default not in raw:
@@ -290,20 +303,73 @@ def extract_api(
 # ─────────────────────────────────────────────
 def transform(raw: dict[str, pd.DataFrame], data_time: str, config: dict) -> pd.DataFrame:
     """
-    依 dag_id 尋找 transforms/{dag_id}.py。
-    找到則呼叫其 transform(raw, data_time, config, dataset_configs)。
+    依 transform_module 或 dag_id 尋找 transforms/{module}.py。
+    找到則呼叫其 transform(raw, data_time, config=config, dataset_configs=DATASET_CONFIGS)。
     找不到則以 transform_single 通用清洗。
     """
-    dag_id = config["dag_id"]
+    module_name = config.get("transform_module") or config["dag_id"]
     try:
-        mod = importlib.import_module(f"transforms.{dag_id}")
+        mod = importlib.import_module(f"transforms.{module_name}")
         try:
-            return mod.transform(raw, data_time, config, DATASET_CONFIGS)
+            return mod.transform(
+                raw,
+                data_time,
+                config=config,
+                dataset_configs=DATASET_CONFIGS,
+            )
         except TypeError:
             return mod.transform(raw, data_time)
     except ModuleNotFoundError:
         df = next(iter(raw.values()))
         return transform_single(df, data_time, config)
+
+
+def add_wkb_geometry_if_possible(df: pd.DataFrame, config: dict) -> pd.DataFrame:
+    """
+    對齊 DAG 的 ready-data 習慣：若輸出資料有經緯度但尚無 wkb_geometry，
+    自動產生 EPSG:4326 point geometry 欄位。
+    """
+    if df.empty or "wkb_geometry" in df.columns:
+        return df
+
+    lon_candidates = config.get("longitude_cols", ["longitude", "lng", "lon", "經度", "x"])
+    lat_candidates = config.get("latitude_cols", ["latitude", "lat", "緯度", "y"])
+    lower_cols = {c.lower(): c for c in df.columns}
+
+    lon_col = next((lower_cols[c.lower()] for c in lon_candidates if c.lower() in lower_cols), None)
+    lat_col = next((lower_cols[c.lower()] for c in lat_candidates if c.lower() in lower_cols), None)
+    if not lon_col or not lat_col:
+        return df
+
+    gdf = add_point_wkbgeometry_column_to_df(
+        df,
+        x=df[lon_col],
+        y=df[lat_col],
+        from_crs=config.get("from_crs", 4326),
+    )
+    return pd.DataFrame(gdf.drop(columns=["geometry"], errors="ignore"))
+
+
+def normalize_output_tables(result, config: dict) -> tuple[tuple[pd.DataFrame, ...], list[str]]:
+    """統一處理單表或多表輸出，並檢查 output_tables 設定。"""
+    if isinstance(result, tuple):
+        dfs = result
+        output_tables = config.get("output_tables") or []
+        if isinstance(output_tables, str):
+            output_tables = [output_tables]
+        if not output_tables:
+            base = config["output_table"]
+            output_tables = [
+                base.replace("_map_ready", "_stats_ready") if "_map_ready" in base else f"{base}_stats",
+                base,
+            ]
+        if len(output_tables) != len(dfs):
+            raise ValueError(
+                f"output_tables 數量 ({len(output_tables)}) 與 transform 輸出數量 ({len(dfs)}) 不一致。"
+            )
+        return dfs, output_tables
+
+    return (result,), [config["output_table"]]
 
 
 # ─────────────────────────────────────────────
@@ -322,7 +388,13 @@ def load(df: pd.DataFrame, output_dir: str, table_name: str) -> str:
 # ─────────────────────────────────────────────
 # 3b. Load — PostgreSQL
 # ─────────────────────────────────────────────
-def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
+def load_to_db(
+    df: pd.DataFrame,
+    table_name: str,
+    db_url: str = None,
+    load_behavior: str = "replace",
+    history_table: str = None,
+) -> None:
     """
     將 DataFrame 寫入 PostgreSQL。
     修正重點：
@@ -343,7 +415,7 @@ def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
     if db_url is None:
         user = os.environ.get("DB_DASHBOARD_USER", "postgres")
         pwd  = os.environ.get("DB_DASHBOARD_PASSWORD", "postgres")
-        host = os.environ.get("DB_DASHBOARD_HOST", "localhost")
+        host = os.environ.get("DB_DASHBOARD_HOST", "192.168.8.80")
         port = os.environ.get("DB_DASHBOARD_PORT", "5433")
         db   = os.environ.get("DB_DASHBOARD_DBNAME", "dashboard")
         db_url = f"postgresql+pg8000://{user}:{pwd}@{host}:{port}/{db}"
@@ -363,16 +435,49 @@ def load_to_db(df: pd.DataFrame, table_name: str, db_url: str = None) -> None:
         if "data_time" in write_df.columns:
             dtype_map["data_time"] = Text()
 
-        # ── 修正 3：replace 模式（重建表結構）──
-        write_df.to_sql(
-            table_name,
-            engine,
-            if_exists="replace",
-            index=False,
-            method="multi",
-            chunksize=500,
-            dtype=dtype_map if dtype_map else None,
-        )
+        if load_behavior == "append":
+            write_df.to_sql(
+                table_name,
+                engine,
+                if_exists="append",
+                index=False,
+                method="multi",
+                chunksize=500,
+                dtype=dtype_map if dtype_map else None,
+            )
+        elif load_behavior == "replace":
+            write_df.to_sql(
+                table_name,
+                engine,
+                if_exists="replace",
+                index=False,
+                method="multi",
+                chunksize=500,
+                dtype=dtype_map if dtype_map else None,
+            )
+        elif load_behavior == "current+history":
+            if not history_table:
+                raise ValueError("load_behavior=current+history 時必須設定 history_table。")
+            write_df.to_sql(
+                table_name,
+                engine,
+                if_exists="replace",
+                index=False,
+                method="multi",
+                chunksize=500,
+                dtype=dtype_map if dtype_map else None,
+            )
+            write_df.to_sql(
+                history_table,
+                engine,
+                if_exists="append",
+                index=False,
+                method="multi",
+                chunksize=500,
+                dtype=dtype_map if dtype_map else None,
+            )
+        else:
+            raise ValueError("load_behavior 必須是 append、replace 或 current+history。")
         print(f"[LoadDB] 已寫入 {len(write_df)} 筆 → PostgreSQL 表：{table_name}")
 
         # ── 更新 dataset_info（表不存在時略過）──
@@ -446,30 +551,21 @@ def main(config: dict):
         data_time = get_source_last_modified(config.get("PAGE_ID", ""))
 
     result = transform(raw, data_time, config)
-
-    # 處理 transform 可能回傳 tuple（多張表）或單一 DataFrame
-    if isinstance(result, tuple):
-        dfs = result
-        # 多張表時，使用 output_tables（陣列）或自動生成表名
-        output_tables = config.get("output_tables", [])
-        if not output_tables:
-            # 自動生成表名：用 _stats 和 _map 後綴
-            base = config["output_table"]
-            output_tables = [
-                base.replace("_map_ready", "_stats_ready") if "_map_ready" in base else f"{base}_stats",
-                base
-            ]
-    else:
-        dfs = (result,)
-        output_tables = [config["output_table"]]
+    dfs, output_tables = normalize_output_tables(result, config)
 
     for ready_df, table_name in zip(dfs, output_tables):
+        ready_df = add_wkb_geometry_if_possible(ready_df, config)
         output_path = load(ready_df, config["output_dir"], table_name)
         update_meta(ready_df, output_path, config)
 
         # hackathon 組件自動寫入 DB
         if table_name.startswith("hackathon_"):
-            load_to_db(ready_df, table_name)
+            load_to_db(
+                ready_df,
+                table_name,
+                load_behavior=config.get("load_behavior", "replace"),
+                history_table=config.get("history_table"),
+            )
 
     print("=" * 50)
     print("ETL 完成")
