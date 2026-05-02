@@ -69,31 +69,6 @@ function normalizeAiGuideArray(value) {
 	}
 }
 
-const LOCAL_GEOJSON_FALLBACKS = {
-	Component2_er_ready: ["hackathon_component_9_er_overview"],
-	hackathon_component_9_er_overview: ["hackathon_component_9_er_overview"],
-	Component3_pharmacy_map_ready: [
-		"hackathon_component_7_pharmacy_map_ready",
-		"hackathon_component_7_pharmacy_map",
-	],
-	hackathon_component_7_pharmacy_map_ready: [
-		"hackathon_component_7_pharmacy_map_ready",
-		"hackathon_component_7_pharmacy_map",
-	],
-	hackathon_component_7_pharmacy_map: [
-		"hackathon_component_7_pharmacy_map",
-		"hackathon_component_7_pharmacy_map_ready",
-	],
-	Component4_water_quality_ready: ["hackathon_component_10_water_quality_ready"],
-	hackathon_component_10_water_quality_ready: ["hackathon_component_10_water_quality_ready"],
-	Component5_env_protect_restaurant_ready: [
-		"hackathon_c11_env_protect_restaurant_ready",
-	],
-	hackathon_c11_env_protect_restaurant_ready: [
-		"hackathon_c11_env_protect_restaurant_ready",
-	],
-};
-
 export const useMapStore = defineStore("map", {
 	state: () => ({
 		// Array of layer IDs that are in the map
@@ -368,9 +343,13 @@ export const useMapStore = defineStore("map", {
 				"youbike_elec",
 			];
 			images.forEach((element) => {
-				this.ensureMapImageLoaded(element).catch((error) => {
-					console.error("[map-debug] preload image failed", element, error);
-				});
+				this.map.loadImage(
+					`/images/map/${element}.png`,
+					(error, image) => {
+						if (error) throw error;
+						this.map.addImage(element, image);
+					},
+				);
 			});
 			// 預載 3D 模型給 3D Mrt Map
 			const models = [
@@ -477,46 +456,6 @@ export const useMapStore = defineStore("map", {
 				console.error("Geolocation is not supported by this browser.");
 			}
 		},
-		requestUserLocation(payload = {}) {
-			if (this.geoLocateControl?.trigger) {
-				try {
-					this.geoLocateControl.trigger();
-				} catch (error) {
-					console.warn("[ai-guide] failed to trigger geolocate control", error);
-				}
-			}
-
-			if (!navigator.geolocation) {
-				console.error("Geolocation is not supported by this browser.");
-				return false;
-			}
-
-			navigator.geolocation.getCurrentPosition(
-				(position) => {
-					const location = {
-						latitude: position.coords.latitude,
-						longitude: position.coords.longitude,
-					};
-					this.setUserLocation(location);
-					if (payload.flyTo !== false && this.map) {
-						this.map.flyTo({
-							center: [location.longitude, location.latitude],
-							zoom: payload.zoom ?? 14.5,
-							duration: payload.duration ?? 800,
-						});
-					}
-				},
-				(error) => {
-					console.error(error.message);
-				},
-				{
-					enableHighAccuracy: true,
-					maximumAge: payload.maximumAge ?? 30000,
-					timeout: payload.timeout ?? 8000,
-				},
-			);
-			return true;
-		},
 
 		/* Adding Map Layers */
 		getMapLayerIds(map_config = []) {
@@ -560,9 +499,6 @@ export const useMapStore = defineStore("map", {
 			this.clearByParamFilter(map_config);
 			this.turnOffMapLayerVisibility(map_config);
 		},
-		openComponentLayer(map_config = []) {
-			this.openMapConfig(map_config);
-		},
 		openGuideComponent(payload) {
 			this.guideActiveComponent = payload || null;
 			this.guideActiveComponentIndex = payload?.componentIndex || null;
@@ -570,8 +506,15 @@ export const useMapStore = defineStore("map", {
 		},
 		// 1. Passes in the map_config (an Array of Objects) of a component and adds all layers to the map layer list
 		addToMapLayerList(map_config) {
+			console.log("[map-debug] addToMapLayerList", map_config);
 			map_config.forEach((element) => {
 				let mapLayerId = `${element.index}-${element.type}-${element.city}`;
+				console.log("[map-debug] layer candidate", {
+					mapLayerId,
+					element,
+					hasMap: !!this.map,
+					currentLayers: this.currentLayers,
+				});
 				// 1-1. If the layer exists, simply turn on the visibility and add it to the visible layers list
 				if (
 					this.currentLayers.find((element) => element === mapLayerId)
@@ -600,29 +543,9 @@ export const useMapStore = defineStore("map", {
 		},
 		// 2. Call an API to get the layer data
 		fetchLocalGeoJson(map_config) {
-			const candidates = [
-				map_config.index,
-				...(LOCAL_GEOJSON_FALLBACKS[map_config.index] || []),
-			].filter(Boolean);
-			const loadCandidate = async () => {
-				let lastError = null;
-				for (const index of [...new Set(candidates)]) {
-					try {
-						const rs = await axios.get(`/mapData/${index}.geojson`);
-						if (
-							typeof rs.data === "string" &&
-							rs.data.trim().startsWith("<!DOCTYPE")
-						) {
-							throw new Error(`GeoJSON file not found: ${index}`);
-						}
-						return rs;
-					} catch (error) {
-						lastError = error;
-					}
-				}
-				throw lastError || new Error(`GeoJSON file not found: ${map_config.index}`);
-			};
-			loadCandidate()
+			console.log("[map-debug] fetchLocalGeoJson", `/mapData/${map_config.index}.geojson`, map_config);
+			axios
+				.get(`/mapData/${map_config.index}.geojson`)
 				.then((rs) => {
 					const geojson =
 						typeof rs.data === "string"
@@ -636,6 +559,13 @@ export const useMapStore = defineStore("map", {
 							`Invalid GeoJSON for ${map_config.index}`,
 						);
 					}
+					console.log("[map-debug] geojson loaded", {
+						layerId: map_config.layerId,
+						responseType: typeof rs.data,
+						type: geojson?.type,
+						featureCount: geojson?.features?.length,
+						firstFeature: geojson?.features?.[0],
+					});
 					this.addGeojsonSource(map_config, geojson);
 				})
 				.catch((e) => {
@@ -647,6 +577,7 @@ export const useMapStore = defineStore("map", {
 		},
 		// 3-1. Add a local geojson as a source in mapbox
 		addGeojsonSource(map_config, data) {
+			console.log("[map-debug] addGeojsonSource", map_config);
 			if (
 				!["voronoi", "isoline"].includes(map_config.type) &&
 				map_config.type !== "symbol-3d"
@@ -656,6 +587,7 @@ export const useMapStore = defineStore("map", {
 						type: "geojson",
 						data,
 					});
+					console.log("[map-debug] source added", `${map_config.layerId}-source`);
 				} catch (error) {
 					console.error("[map-debug] addSource failed", error);
 				}
@@ -795,36 +727,10 @@ export const useMapStore = defineStore("map", {
 				}
 			}
 		},
-		ensureMapImageLoaded(imageName) {
-			return new Promise((resolve, reject) => {
-				if (!imageName) {
-					resolve();
-					return;
-				}
-				if (this.map.hasImage(imageName)) {
-					resolve();
-					return;
-				}
-				this.map.loadImage(`/images/map/${imageName}.png`, (error, image) => {
-					if (error) {
-						reject(error);
-						return;
-					}
-					if (!this.map.hasImage(imageName)) {
-						this.map.addImage(imageName, image);
-					}
-					resolve();
-				});
-			});
-		},
 		// 4-1. Using the mapbox source and map config, create a new layer
 		// The styles and configs can be edited in /assets/configs/mapbox/mapConfig.js
-<<<<<<< HEAD
-		async addMapLayer(map_config) {
-			console.log("[map-debug] addMapLayer start", map_config);
-=======
 		addMapLayer(map_config) {
->>>>>>> faker2
+			console.log("[map-debug] addMapLayer start", map_config);
 			let extra_paint_configs = {};
 			let extra_layout_configs = {};
 			if (map_config.icon) {
@@ -887,15 +793,13 @@ export const useMapStore = defineStore("map", {
 			) {
 				config.filter = initialFilter;
 			}
+			console.log("[map-debug] addLayer config", config);
 			try {
-				if (
-					config.type === "symbol" &&
-					config.layout &&
-					config.layout["icon-image"]
-				) {
-					await this.ensureMapImageLoaded(config.layout["icon-image"]);
-				}
 				this.map.addLayer(config);
+				console.log("[map-debug] layer added", config.id, {
+					hasLayer: !!this.map.getLayer(config.id),
+					hasSource: !!this.map.getSource(`${map_config.layerId}-source`),
+				});
 			} catch (error) {
 				console.error("[map-debug] addLayer failed", error);
 				this.loadingLayers = this.loadingLayers.filter(
@@ -2528,14 +2432,6 @@ export const useMapStore = defineStore("map", {
 				duration: 1000,
 			});
 		},
-		executeAiMapCommands(actions = []) {
-			if (!Array.isArray(actions)) return false;
-			if (!this.map?.isStyleLoaded?.()) {
-				this.queueAiGuideRun(actions);
-				return true;
-			}
-			return this.dispatchAiGuideActions(actions);
-		},
 		dispatchAiGuideAction(action) {
 			if (!action?.type) return false;
 
@@ -2549,9 +2445,6 @@ export const useMapStore = defineStore("map", {
 				if (!this.map) return false;
 				this.clearAiGuideOverlay();
 				return true;
-			case "map.request_user_location":
-				if (!this.map) return false;
-				return this.requestUserLocation(action.payload || {});
 			case "map.add_points":
 				if (!this.map) return false;
 				this.addAiGuidePoints(action.payload || {});
@@ -2970,7 +2863,6 @@ export const useMapStore = defineStore("map", {
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
 				if (map_config && map_config.type === "arc") {
-					if (!this.deckGlLayer[mapLayerId]) return;
 					this.deckGlLayer[mapLayerId].config.data = this.deckGlLayer[
 						mapLayerId
 					].data.filter((d) => {
@@ -3001,7 +2893,6 @@ export const useMapStore = defineStore("map", {
 					this.renderDeckGLLayer();
 					return;
 				}
-				if (!this.map.getLayer(mapLayerId)) return;
 				// If x and y both exist, filter by both
 				if (
 					map_filter.byParam.xParam &&
@@ -3043,7 +2934,6 @@ export const useMapStore = defineStore("map", {
 			}
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
-				if (!this.map.getLayer(mapLayerId)) return;
 				if (map_config.title !== xParam) {
 					this.map.setLayoutProperty(
 						mapLayerId,
@@ -3068,13 +2958,11 @@ export const useMapStore = defineStore("map", {
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
 				if (map_config && map_config.type === "arc") {
-					if (!this.deckGlLayer[mapLayerId]) return;
 					this.deckGlLayer[mapLayerId].config.data =
 						this.deckGlLayer[mapLayerId].data;
 					this.renderDeckGLLayer();
 					return;
 				}
-				if (!this.map.getLayer(mapLayerId)) return;
 				this.map.setFilter(mapLayerId, null);
 			});
 		},
@@ -3086,7 +2974,6 @@ export const useMapStore = defineStore("map", {
 			}
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
-				if (!this.map.getLayer(mapLayerId)) return;
 				this.map.setLayoutProperty(mapLayerId, "visibility", "visible");
 			});
 		},
