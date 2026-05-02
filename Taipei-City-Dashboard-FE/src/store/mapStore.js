@@ -819,12 +819,7 @@ export const useMapStore = defineStore("map", {
 		},
 		// 4-1. Using the mapbox source and map config, create a new layer
 		// The styles and configs can be edited in /assets/configs/mapbox/mapConfig.js
-<<<<<<< HEAD
 		async addMapLayer(map_config) {
-			console.log("[map-debug] addMapLayer start", map_config);
-=======
-		addMapLayer(map_config) {
->>>>>>> faker2
 			let extra_paint_configs = {};
 			let extra_layout_configs = {};
 			if (map_config.icon) {
