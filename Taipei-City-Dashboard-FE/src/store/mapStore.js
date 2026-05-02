@@ -309,6 +309,9 @@ export const useMapStore = defineStore("map", {
 				"bike_red",
 				"cctv",
 				"hospital",
+				"Pharmacy",
+				"Restaurant",
+				"Water",
 				"live",
 				"youbike_elec",
 			];

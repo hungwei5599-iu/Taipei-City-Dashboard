@@ -3,7 +3,7 @@ BEGIN;
 WITH old_components AS (
   SELECT id::integer AS id
   FROM public.components
-  WHERE index = 'hackathon_component_7_pharmacy_overview'
+  WHERE index = 'hackathon_c12_food_failed_category_overview'
 )
 UPDATE public.dashboards d
 SET components = COALESCE((
@@ -21,52 +21,26 @@ WHERE EXISTS (
 );
 
 DELETE FROM public.query_charts
-WHERE index = 'hackathon_component_7_pharmacy_overview';
+WHERE index = 'hackathon_c12_food_failed_category_overview';
 
 DELETE FROM public.component_charts
-WHERE index = 'hackathon_component_7_pharmacy_overview';
+WHERE index = 'hackathon_c12_food_failed_category_overview';
 
 DELETE FROM public.components
-WHERE index = 'hackathon_component_7_pharmacy_overview';
-
-DELETE FROM public.component_maps
-WHERE index = 'hackathon_component_7_pharmacy_map_ready';
+WHERE index = 'hackathon_c12_food_failed_category_overview';
 
 WITH new_component AS (
   INSERT INTO public.components (index, name)
-  VALUES ('hackathon_component_7_pharmacy_overview', '藥局資源分布概況')
+  VALUES ('hackathon_c12_food_failed_category_overview', '不合格食品類別')
   RETURNING id, index
-),
-new_map AS (
-  INSERT INTO public.component_maps
-    (index, title, type, source, size, icon, paint, property)
-  VALUES (
-    'hackathon_component_7_pharmacy_map_ready',
-    '藥局點位',
-    'symbol',
-    'geojson',
-    NULL,
-    'Pharmacy',
-    '{}'::json,
-    '[
-      {"key":"name","name":"藥局"},
-      {"key":"city","name":"縣市"},
-      {"key":"district","name":"行政區"},
-      {"key":"address","name":"地址"},
-      {"key":"telephone","name":"電話"},
-      {"key":"nhi","name":"健保特約"},
-      {"key":"pharmacy_per_10k","name":"每萬人藥局數"}
-    ]'::json
-  )
-  RETURNING id
 ),
 new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#4CB495', '#2F80ED', '#F5C860'],
-    ARRAY['BarChart', 'ColumnChart'],
-    '家'
+    ARRAY['#F28482', '#F2A65A', '#F5C860', '#7BDCA8', '#5C86F2', '#9C7CF4'],
+    ARRAY['DonutChart', 'BarChart'],
+    '件'
   FROM new_component
 ),
 new_queries AS (
@@ -79,16 +53,16 @@ new_queries AS (
   SELECT
     c.index,
     NULL::json,
-    ARRAY[(SELECT id::integer FROM new_map)],
-    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
-    'current',
-    NULL,
-    10,
-    'minute',
-    '臺北市政府衛生局 / 新北市政府衛生局',
-    '顯示臺北市各行政區藥局數量。',
-    '彙整藥局點位資料，呈現各行政區藥局數量與空間分布，並可連動地圖點位。',
-    '協助民眾快速掌握鄰近藥局資源分布。',
+    NULL::integer[],
+    NULL::json,
+    'static',
+    NULL::text,
+    NULL::integer,
+    NULL::text,
+    '臺北市政府衛生局',
+    '顯示臺北市食品抽驗不合格案件的食品類別分布。',
+    '彙整食品抽驗不合格清冊，依食品類別統計案件數，協助民眾快速掌握較常出現不合格案件的食品種類。',
+    '用於觀察不合格食品類別分布，作為食品安全宣導與稽查重點參考。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
@@ -96,14 +70,13 @@ new_queries AS (
     'two_d',
     $$
       SELECT
-        district AS x_axis,
+        COALESCE(NULLIF(product_category, ''), '未分類') AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public.hackathon_component_7_pharmacy_map_ready
-      WHERE city = '臺北市'
-        AND district IS NOT NULL
-        AND district <> 'unknown'
-      GROUP BY district
-      ORDER BY data DESC, district
+      FROM public."hackathon_c12_Food_samples_failed_inspection_ready"
+      WHERE product_category IS NOT NULL
+      GROUP BY COALESCE(NULLIF(product_category, ''), '未分類')
+      ORDER BY data DESC, x_axis
+      LIMIT 10
     $$,
     NULL::text,
     'taipei'
@@ -114,16 +87,16 @@ new_queries AS (
   SELECT
     c.index,
     NULL::json,
-    ARRAY[(SELECT id::integer FROM new_map)],
-    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
-    'current',
-    NULL,
-    10,
-    'minute',
-    '臺北市政府衛生局 / 新北市政府衛生局',
-    '顯示雙北各行政區藥局數量。',
-    '彙整雙北藥局點位資料，呈現各行政區藥局數量與空間分布，並可連動地圖點位。',
-    '協助民眾比較不同行政區藥局資源密度。',
+    NULL::integer[],
+    NULL::json,
+    'static',
+    NULL::text,
+    NULL::integer,
+    NULL::text,
+    '臺北市政府衛生局',
+    '顯示食品抽驗不合格案件的食品類別分布。',
+    '目前資料來源為臺北市食品抽驗不合格清冊，依食品類別統計案件數。雙北模式下仍呈現目前可用的不合格食品類別資料。',
+    '用於觀察不合格食品類別分布，作為食品安全宣導與稽查重點參考。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
@@ -131,14 +104,13 @@ new_queries AS (
     'two_d',
     $$
       SELECT
-        CONCAT(city, district) AS x_axis,
+        COALESCE(NULLIF(product_category, ''), '未分類') AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public.hackathon_component_7_pharmacy_map_ready
-      WHERE district IS NOT NULL
-        AND district <> 'unknown'
-      GROUP BY city, district
+      FROM public."hackathon_c12_Food_samples_failed_inspection_ready"
+      WHERE product_category IS NOT NULL
+      GROUP BY COALESCE(NULLIF(product_category, ''), '未分類')
       ORDER BY data DESC, x_axis
-      LIMIT 20
+      LIMIT 10
     $$,
     NULL::text,
     'metrotaipei'
@@ -195,12 +167,8 @@ SELECT c.id, c.index, c.name, cc.types, cc.unit, q.city, q.query_type, q.map_con
 FROM public.components c
 JOIN public.component_charts cc ON cc.index = c.index
 JOIN public.query_charts q ON q.index = c.index
-WHERE c.index = 'hackathon_component_7_pharmacy_overview'
+WHERE c.index = 'hackathon_c12_food_failed_category_overview'
 ORDER BY q.city;
-
-SELECT m.id, m.index, m.title, m.type, m.source, m.size, m.icon
-FROM public.component_maps m
-WHERE m.index = 'hackathon_component_7_pharmacy_map_ready';
 
 SELECT d.id, d.index, d.name, d.components, dg.group_id
 FROM public.dashboards d
