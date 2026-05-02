@@ -25,4 +25,3 @@ export const chartTypes: chartType = {
 	TextUnitChart: "文字數值圖", // V
 	ButterflyChart: "蝴蝶圖", // V
 	FoodSafetyPercentChart: "食品抽驗合格率", // V
-};
