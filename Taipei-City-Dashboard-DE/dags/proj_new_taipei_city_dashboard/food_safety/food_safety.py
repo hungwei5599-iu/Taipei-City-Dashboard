@@ -12,8 +12,11 @@ D2 雙北食品抽驗 — 獨立 ETL 腳本
 
 資料來源（merged，兩來源獨立擷取）
 ------------------------------------
-  1. 臺北市食品衛生管理查驗工作  ← data.taipei CSV（page_id）
-  2. 市售食品抽驗合格率          ← data.ntpc API
+  1. 臺北市食品衛生管理查驗工作
+       ← tsis.dbas.gov.taipei 自訂 CSV（兩段 URL）
+       ← 使用 utils_extract_d2.extract_taipei_food_inspection()
+  2. 市售食品抽驗合格率
+       ← data.ntpc API
 
 輸出 Schema
 -----------
@@ -29,29 +32,35 @@ import os
 import re
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
+import sys
 
-from etl_utils import (
-    extract_data_taipei_csv,
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from utils.etl_utils import (
     extract_ntpc,
     load_csv,
-    load_db,
+    load_to_db,
     TAIPEI_TZ,
 )
+# 臺北市食品衛生查驗的特殊 extract（tsis.dbas.gov.taipei，兩段 URL CSV）
+from utils.utils_extract_d2 import extract_taipei_food_inspection
 
-# ── 讀取 job_config_D2.json ────────────────────────────────────
-_HERE = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_HERE, "job_config_D2.json"), encoding="utf-8") as f:
+# ── 讀取 job_config.json ────────────────────────────────────
+_HERE        = os.path.dirname(os.path.abspath(__file__))
+_CONFIG_PATH = os.path.join(_HERE, "job_config.json")
+
+with open(_CONFIG_PATH, encoding="utf-8") as f:
     _JOB = json.load(f)
 
-DAG_INFOS    = _JOB["dag_infos"]
-OUTPUT_TABLE = DAG_INFOS["ready_data_default_table"]
+DAG_INFOS     = _JOB["dag_infos"]
+OUTPUT_TABLE  = DAG_INFOS["ready_data_default_table"]
 LOAD_BEHAVIOR = DAG_INFOS["load_behavior"]
 
 def _cfg(dag_id: str) -> dict:
     return next(s for s in _JOB["data_infos"]["sources"] if s["dag_id"] == dag_id)
 
-TP_PAGE_ID  = _cfg("臺北市食品衛生管理查驗工作")["PAGE_ID"]
-NTPC_ID     = _cfg("市售食品抽驗合格率")["PAGE_ID"]
+NTPC_ID = _cfg("市售食品抽驗合格率")["PAGE_ID"]
 
 # ── 台北市：不符原因欄位對應表 ─────────────────────────────────
 _TP_REASON_MAP = {
@@ -77,15 +86,21 @@ _TP_REASON_MAP = {
 # ─────────────────────────────────────────────────────────────
 
 def step_extract() -> dict[str, pd.DataFrame]:
+    """
+    1a. 臺北市 — tsis.dbas.gov.taipei 自訂 CSV（兩段 URL 合併）
+        使用 utils_extract_d2.extract_taipei_food_inspection()
+    1b. 新北市 — 標準 data.ntpc API
+    兩者互相獨立。
+    """
     print("[Step 1] Extract 開始（兩來源獨立擷取）")
 
-    # 1a. 臺北市 CSV（data.taipei，page_id 查 CSV 資源再下載）
-    tp_df   = extract_data_taipei_csv(page_id=TP_PAGE_ID)
+    tp_df   = extract_taipei_food_inspection()   # 1a. 臺北市（特殊來源）
+    ntpc_df = extract_ntpc(NTPC_ID)              # 1b. 新北市（標準 ntpc）
 
-    # 1b. 新北市 API
-    ntpc_df = extract_ntpc(NTPC_ID)
-
-    raw = {"臺北市食品衛生管理查驗工作": tp_df, "市售食品抽驗合格率": ntpc_df}
+    raw = {
+        "臺北市食品衛生管理查驗工作": tp_df,
+        "市售食品抽驗合格率":         ntpc_df,
+    }
     for name, df in raw.items():
         print(f"  [{name}] {len(df)} 筆")
     print("[Step 1] Extract 完成\n")
@@ -94,7 +109,7 @@ def step_extract() -> dict[str, pd.DataFrame]:
 
 # ─────────────────────────────────────────────────────────────
 # Step 2 — Transform
-# 依賴：step_extract() 輸出（兩子函式可各自獨立處理）
+# 依賴：step_extract() 輸出
 # ─────────────────────────────────────────────────────────────
 
 def _to_float(val):
@@ -110,7 +125,7 @@ def _to_int(val):
 
 
 def _top_reason(row, avail_cols: list) -> str | None:
-    """找件數最多的不符原因。"""
+    """找件數最多的不符原因，回傳中文名稱。"""
     best_label, best_val = None, 0
     for col in avail_cols:
         v = _to_int(row.get(col, 0)) or 0
@@ -123,39 +138,54 @@ def _top_reason(row, avail_cols: list) -> str | None:
 def _parse_taipei(df: pd.DataFrame) -> pd.DataFrame:
     """
     臺北市年度食品抽驗統計。
-    原始資料：row 0 = 最新年（民國114/2025），依序遞減。
+
+    extract_taipei_food_inspection() 已完成：
+      - 「統計期」→「data_time」
+      - 欄位 [件][%] 單位去除、斜線換底線
+    此處直接從 data_time 前 4 碼（如 "8100"）解析民國年 → 西元年。
     """
     print(f"  [臺北市] 原始 {len(df)} 筆")
     df = df.copy()
-    # 推算西元年（row 0 = 2025）
-    df["year"] = [114 - i + 1911 for i in range(len(df))]
-    avail_cols = [c for c in _TP_REASON_MAP if c in df.columns]
+
+    def _roc_to_ad(val):
+        try:
+            s   = str(val).strip()
+            roc = int(s[:2])          # "8100" → 81，"9500" → 95
+            return roc + 1911
+        except Exception:
+            return None
+
+    df["year"]    = df["data_time"].apply(_roc_to_ad)
+    avail_cols    = [c for c in _TP_REASON_MAP if c in df.columns]
 
     rows = []
     for _, r in df.iterrows():
+        year = r.get("year")
+        if year is None:
+            continue
         fail_rate = _to_float(r.get("不符規定比率"))
         pass_rate = round(100 - fail_rate, 4) if fail_rate is not None else None
         total     = _to_int(r.get("查驗件數_總計"))
         failed    = _to_int(r.get("與規定不符件數_總計"))
-        # 若無現成 fail_rate 欄位，自行計算
         if fail_rate is None and total and failed and total > 0:
             fail_rate = round(failed / total * 100, 4)
             pass_rate = round(100 - fail_rate, 4)
         rows.append({
             "city_scope":      "Taipei",
             "city":            "臺北市",
-            "year":            int(r["year"]),
-            "period":          str(int(r["year"])),
+            "year":            int(year),
+            "period":          str(int(year)),
             "total_inspected": total,
             "total_failed":    failed,
             "pass_rate":       pass_rate,
             "fail_rate":       fail_rate,
             "fail_reason":     _top_reason(r, avail_cols),
-            "source_trace":    "data.taipei（臺北市食品衛生管理查驗工作，主計處）",
+            "source_trace":    "tsis.dbas.gov.taipei（臺北市食品衛生管理查驗工作，主計處）",
         })
 
     result = pd.DataFrame(rows)
-    print(f"  → {len(result)} 筆（{result['year'].min()}~{result['year'].max()}）")
+    if not result.empty:
+        print(f"  → {len(result)} 筆（{result['year'].min()}~{result['year'].max()}）")
     return result
 
 
@@ -167,13 +197,13 @@ def _parse_ntpc_quarterly(df: pd.DataFrame) -> pd.DataFrame:
     print(f"  [新北市] 原始 {len(df)} 筆")
     rows = []
     for _, r in df.iterrows():
-        fn = str(r.get("filename", ""))
+        fn  = str(r.get("filename", ""))
         m_y = re.search(r'(\d+)年', fn)
         if not m_y:
             continue
         pass_rate = _to_float(r.get("percent"))
         if pass_rate is None:
-            continue                   # 無合格率就不收
+            continue
         year    = int(m_y.group(1)) + 1911
         m_q     = re.search(r'截至(\d+)月底', fn)
         quarter = (int(m_q.group(1)) - 1) // 3 + 1 if m_q else None
@@ -218,7 +248,7 @@ def step_transform(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
     子流程依賴：
       _parse_taipei()         → 依賴 臺北市 raw df
       _parse_ntpc_quarterly() → 依賴 新北市 raw df
-      concat → 依賴以上兩者完成
+      concat                  → 依賴以上兩者完成
     """
     print("[Step 2] Transform 開始")
 
@@ -229,7 +259,6 @@ def step_transform(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
     final["data_time"] = datetime.now(tz=TAIPEI_TZ).isoformat()
     final["data_mode"] = "real"
 
-    # 最終欄位排序
     col_order = [
         "data_time", "city_scope", "city", "year", "period",
         "total_inspected", "total_failed",
@@ -248,11 +277,10 @@ def step_transform(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
 # 依賴：step_transform() 輸出
 # ─────────────────────────────────────────────────────────────
 
-def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
+def step_load(df: pd.DataFrame, output_dir: str) -> str:
     print("[Step 3] Load 開始")
     filepath = load_csv(df, output_dir, OUTPUT_TABLE)
-    if write_db:
-        load_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
+    load_to_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)  # 無條件寫入
     print("[Step 3] Load 完成\n")
     return filepath
 
@@ -261,28 +289,28 @@ def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
 # 主流程
 # ─────────────────────────────────────────────────────────────
 
-def main(output_dir: str = "./data", write_db: bool = False):
+def main(output_dir: str = "./data"):
     print("=" * 55)
     print(f"ETL 開始：{DAG_INFOS['dag_id']}")
     print("=" * 55)
 
-    raw = step_extract()
-    if all(df.empty for df in raw.values()):
-        print("[ETL] 所有來源無資料，中止。"); return
+    df_raw = step_extract()
+    if not df_raw or all(df.empty for df in df_raw.values()):
+        print("[ETL] Extract 無資料，中止。"); return
 
-    df = step_transform(raw)
+    df = step_transform(df_raw)
     if df.empty:
         print("[ETL] Transform 結果為空，中止。"); return
 
-    step_load(df, output_dir=output_dir, write_db=write_db)
+    step_load(df, output_dir=output_dir)
+
     print("=" * 55)
     print("ETL 完成")
     print("=" * 55)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="D2 雙北食品抽驗 ETL")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="./data")
-    parser.add_argument("--db", action="store_true")
     args = parser.parse_args()
-    main(output_dir=args.output, write_db=args.db)
+    main(output_dir=args.output)
