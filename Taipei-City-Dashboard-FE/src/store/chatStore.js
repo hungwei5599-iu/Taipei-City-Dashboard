@@ -227,19 +227,20 @@ const inferIntentFromQuestion = (question, intent) => {
 		/急診|醫院|待診|候診|藥局|藥房|水質|淨水|環保餐廳|餐廳|pharmacy|hospital|emergency|restaurant/.test(normalized);
 	const asksRanking =
 		/最少|最多|最低|最高|最快|最短|排名|排行|比較|top|lowest|highest/.test(normalized);
+	const effectiveAsksNearby = asksNearby && !asksRanking;
 
-	if (!asksNearby && !(asksMapRelated && asksRanking)) return intent;
+	if (!effectiveAsksNearby && !(asksMapRelated && asksRanking)) return intent;
 
 	return normalizeAiInteractionIntent({
 		...intent,
-		type: asksNearby
+		type: effectiveAsksNearby
 			? AI_INTERACTION_TYPES.NEARBY_LOOKUP
 			: AI_INTERACTION_TYPES.OPEN_MAP,
 		needsMap: true,
-		needsLocation: asksNearby,
+		needsLocation: effectiveAsksNearby,
 		shouldOpenComponent: true,
 		shouldRequestUiActions: true,
-		rankingMetric: asksNearby ? "distance" : intent?.rankingMetric,
+		rankingMetric: effectiveAsksNearby ? "distance" : intent?.rankingMetric,
 		resultLimit: intent?.resultLimit || 5,
 	});
 };
@@ -268,10 +269,20 @@ const escapeGuideHtml = (value) =>
 
 const UNKNOWN_GUIDE_VALUE = "未知";
 
-const getGuideTopic = (question, component) => {
+// eslint-disable-next-line no-unused-vars
+const getGuideTopicLegacy = (question, component) => {
 	const text = `${question || ""} ${component?.name || ""} ${component?.index || ""}`.toLowerCase();
 	if (/急診|醫院|待診|候診|hospital|emergency|er/.test(text)) return "emergency";
 	if (/藥局|藥房|pharmacy/.test(text)) return "pharmacy";
+	if (/環保餐廳|餐廳|restaurant|env_protect/.test(text)) return "restaurant";
+	if (/水質|淨水|飲水|water/.test(text)) return "water";
+	return "map_guide";
+};
+
+const getGuideTopic = (question, component) => {
+	const text = `${question || ""} ${component?.name || ""} ${component?.index || ""}`.toLowerCase();
+	if (/藥局|藥房|pharmacy/.test(text)) return "pharmacy";
+	if (/急診|醫院|待診|候診|hospital|emergency|(^|[^a-z])er([^a-z]|$)/.test(text)) return "emergency";
 	if (/環保餐廳|餐廳|restaurant|env_protect/.test(text)) return "restaurant";
 	if (/水質|淨水|飲水|water/.test(text)) return "water";
 	return "map_guide";
@@ -310,6 +321,13 @@ const buildGuideMetrics = (question, component, item) => {
 	}
 
 	if (topic === "pharmacy") {
+		if (item?.pharmacy_count !== undefined || properties.pharmacy_count !== undefined) {
+			return [
+				{ label: "行政區", value: item?.district || properties.district || properties.TNAME || UNKNOWN_GUIDE_VALUE },
+				{ label: "藥局數", value: item?.pharmacy_count ?? properties.pharmacy_count ?? UNKNOWN_GUIDE_VALUE },
+				{ label: "每萬人藥局數", value: item?.pharmacy_per_10k ?? properties.pharmacy_per_10k ?? UNKNOWN_GUIDE_VALUE },
+			];
+		}
 		return [
 			distance,
 			{ label: "區域", value: pickGuideValue(properties, ["district", "TNAME", "town", "行政區"]) },
@@ -357,7 +375,8 @@ const buildGuideComparisonTable = (question, component, results) => {
 const hasEmergencyTopic = (question, component) =>
 	getGuideTopic(question, component) === "emergency";
 
-const buildGuideAnswer = (question, component, executionResult) => {
+// eslint-disable-next-line no-unused-vars
+const buildGuideAnswerLegacy = (question, component, executionResult) => {
 	if (executionResult?.status !== "ready" || !executionResult?.top_result) return "";
 
 	const componentName = component?.name || executionResult.component_name || "相關地圖";
@@ -391,6 +410,40 @@ const buildGuideAnswer = (question, component, executionResult) => {
 	}
 
 	return answer;
+};
+
+const buildGuideAnswer = (question, component, executionResult) => {
+	if (executionResult?.status !== "ready" || !executionResult?.top_result) return "";
+
+	const componentName = component?.name || executionResult.component_name || "相關地圖";
+	const top = executionResult.top_result;
+	const rankingBasis = executionResult.ranking_basis;
+	const topic = getGuideTopic(question, component);
+	const distanceText = top.distance_text || formatGuideDistance(top.distance_meters);
+
+	if (rankingBasis === "area_count" && topic === "pharmacy") {
+		return `我已開啟「${componentName}」地圖，並框出藥局數最多的行政區。「${top.name}」目前有 ${top.pharmacy_count ?? "未知"} 間藥局${top.pharmacy_per_10k !== undefined ? `，每萬人約 ${top.pharmacy_per_10k} 間` : ""}。`;
+	}
+
+	if (rankingBasis === "area_density" && topic === "pharmacy") {
+		return `我已開啟「${componentName}」地圖，並框出藥局密度最高的行政區。「${top.name}」每萬人約 ${top.pharmacy_per_10k ?? "未知"} 間藥局，藥局數為 ${top.pharmacy_count ?? "未知"} 間。`;
+	}
+
+	if (rankingBasis === "distance") {
+		const waitingText = top.waiting_time !== undefined && top.waiting_time !== null
+			? `，等待時間約 ${top.waiting_time} 分鐘`
+			: "";
+		const patientText = top.patient_count !== undefined && top.patient_count !== null
+			? `，待診人數 ${top.patient_count} 人`
+			: "";
+		let answer = `我已開啟「${componentName}」地圖，並標出候選點。最近的是「${top.name}」${distanceText ? `，距離約 ${distanceText}` : ""}${waitingText}${patientText}。`;
+		if (topic === "emergency") {
+			answer += " 如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。";
+		}
+		return answer;
+	}
+
+	return `我已開啟「${componentName}」地圖，並整理目前最相關的結果：「${top.name}」。`;
 };
 
 // eslint-disable-next-line no-unused-vars

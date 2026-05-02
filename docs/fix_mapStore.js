@@ -368,13 +368,9 @@ export const useMapStore = defineStore("map", {
 				"youbike_elec",
 			];
 			images.forEach((element) => {
-				this.map.loadImage(
-					`/images/map/${element}.png`,
-					(error, image) => {
-						if (error) throw error;
-						this.map.addImage(element, image);
-					},
-				);
+				this.ensureMapImageLoaded(element).catch((error) => {
+					console.error("[map-debug] preload image failed", element, error);
+				});
 			});
 			// 預載 3D 模型給 3D Mrt Map
 			const models = [
@@ -799,9 +795,31 @@ export const useMapStore = defineStore("map", {
 				}
 			}
 		},
+		ensureMapImageLoaded(imageName) {
+			return new Promise((resolve, reject) => {
+				if (!imageName) {
+					resolve();
+					return;
+				}
+				if (this.map.hasImage(imageName)) {
+					resolve();
+					return;
+				}
+				this.map.loadImage(`/images/map/${imageName}.png`, (error, image) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					if (!this.map.hasImage(imageName)) {
+						this.map.addImage(imageName, image);
+					}
+					resolve();
+				});
+			});
+		},
 		// 4-1. Using the mapbox source and map config, create a new layer
 		// The styles and configs can be edited in /assets/configs/mapbox/mapConfig.js
-		addMapLayer(map_config) {
+		async addMapLayer(map_config) {
 			let extra_paint_configs = {};
 			let extra_layout_configs = {};
 			if (map_config.icon) {
@@ -865,6 +883,13 @@ export const useMapStore = defineStore("map", {
 				config.filter = initialFilter;
 			}
 			try {
+				if (
+					config.type === "symbol" &&
+					config.layout &&
+					config.layout["icon-image"]
+				) {
+					await this.ensureMapImageLoaded(config.layout["icon-image"]);
+				}
 				this.map.addLayer(config);
 			} catch (error) {
 				console.error("[map-debug] addLayer failed", error);
