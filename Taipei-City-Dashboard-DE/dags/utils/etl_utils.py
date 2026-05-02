@@ -339,7 +339,7 @@ def load_db(
         h = os.environ.get("DB_DASHBOARD_HOST",     "192.168.8.80")
         o = os.environ.get("DB_DASHBOARD_PORT",     "5433")
         d = os.environ.get("DB_DASHBOARD_DBNAME",   "dashboard")
-        db_url = f"postgresql+pg8000://{u}:{p}@{h}:{o}/{d}"
+        #db_url = f"postgresql+pg8000://{u}:{p}@{h}:{o}/{d}"
 
     engine   = create_engine(db_url, pool_pre_ping=True, echo=False)
     write_df = df.copy()

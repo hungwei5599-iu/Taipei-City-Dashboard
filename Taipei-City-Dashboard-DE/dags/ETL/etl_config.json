@@ -1,5 +1,5 @@
 {
-  "_default": "C11_雙北環保餐廳地圖",
+  "_default": "C12_臺北市衛生局食品抽驗不合格清冊",
   "C1_藝文活動": {
     "dag_id": "C1_藝文活動",
     "output_table": "hackathon_component_1_event_map_ready",
@@ -406,6 +406,44 @@
     "sources": [
       "臺北市環保餐廳",
       "新北市環保餐廳"
+    ]
+  },
+  "臺北市衛生局食品抽驗不合格清冊_111": {
+    "dag_id": "臺北市衛生局食品抽驗不合格清冊_111",
+    "output_table": "臺北市衛生局食品抽驗不合格清冊_111",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "bc24a40f-5687-4338-8f9a-449de248ab93",
+    "PAGE_ID": "09a917a0-0fb5-47e1-957c-5f1268fba517",
+    "year": 111
+  },
+  "臺北市衛生局食品抽驗不合格清冊_112": {
+    "dag_id": "臺北市衛生局食品抽驗不合格清冊_112",
+    "output_table": "臺北市衛生局食品抽驗不合格清冊_112",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "bb347e3d-626a-46e5-bb96-9061e8d08c26",
+    "PAGE_ID": "09a917a0-0fb5-47e1-957c-5f1268fba517",
+    "year": 112
+  },
+  "臺北市衛生局食品抽驗不合格清冊_113": {
+    "dag_id": "臺北市衛生局食品抽驗不合格清冊_113",
+    "output_table": "臺北市衛生局食品抽驗不合格清冊_113",
+    "source_dept": "衛生局",
+    "source_type": "data.taipei API",
+    "RID": "3fc106cb-c8aa-4f74-8dbc-3272c7ffcae0",
+    "PAGE_ID": "09a917a0-0fb5-47e1-957c-5f1268fba517",
+    "year": 113
+  },
+  "C12_臺北市衛生局食品抽驗不合格清冊": {
+    "dag_id": "C12_臺北市衛生局食品抽驗不合格清冊",
+    "output_table": "hackathon_c12_Food_samples_failed_inspection_ready",
+    "source_type": "merged",
+    "transform_module": "c12_food_inspection",
+    "sources": [
+      "臺北市衛生局食品抽驗不合格清冊_111",
+      "臺北市衛生局食品抽驗不合格清冊_112",
+      "臺北市衛生局食品抽驗不合格清冊_113"
     ]
   }
 }

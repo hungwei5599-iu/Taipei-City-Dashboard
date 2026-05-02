@@ -1,0 +1,61 @@
+{
+  "dag_infos": {
+    "dag_id": "D2_雙北食品抽驗",
+    "start_date": "2026-05-02",
+    "schedule_interval": "0 4 1 * *",
+    "catchup": false,
+    "tags": ["hackathon", "D2", "衛生局", "食品抽驗", "food_safety"],
+    "description": "整合臺北市（年度統計）與新北市（季度合格率→年均化）食品抽驗資料，輸出雙軸折線圖所需年度 pass_rate",
+    "default_args": {
+      "owner": "hackathon_de",
+      "email": [],
+      "email_on_retry": false,
+      "email_on_failure": false,
+      "retries": 1,
+      "retry_delay": 60
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "hackathon_component_2_food_safety_ready",
+    "ready_data_history_table": "",
+    "raw_data_db": "postgres_default",
+    "raw_data_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "雙北食品抽驗合格率",
+    "airflow_update_freq": "first day of every month at 04:00",
+    "sources": [
+      {
+        "dag_id": "臺北市食品衛生管理查驗工作",
+        "source_type": "data.taipei CSV",
+        "source_dept": "臺北市主計處",
+        "PAGE_ID": "c3ae074c-f65f-4f69-bf65-2c00a674e870"
+      },
+      {
+        "dag_id": "市售食品抽驗合格率",
+        "source_type": "data.ntpc API",
+        "source_dept": "新北市政府衛生局/食品藥物管理科",
+        "PAGE_ID": "d2d69f7e-e283-406e-859b-e9e5dc98ac50"
+      }
+    ],
+    "gis_format": null,
+    "is_geometry": 0,
+    "dataset_description": "臺北市 1992~2025 年度食品抽驗統計（直接年度）+ 新北市季度合格率年均化，前端用於雙軸折線圖與不合格原因圓餅圖。",
+    "etl_description": "taipei CSV → parse yearly rows → ntpc quarterly → annualize → concat",
+    "sensitivity": "public",
+    "output_schema": {
+      "data_time":       "timestamp — 資料時間",
+      "city_scope":      "text — Taipei / NewTaipei",
+      "city":            "text — 城市名稱",
+      "year":            "integer — 年度",
+      "period":          "text — 顯示用期間字串",
+      "total_inspected": "integer — 抽驗總件數（新北可能為 null）",
+      "total_failed":    "integer — 不符規定件數（新北可能為 null）",
+      "pass_rate":       "float — 合格率（%）",
+      "fail_rate":       "float — 不符合格率（%）",
+      "fail_reason":     "text — 主要不符原因（新北為 null）",
+      "source_trace":    "text — 資料來源說明",
+      "data_mode":       "text — real"
+    }
+  }
+}

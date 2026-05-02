@@ -1,0 +1,62 @@
+{
+  "dag_infos": {
+    "dag_id": "C11_雙北環保餐廳地圖",
+    "start_date": "2026-05-02",
+    "schedule_interval": "0 2 * * *",
+    "catchup": false,
+    "tags": ["hackathon", "C11", "環保局", "環保餐廳", "eco_restaurant"],
+    "description": "整合臺北市與新北市環保認證餐廳，以 ArcGIS 地理編碼補齊座標，輸出認證等級標籤",
+    "default_args": {
+      "owner": "hackathon_de",
+      "email": [],
+      "email_on_retry": false,
+      "email_on_failure": false,
+      "retries": 1,
+      "retry_delay": 60
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "hackathon_c11_env_protect_restaurant_ready",
+    "ready_data_history_table": "",
+    "raw_data_db": "postgres_default",
+    "raw_data_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "雙北環保餐廳地圖",
+    "airflow_update_freq": "daily at 02:00",
+    "sources": [
+      {
+        "dag_id": "臺北市環保餐廳",
+        "source_type": "data.taipei API",
+        "source_dept": "臺北市環境保護局",
+        "RID": "d706f428-b2c7-4591-9ebf-9f5cd7408f47",
+        "PAGE_ID": "845818d9-c432-44b4-85dd-03d71bd867b2"
+      },
+      {
+        "dag_id": "新北市環保餐廳",
+        "source_type": "data.ntpc API",
+        "source_dept": "新北市政府環境保護局",
+        "PAGE_ID": "e90d14f8-5995-4ebb-af19-8f8fd7d396c8"
+      }
+    ],
+    "gis_format": "Point",
+    "output_coordinate": "EPSG:4326",
+    "is_geometry": 1,
+    "dataset_description": "雙北環保認證餐廳清冊，統一欄位後以 ArcGIS 地理編碼補齊座標，並依環保作為數量產生認證等級。",
+    "etl_description": "merge 2 sources → normalize columns → ArcGIS geocode → certification_level → concat",
+    "sensitivity": "public",
+    "output_schema": {
+      "data_time":           "timestamp — 資料時間",
+      "city":                "text — 城市",
+      "district":            "text — 行政區",
+      "name":                "text — 餐廳名稱",
+      "address":             "text — 地址",
+      "latitude":            "float — 緯度",
+      "longitude":           "float — 經度",
+      "phone":               "text — 電話",
+      "certification_level": "text — 認證等級（鑽石級/金級/銀級/認證中）",
+      "eco_attributes":      "text — 環保作為列表（JSON array string）",
+      "data_source":         "text — 資料來源"
+    }
+  }
+}

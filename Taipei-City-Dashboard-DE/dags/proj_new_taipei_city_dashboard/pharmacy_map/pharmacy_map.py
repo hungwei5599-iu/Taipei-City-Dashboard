@@ -21,11 +21,15 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import pandas as pd
 import urllib3
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # 共用 extract / load 工具（與其他組件共用）
 from utils.etl_utils import (
@@ -38,9 +42,9 @@ from utils.etl_utils import (
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ── 讀取 job_config_C7.json ────────────────────────────────────
+# ── 讀取 job_config.json ────────────────────────────────────
 _HERE        = os.path.dirname(os.path.abspath(__file__))
-_CONFIG_PATH = os.path.join(_HERE, "job_config_C7.json")
+_CONFIG_PATH = os.path.join(_HERE, "job_config.json")
 
 with open(_CONFIG_PATH, encoding="utf-8") as f:
     _JOB = json.load(f)
