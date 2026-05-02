@@ -1,0 +1,56 @@
+{
+  "dag_infos": {
+    "dag_id": "C9_急診室即時資訊",
+    "start_date": "2026-05-02",
+    "schedule_interval": "*/10 * * * *",
+    "catchup": false,
+    "tags": ["hackathon", "C9", "健保署", "急診室", "er_realtime"],
+    "description": "健保署 NHI POST API — 雙北急診室即時候診人數（含白名單篩選與空間過濾）",
+    "default_args": {
+      "owner": "hackathon_de",
+      "email": [],
+      "email_on_retry": false,
+      "email_on_failure": false,
+      "retries": 2,
+      "retry_delay": 30
+    },
+    "ready_data_db": "postgres_default",
+    "ready_data_default_table": "hackathon_component_9_er_ready",
+    "ready_data_history_table": "",
+    "raw_data_db": "postgres_default",
+    "raw_data_table": "",
+    "load_behavior": "replace"
+  },
+  "data_infos": {
+    "name_cn": "急診室即時資訊",
+    "airflow_update_freq": "every 10 minutes",
+    "sources": [
+      {
+        "dag_id": "C9_急診室即時資訊",
+        "source_type": "open_api_post",
+        "source_dept": "健保署 NHI",
+        "api_url": "https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002",
+        "api_body": {}
+      }
+    ],
+    "gis_format": "Point",
+    "output_coordinate": "EPSG:4326",
+    "is_geometry": 1,
+    "dataset_description": "全台急診室即時候診人數，透過白名單篩選保留雙北主要醫院，並以靜態座標定位。",
+    "etl_description": "POST API → whitelist filter → field rename → coordinate patch → city_scope label",
+    "sensitivity": "public",
+    "output_schema": {
+      "data_time":       "timestamp — 資料時間",
+      "hospital_name":   "text — 醫院名稱（標準化）",
+      "hospital_id":     "integer — 健保署醫院代碼",
+      "patient_count":   "integer — 急診候診人數（waiT_SEE_CNT）",
+      "bed_utilization": "integer — 等待病床人數（waiT_BED_CNT）",
+      "waiting_time":    "integer — 一般病房等候人數（waiT_GENERAL_CNT）",
+      "latitude":        "float — 緯度",
+      "longitude":       "float — 經度",
+      "city_scope":      "text — 城市（Taipei / NewTaipei）",
+      "source_trace":    "text — 資料來源",
+      "data_mode":       "text — real"
+    }
+  }
+}
