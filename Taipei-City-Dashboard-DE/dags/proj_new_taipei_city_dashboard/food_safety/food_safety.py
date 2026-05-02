@@ -43,6 +43,16 @@ from utils.etl_utils import (
     load_to_db,
     TAIPEI_TZ,
 )
+
+from utils.extract_utils import (
+    extract_ntpc,
+    TAIPEI_TZ,
+)
+
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
 # 臺北市食品衛生查驗的特殊 extract（tsis.dbas.gov.taipei，兩段 URL CSV）
 from utils.utils_extract_d2 import extract_taipei_food_inspection
 

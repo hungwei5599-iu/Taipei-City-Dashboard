@@ -5,7 +5,7 @@
     "schedule_interval": "0 3 1 * *",
     "catchup": false,
     "tags": ["hackathon", "C12", "衛生局", "食品抽驗", "food_inspection"],
-    "description": "合併臺北市衛生局民國111~113年食品抽驗不合格清冊，輸出統計圖表與地圖標記所需格式",
+    "description": "合併臺北市衛生局民國113年食品抽驗不合格清冊",
     "default_args": {
       "owner": "hackathon_de",
       "email": [],
@@ -26,22 +26,6 @@
     "airflow_update_freq": "first day of every month at 03:00",
     "sources": [
       {
-        "dag_id": "臺北市衛生局食品抽驗不合格清冊_111",
-        "source_type": "data.taipei API",
-        "source_dept": "衛生局",
-        "RID": "bc24a40f-5687-4338-8f9a-449de248ab93",
-        "PAGE_ID": "09a917a0-0fb5-47e1-957c-5f1268fba517",
-        "year": 111
-      },
-      {
-        "dag_id": "臺北市衛生局食品抽驗不合格清冊_112",
-        "source_type": "data.taipei API",
-        "source_dept": "衛生局",
-        "RID": "bb347e3d-626a-46e5-bb96-9061e8d08c26",
-        "PAGE_ID": "09a917a0-0fb5-47e1-957c-5f1268fba517",
-        "year": 112
-      },
-      {
         "dag_id": "臺北市衛生局食品抽驗不合格清冊_113",
         "source_type": "data.taipei API",
         "source_dept": "衛生局",
@@ -52,7 +36,7 @@
     ],
     "gis_format": null,
     "is_geometry": 0,
-    "dataset_description": "合併民國111~113年三份年度不合格清冊，從抽驗日期/郵遞區號/不符合原因欄位衍生 year、district、failure_reasons 等欄位，供前端統計圖表與地圖標記使用。",
+    "dataset_description": "合併民國113年一份年度不合格清冊，從抽驗日期/郵遞區號/不符合原因欄位衍生 year、district、failure_reasons 等欄位，供前端統計圖表與地圖標記使用。",
     "etl_description": "3x data.taipei API (parallel) → concat → derive year/district/shop_name/failure_reasons → rename → load",
     "sensitivity": "public",
     "output_schema": {

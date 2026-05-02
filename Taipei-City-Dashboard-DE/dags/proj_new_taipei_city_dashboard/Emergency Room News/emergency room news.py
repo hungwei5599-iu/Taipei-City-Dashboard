@@ -32,13 +32,19 @@ import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from utils.etl_utils import (
-    extract_open_api_post,
-    convert_str_to_time_format,
-    load_csv,
-    load_to_db,
+
+from utils.extract_utils import (
+	extract_open_api_post,
     TAIPEI_TZ,
 )
+from utils.transform_utils import (
+	convert_str_to_time_format,
+)
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
+
 
 # ── 讀取 job_config.json ────────────────────────────────────
 _HERE        = os.path.dirname(os.path.abspath(__file__))

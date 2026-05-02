@@ -33,14 +33,20 @@ import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from utils.etl_utils import (
-    extract_data_taipei,
+
+from utils.extract_utils import (
+	extract_data_taipei,
     extract_ntpc,
-    batch_geocode,
-    load_csv,
-    load_to_db,
     TAIPEI_TZ,
 )
+from utils.transform_utils import (
+	batch_geocode,
+)
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
+
 # ── 讀取 job_config.json ────────────────────────────────────
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _CONFIG_PATH = os.path.join(_HERE, "job_config.json")

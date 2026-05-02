@@ -33,12 +33,17 @@ import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from utils.etl_utils import (
-    extract_open_api_csv_paged,
-    geocode_address,
-    load_csv,
-    load_to_db,
+
+from utils.extract_utils import (
+	extract_open_api_csv_paged,
     TAIPEI_TZ,
+)
+from utils.transform_utils import (
+	geocode_address,
+)
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
 )
 
 # ── 讀取 job_config.json ────────────────────────────────────
