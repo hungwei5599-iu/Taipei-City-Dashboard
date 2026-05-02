@@ -23,70 +23,46 @@ const emits = defineEmits([
 ]);
 
 // -------------------------------------------------------
-// 資料格式偵測：相容兩種格式
-//   格式A (純數字陣列):  { name, data: [15, 30, 45] }
-//   格式B (物件陣列):    { name, data: [{x:"醫院A", y:15}, ...] }
+// 資料格式說明（本專案實際格式）：
+//
+//  chart_data (→ props.series):
+//    [ { name:"待診人數", data:[0,4,0,...] },
+//      { name:"等候時間", data:[2,13,0,...] } ]
+//
+//  chart_config.categories:
+//    ["三總","亞東","北市聯醫", ...]
+//
+// series[0] → 左側長條（取負值往左延伸）
+// series[1] → 右側長條（正值）
 // -------------------------------------------------------
 
-// 從 series[0] 自動抽取 categories（格式B 使用）
-const autoCategories = computed(() => {
-	const first = props.series?.[0]?.data;
-	if (!first || !first.length) return [];
-	if (typeof first[0] === "object" && first[0] !== null && "x" in first[0]) {
-		return first.map((d) => d.x);
-	}
-	return [];
-});
-
-// 判斷是否為物件陣列格式
-const isObjectFormat = computed(() => autoCategories.value.length > 0);
-
-// series[0] → 左側長條（負值），series[1] → 右側長條（正值）
+// series[0] 的值全部取負，讓長條往左延伸
 const parseSeries = computed(() => {
-	if (!props.series || props.series.length < 2) return props.series;
-
-	const negateData = (data) =>
-		data.map((v) => {
-			if (typeof v === "number") return -Math.abs(v);
-			if (typeof v === "object" && v !== null && "y" in v) {
-				return { ...v, y: -Math.abs(v.y) };
-			}
-			return v;
-		});
-
-	// 格式B：取出純數字給 ApexCharts（categories 另外設定）
-	const flattenData = (data) =>
-		isObjectFormat.value ? data.map((d) => d.y) : data;
-
+	if (!props.series || props.series.length < 2) return props.series ?? [];
 	return [
 		{
 			...props.series[0],
-			data: negateData(flattenData(props.series[0].data)),
+			data: props.series[0].data.map((v) => -Math.abs(Number(v))),
 		},
 		{
 			...props.series[1],
-			data: flattenData(props.series[1].data),
+			data: props.series[1].data.map((v) => Math.abs(Number(v))),
 		},
 	];
 });
 
-// 最終使用的 categories（優先 chart_config，其次自動抽取）
-const finalCategories = computed(() => {
-	if (props.chart_config.categories?.length) return props.chart_config.categories;
-	return autoCategories.value;
-});
+// categories 直接取自 chart_config
+const categories = computed(() => props.chart_config?.categories ?? []);
 
-// 動態高度
+// 動態高度：每行 34px
 const chartHeight = computed(() => {
 	const rows = props.series?.[0]?.data?.length ?? 6;
 	return `${60 + rows * 34}`;
 });
 
 // -------------------------------------------------------
-// Chart Options
+// Chart Options（每次 series/categories 變化都重建）
 // -------------------------------------------------------
-const chartOptions = ref(buildOptions());
-
 function buildOptions() {
 	return {
 		chart: {
@@ -94,11 +70,14 @@ function buildOptions() {
 			stacked: true,
 			toolbar: { show: false },
 		},
-		colors: [...props.chart_config.color],
+		colors: [...(props.chart_config?.color ?? ["#5b9bd5", "#ed7d31"])],
 		dataLabels: {
 			enabled: true,
-			formatter: (val) => (val === 0 ? "" : Math.abs(val)),
-			offsetX: 0,
+			// 顯示絕對值；空值不顯示
+			formatter: (val) => {
+				const abs = Math.abs(Number(val));
+				return abs === 0 ? "" : abs;
+			},
 			style: {
 				fontSize: "11px",
 				colors: ["#fff"],
@@ -111,18 +90,14 @@ function buildOptions() {
 			show: true,
 			position: "top",
 			offsetY: 4,
-			markers: {
-				radius: 2,
-			},
+			markers: { radius: 2 },
 		},
 		plotOptions: {
 			bar: {
 				horizontal: true,
 				borderRadius: 2,
 				barHeight: "65%",
-				dataLabels: {
-					position: "center",
-				},
+				dataLabels: { position: "center" },
 			},
 		},
 		stroke: {
@@ -134,7 +109,7 @@ function buildOptions() {
 			// The class "chart-tooltip" could be edited in /assets/styles/chartStyles.css
 			custom: function ({ series, seriesIndex, dataPointIndex, w }) {
 				const rawVal = Math.abs(series[seriesIndex][dataPointIndex]);
-				const label = w.globals.labels[dataPointIndex] ?? "";
+				const label = categories.value[dataPointIndex] ?? "";
 				const seriesName = w.globals.seriesNames[seriesIndex];
 				return (
 					'<div class="chart-tooltip">' +
@@ -144,7 +119,7 @@ function buildOptions() {
 					"</h6>" +
 					"<span>" +
 					rawVal +
-					` ${props.chart_config.unit ?? ""}` +
+					` ${props.chart_config?.unit ?? ""}` +
 					"</span>" +
 					"</div>"
 				);
@@ -152,33 +127,36 @@ function buildOptions() {
 			followCursor: true,
 		},
 		xaxis: {
+			// xaxis 是數值軸（左負右正），categories 給的是 Y 軸（醫院名）
 			axisBorder: { show: false },
 			axisTicks: { show: false },
-			categories: finalCategories.value,
 			labels: {
+				// 顯示絕對值，不顯示負號
 				formatter: (val) => Math.abs(Math.round(Number(val))).toString(),
 			},
-			type: "category",
 		},
 		yaxis: {
+			// Y 軸顯示醫院名（categories 對應到每一行）
+			categories: categories.value,
 			labels: {
-				maxWidth: 120,
+				maxWidth: 100,
 				formatter: (value) => {
 					if (!value) return value;
-					return value.length > 8 ? value.slice(0, 7) + "…" : value;
+					return value.length > 7 ? value.slice(0, 6) + "…" : value;
 				},
 			},
 		},
 	};
 }
 
-// 當 series 或 categories 變化時重新建立 options（確保 xaxis.categories 更新）
+const chartOptions = ref(buildOptions());
+
 watch(
-	[() => props.series, finalCategories],
+	[() => props.series, categories],
 	() => {
 		chartOptions.value = buildOptions();
 	},
-	{ deep: true }
+	{ deep: true, immediate: false }
 );
 
 // -------------------------------------------------------
@@ -196,14 +174,14 @@ function handleDataSelection(_e, _chartContext, config) {
 				"filterByParam",
 				props.map_filter,
 				props.map_config,
-				config.w.globals.labels[config.dataPointIndex],
+				categories.value[config.dataPointIndex] ?? "",
 				config.w.globals.seriesNames[config.seriesIndex]
 			);
 		} else if (props.map_filter.mode === "byLayer") {
 			emits(
 				"filterByLayer",
 				props.map_config,
-				config.w.globals.labels[config.dataPointIndex]
+				categories.value[config.dataPointIndex] ?? ""
 			);
 		}
 		selectedIndex.value = key;
