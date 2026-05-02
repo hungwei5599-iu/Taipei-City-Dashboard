@@ -1,0 +1,11 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+	<title>PieChart ICON</title>
+	<circle cx="512" cy="512" r="404" fill="#2f3134"/>
+	<path d="M512 512 L512 108 A404 404 0 0 1 862 714 Z" fill="#24B0DD"/>
+	<path d="M512 512 L862 714 A404 404 0 0 1 286 846 Z" fill="#56B96D"/>
+	<path d="M512 512 L286 846 A404 404 0 0 1 512 108 Z" fill="#F8CF58"/>
+	<circle cx="512" cy="512" r="404" fill="none" stroke="#282a2c" stroke-width="44"/>
+	<path d="M512 512 L512 108" stroke="#282a2c" stroke-width="34"/>
+	<path d="M512 512 L862 714" stroke="#282a2c" stroke-width="34"/>
+	<path d="M512 512 L286 846" stroke="#282a2c" stroke-width="34"/>
+</svg>

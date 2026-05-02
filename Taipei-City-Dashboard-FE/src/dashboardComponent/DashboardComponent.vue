@@ -11,6 +11,7 @@ import ComponentTag from "./components/ComponentTag.vue";
 import TagTooltip from "./components/TagTooltip.vue";
 import DistrictChart from "./components/DistrictChart.vue";
 import DonutChart from "./components/DonutChart.vue";
+import PieChart from "./components/PieChart.vue";
 import BarChart from "./components/BarChart.vue";
 import TreemapChart from "./components/TreemapChart.vue";
 import ColumnChart from "./components/ColumnChart.vue";
@@ -41,6 +42,7 @@ import BarPercentChartSvg from "./assets/chart/BarPercentChart.svg";
 import ColumnChartSvg from "./assets/chart/ColumnChart.svg";
 import ColumnLineChartSvg from "./assets/chart/ColumnLineChart.svg";
 import DonutChartSvg from "./assets/chart/DonutChart.svg";
+import PieChartSvg from "./assets/chart/PieChart.svg";
 import GuageChartSvg from "./assets/chart/GuageChart.svg";
 import HeatmapChartSvg from "./assets/chart/HeatmapChart.svg";
 import IconPercentChartSvg from "./assets/chart/IconPercentChart.svg";
@@ -52,6 +54,7 @@ import BarChartWithGoalSvg from "./assets/chart/BarChartWithGoal.svg";
 import TreemapChartSvg from "./assets/chart/TreemapChart.svg";
 import IndicatorChartSvg from "./assets/chart/IndicatorChart.svg";
 import TextUnitChartSvg from "./assets/chart/TextUnitChart.svg";
+import ButterflyChartSvg from "./assets/chart/ButterflyChart.svg";
 
 
 const props = defineProps({
@@ -208,6 +211,8 @@ function returnChartComponent(name, svg) {
 		return svg ? ColumnChartSvg : ColumnChart;
 	case "DonutChart":
 		return svg ? DonutChartSvg : DonutChart;
+	case "PieChart":
+		return svg ? PieChartSvg : PieChart;
 	case "TreemapChart":
 		return svg ? TreemapChartSvg : TreemapChart;
 	case "BarPercentChart":

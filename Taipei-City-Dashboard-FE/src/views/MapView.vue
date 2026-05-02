@@ -159,14 +159,23 @@ const sameGuideComponent = (component, payload) => {
 
 const findGuideComponentInStores = (payload) => {
 	const pools = [
-		payload?.component,
 		...(contentStore.currentDashboard.components || []),
 		...(contentStore.cityDashboard.components || []),
-		...(contentStore.mapLayers || []),
 		...(contentStore.allMapLayers || []),
+		payload?.component,
 	].filter(Boolean);
 
 	return pools.find((component) => sameGuideComponent(component, payload));
+};
+
+const clearAiGuideSyntheticLayers = () => {
+	contentStore.mapLayers = (contentStore.mapLayers || []).filter((item) => {
+		if (!item) return false;
+		if (typeof item.id === "string" && item.id.startsWith("ai-guide-")) {
+			return false;
+		}
+		return true;
+	});
 };
 
 const fetchGuideComponent = async (payload) => {
@@ -183,24 +192,6 @@ const fetchGuideComponent = async (payload) => {
 	} catch (error) {
 		console.warn("[ai-guide] component fetch failed", error);
 		return null;
-	}
-};
-
-const ensureGuideComponentListed = (component) => {
-	if (!component || !hasUsableMapConfig(component)) return;
-	const exists = [
-		...(contentStore.currentDashboard.components || []),
-		...(contentStore.mapLayers || []),
-	].some((item) => sameGuideComponent(item, {
-		componentId: component.id,
-		componentIndex: component.index,
-		city: component.city,
-	}));
-	if (!exists) {
-		contentStore.mapLayers = [
-			...contentStore.mapLayers,
-			component,
-		];
 	}
 };
 
@@ -235,6 +226,19 @@ const createGuideComponentFromPayload = (payload, mapConfig) => ({
 	update_freq_unit: null,
 });
 
+const normalizeGuideMapConfig = (mapConfig = [], payload = {}, component = null) => {
+	const fallbackCity =
+		payload?.city ||
+		component?.city ||
+		mapConfig?.[0]?.city ||
+		"metrotaipei";
+
+	return (mapConfig || []).map((item) => ({
+		...item,
+		city: item?.city || fallbackCity,
+	}));
+};
+
 const waitForGuideContentReady = (timeout = 8000) =>
 	new Promise((resolve) => {
 		const started = Date.now();
@@ -263,8 +267,12 @@ const waitForGuideContentReady = (timeout = 8000) =>
 
 const openGuideComponentPayload = async (payload) => {
 	if (!payload?.componentIndex && !payload?.component && !payload?.componentId && !payload?.mapConfig?.length) {
+		console.warn("[ai-guide] skipped open, empty payload", payload);
 		return false;
 	}
+
+	console.log("[ai-guide] open payload received", payload);
+	clearAiGuideSyntheticLayers();
 
 	await nextTick();
 	await waitForGuideContentReady();
@@ -274,16 +282,33 @@ const openGuideComponentPayload = async (payload) => {
 		component = await fetchGuideComponent(payload);
 	}
 
-	const mapConfig = hasUsableMapConfig(component)
+	console.log("[ai-guide] resolved component for open", {
+		payload,
+		component,
+		componentCity: component?.city,
+		componentMapConfig: component?.map_config,
+	});
+
+	const rawMapConfig = hasUsableMapConfig(component)
 		? component.map_config
 		: payload.mapConfig;
+	const mapConfig = normalizeGuideMapConfig(rawMapConfig, payload, component);
 
-	if (!Array.isArray(mapConfig) || mapConfig.length === 0) return false;
-	ensureGuideComponentListed(
-		hasUsableMapConfig(component)
-			? component
-			: createGuideComponentFromPayload(payload, mapConfig),
-	);
+	console.log("[ai-guide] normalized map config", {
+		rawMapConfig,
+		mapConfig,
+		cities: mapConfig.map((item) => item?.city),
+	});
+
+	if (!Array.isArray(mapConfig) || mapConfig.length === 0) {
+		console.warn("[ai-guide] open aborted, no map config", {
+			payload,
+			component,
+			rawMapConfig,
+		});
+		return false;
+	}
+	console.log("[ai-guide] opening map config", mapConfig);
 	mapStore.openMapConfig(mapConfig);
 	return true;
 };

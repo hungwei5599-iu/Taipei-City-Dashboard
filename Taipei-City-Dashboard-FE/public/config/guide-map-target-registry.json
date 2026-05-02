@@ -3,7 +3,9 @@
 		"id": "emergency_access",
 		"moduleKey": "emergency",
 		"title": "急診",
-		"componentIndex": "Component2_er_ready",
+		"dashboardIndex": "hackathon_food_health",
+		"dashboardCity": "metrotaipei",
+		"componentIndex": "hackathon_component_9_er_overview",
 		"componentName": "急診壅塞概況",
 		"componentIndexes": [
 			"hackathon_component_9_er_overview",
@@ -171,7 +173,9 @@
 		"id": "pharmacy_access",
 		"moduleKey": "pharmacy",
 		"title": "藥局",
-		"componentIndex": "hackathon_component_7_pharmacy_map",
+		"dashboardIndex": "hackathon_food_health",
+		"dashboardCity": "metrotaipei",
+		"componentIndex": "hackathon_component_7_pharmacy_overview",
 		"componentName": "藥局分布",
 		"componentIndexes": [
 			"hackathon_component_7_pharmacy_map",

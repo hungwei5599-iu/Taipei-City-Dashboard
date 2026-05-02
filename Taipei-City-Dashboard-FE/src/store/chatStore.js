@@ -94,9 +94,161 @@ const parseMaybeJson = (value) => {
 		} catch {
 			return null;
 		}
+<<<<<<< HEAD
+
+		const component = targets[index];
+		return {
+			id: component.id,
+			name: component.name,
+			city: component.city,
+			error: String(result.reason?.message || result.reason),
+		};
+	});
+};
+
+const buildComponentSummaryContext = (components) =>
+	(components ?? []).slice(0, 3).map((component) => ({
+		id: component.id,
+		name: component.name,
+		city: component.city,
+		index: component.index,
+		module: component.module,
+	}));
+
+const dedupeComponents = (components) =>
+	Array.from(
+		components
+			.reduce((map, item) => {
+				const exist = map.get(item.index);
+				if (!exist || item.city === "metrotaipei") {
+					map.set(item.index, item);
+				}
+				return map;
+			}, new Map())
+			.values(),
+	);
+
+const findMatchedComponent = (target, components = []) => {
+	const targetKeys = [
+		target?.componentIndex,
+		...(target?.componentIndexes || []),
+	]
+		.filter(Boolean)
+		.map(String);
+
+	return (components || []).find((component) => {
+		const componentKeys = [
+			component.id,
+			component.index,
+			component.component_index,
+		]
+			.filter(Boolean)
+			.map(String);
+
+		return componentKeys.some((key) => targetKeys.includes(key));
+	});
+};
+
+const buildGuideComponentPayload = (target, components = []) => {
+	const matchedComponent = findMatchedComponent(target, components);
+	const preferredCity =
+		target?.dashboardCity ||
+		target?.city ||
+		"metrotaipei";
+	const matchedComponentCity = matchedComponent?.city;
+	const useMatchedComponentId =
+		!!matchedComponent?.id &&
+		(!matchedComponentCity || matchedComponentCity === preferredCity);
+	return {
+		component: matchedComponent || null,
+		componentIndex: target?.componentIndex,
+		componentIndexes: target?.componentIndexes || [],
+		componentId: useMatchedComponentId ? matchedComponent?.id : null,
+		city: preferredCity,
+		mapConfig: target?.mapConfig || [],
+		title: target?.componentName || target?.title,
+	};
+};
+
+let guideTargetRegistry = null;
+
+const moduleIdToGuideModuleKey = {
+	medical_access: "emergency",
+	pharmacy_access: "pharmacy",
+	water_quality: "water_quality",
+	eco_restaurant: "eco_restaurant",
+	food_inspection: "food_inspection",
+};
+
+const loadGuideTargetRegistry = async () => {
+	if (guideTargetRegistry) return guideTargetRegistry;
+	const response = await fetch("/config/guide-map-target-registry.json");
+	guideTargetRegistry = await response.json();
+	return guideTargetRegistry;
+};
+
+const resolveGuideTarget = async (question, components = []) => {
+	const registry = await loadGuideTargetRegistry();
+	const loweredQuestion = String(question || "").toLowerCase();
+	if (hasEmergencyKeyword(question)) {
+		const emergencyTarget = registry.find((target) => target.moduleKey === "emergency");
+		if (emergencyTarget) return emergencyTarget;
+=======
+>>>>>>> 74eec4a5eb7f9ca142fc7cc02ee007e2579e416c
 	}
 };
 
+<<<<<<< HEAD
+const resolveGuideTargetFromModules = async (
+	selectedModuleIds = [],
+	question = "",
+	components = [],
+) => {
+	const registry = await loadGuideTargetRegistry();
+	const moduleKeys = (selectedModuleIds || [])
+		.map((moduleId) => moduleIdToGuideModuleKey[moduleId])
+		.filter(Boolean);
+
+	for (const moduleKey of moduleKeys) {
+		const target = registry.find((item) => item.moduleKey === moduleKey);
+		if (target) return target;
+	}
+
+	return resolveGuideTarget(question, components);
+};
+
+const tryParseJson = (value) => {
+	if (typeof value !== "string") return null;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return null;
+	}
+};
+
+const normalizeAiPayload = (aiResult) => {
+	if (!aiResult) return {};
+	if (typeof aiResult === "string") {
+		const parsed = tryParseJson(aiResult);
+		return parsed || { content: aiResult };
+	}
+
+	if (typeof aiResult === "object") {
+		const contentParsed = tryParseJson(aiResult.content);
+		if (contentParsed && typeof contentParsed === "object") {
+			return {
+				...aiResult,
+				...contentParsed,
+				content: contentParsed.answer || aiResult.content,
+			};
+		}
+	}
+
+	return aiResult;
+};
+
+const waitForMapReady = (mapStore, timeout = 20000) =>
+=======
 const normalizeAnswerText = (payload) => {
 	if (!payload) return "";
 	if (typeof payload === "string") {
@@ -128,6 +280,7 @@ const getRequestErrorMessage = (error) => {
 };
 
 const waitForMapReady = (mapStore, timeoutMs = MAP_READY_TIMEOUT_MS) =>
+>>>>>>> 74eec4a5eb7f9ca142fc7cc02ee007e2579e416c
 	new Promise((resolve) => {
 		const startedAt = Date.now();
 		const check = () => {
@@ -813,6 +966,73 @@ export const useChatStore = defineStore("chat", () => {
 	const runMapActions = async (component, mapActions) => {
 		if (!component && !mapActions?.length) return false;
 		const mapStore = useMapStore();
+<<<<<<< HEAD
+		const contentStore = useContentStore();
+		const openComponentOnly =
+		options.componentOnly || shouldOpenComponentOnly(question, target);
+		const currentQuery = router.currentRoute.value.query || {};
+		const targetCity =
+			target?.dashboardCity ||
+			target?.city ||
+			currentQuery.city ||
+			contentStore.currentDashboard.city ||
+			"metrotaipei";
+		const targetIndex =
+			target?.dashboardIndex ||
+			currentQuery.index ||
+			contentStore.currentDashboard.index;
+		const shouldNavigateToTargetMap =
+			router.currentRoute.value.name !== "mapview" ||
+			currentQuery.city !== targetCity ||
+			(targetIndex && currentQuery.index !== targetIndex);
+
+		console.log("[ai-guide] openGuideMapTarget routing", {
+			target,
+			currentRoute: router.currentRoute.value.fullPath,
+			targetCity,
+			targetIndex,
+			shouldNavigateToTargetMap,
+			openComponentOnly,
+		});
+
+		if (shouldNavigateToTargetMap) {
+			const query = targetIndex
+				? { city: targetCity, index: targetIndex }
+				: { city: targetCity };
+
+			await router.push({
+				path: "/mapview",
+				query,
+			});
+			console.log("[ai-guide] navigated to guide map route", {
+				query,
+				routeAfterPush: router.currentRoute.value.fullPath,
+			});
+			await nextTick();
+		}
+
+		const guideComponentPayload = buildGuideComponentPayload(target, components);
+		console.log("[ai-guide] guide component payload", guideComponentPayload);
+		mapStore.openGuideComponent(guideComponentPayload);
+
+		const ready = await waitForMapReady(mapStore);
+		if (!ready) {
+			mapStore.queueAiGuideRun(
+				openComponentOnly ? buildClearGuideOverlayAction(target) : uiActions,
+			);
+			if (attempt < 2) {
+				setTimeout(() => {
+					openGuideMapTarget(
+						target,
+						uiActions,
+						question,
+						components,
+						answer,
+						attempt + 1,
+						options,
+					);
+				}, 1000);
+=======
 		await ensureMapOpened(component);
 
 		if (!mapActions?.length) return true;
@@ -822,11 +1042,162 @@ export const useChatStore = defineStore("chat", () => {
 		if (typeof mapStore.dispatchAiGuideActions === "function") {
 			if (mapStore.map?.isStyleLoaded?.()) {
 				return mapStore.dispatchAiGuideActions(mapActions);
+>>>>>>> 74eec4a5eb7f9ca142fc7cc02ee007e2579e416c
 			}
 			mapStore.queueAiGuideRun(mapActions);
 			return true;
 		}
+<<<<<<< HEAD
+
+		await getUserCoordinate({
+			prompt: shouldShowUserLocationForGuide(target),
+		});
+
+		const actions = openComponentOnly
+			? buildClearGuideOverlayAction(target)
+			: await ensureGuideMapActions(
+				target,
+				uiActions,
+				question,
+				components,
+				answer,
+				{ promptLocation: true },
+			);
+		mapStore.queueAiGuideRun(actions);
+
+		return true;
+	};
+
+	const addQueryData = async (newChatData) => {
+		addChatData(newChatData);
+		recommendComponents.value = [];
+
+		try {
+			recommendComponents.value = await searchRelatedComponents(newChatData.content);
+		} catch (error) {
+			console.error("VectorAnalysisError:", error);
+		}
+
+		try {
+			const provisionalGuideTarget = await resolveGuideTarget(
+				newChatData.content,
+				recommendComponents.value,
+			);
+			let guideUiActions = [];
+			let mapToolContext = null;
+			let guideTarget = null;
+			if (provisionalGuideTarget) {
+				guideUiActions = shouldOpenComponentOnly(
+					newChatData.content,
+					provisionalGuideTarget,
+				)
+					? buildClearGuideOverlayAction(provisionalGuideTarget)
+					: await ensureGuideMapActions(
+						provisionalGuideTarget,
+						[],
+						newChatData.content,
+						recommendComponents.value,
+						"",
+					);
+				mapToolContext = buildGuideAiMapContext(
+					provisionalGuideTarget,
+					guideUiActions,
+					newChatData.content,
+				);
+			}
+			const aiResult = await askTWCCAI(
+				newChatData.content,
+				recommendComponents.value,
+				mapToolContext,
+			);
+			const aiPayload = normalizeAiPayload(aiResult);
+			const selectedModuleIds =
+				aiPayload?.selected_module_ids ||
+				aiPayload?.guide?.selected_module_ids ||
+				[];
+			guideTarget = await resolveGuideTargetFromModules(
+				selectedModuleIds,
+				newChatData.content,
+				recommendComponents.value,
+			);
+			if (!guideTarget) {
+				guideTarget = provisionalGuideTarget;
+			}
+			if (guideTarget) {
+				guideUiActions = shouldOpenComponentOnly(
+					newChatData.content,
+					guideTarget,
+				)
+					? buildClearGuideOverlayAction(guideTarget)
+					: await ensureGuideMapActions(
+						guideTarget,
+						guideUiActions,
+						newChatData.content,
+						recommendComponents.value,
+						aiPayload?.answer || aiPayload?.content || "",
+					);
+			}
+			const guideAnswer = aiPayload?.answer || aiPayload?.content;
+			let guidePayload = null;
+
+			if (guideAnswer) {
+				if (guideTarget) {
+					guidePayload = {
+						...(aiPayload || {}),
+						...buildGuideBlocks(guideTarget, guideUiActions, guideAnswer),
+						answer: guideAnswer,
+						ui_actions: guideUiActions,
+					};
+				}
+				if (guideTarget) {
+					openGuideMapTarget(
+						guideTarget,
+						guideUiActions,
+						newChatData.content,
+						recommendComponents.value,
+						guideAnswer,
+					).catch((error) => {
+						console.error("[ai-guide] auto open failed", error);
+					});
+				}
+				addChatData({
+					role: "bot",
+					content: guideAnswer,
+					userQuestion: newChatData.content,
+					relations: recommendComponents.value,
+					guideTarget,
+					guidePayload,
+					ui_actions: guideUiActions,
+					button: guideTarget
+						? [
+							{
+								id: "open-guide-map",
+								text: `打開${guideTarget.title}地圖組件`,
+								action: "openGuideMap",
+							},
+						]
+						: undefined,
+				});
+				saveChatLog(newChatData.content, {
+					answer: guideAnswer,
+					components: recommendComponents.value,
+					tool_used: aiPayload?.tool_used,
+					selected_module_ids: selectedModuleIds,
+				});
+				return;
+			}
+		} catch (error) {
+			console.error("TWCCAIError:", getRequestErrorMessage(error), error);
+			addChatData({
+				role: "bot",
+				content: `AI 回答暫時無法取得：${getRequestErrorMessage(error)}`,
+			});
+		}
+
+		addFallbackComponentAnswer(newChatData.content);
+=======
 		return false;
+>>>>>>> 74eec4a5eb7f9ca142fc7cc02ee007e2579e416c
 	};
 
 	const addFallbackComponentAnswer = (question) => {
