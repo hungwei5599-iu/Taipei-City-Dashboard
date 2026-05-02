@@ -158,7 +158,10 @@ function handleDataSelection(_e, _chartContext, config) {
 </script>
 
 <template>
-  <div v-if="activeChart === 'GuageChartDemo'" class="polararea-chart">
+  <div
+    v-if="activeChart === 'GuageChartDemo'"
+    class="polararea-chart"
+  >
     <VueApexCharts
       width="100%"
       type="polarArea"

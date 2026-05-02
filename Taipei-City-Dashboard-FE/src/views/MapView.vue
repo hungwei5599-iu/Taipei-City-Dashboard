@@ -12,8 +12,7 @@ Testing: Jack Huang (Data Scientist), Ian Huang (Data Analysis Intern)
 
 <script setup>
 /* global gtag */
-import { computed, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed } from "vue";
 import DashboardComponent from "../dashboardComponent/DashboardComponent.vue";
 import { useContentStore } from "../store/contentStore";
 import { useDialogStore } from "../store/dialogStore";
@@ -25,14 +24,6 @@ import ReportIssue from "../components/dialogs/ReportIssue.vue";
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
 const mapStore = useMapStore();
-const route = useRoute();
-
-const toggleOn = ref({
-	hasMap: [],
-	noMap: [],
-	mapLayer: [],
-	basicLayer: [],
-});
 
 // Separate components with maps from those without
 const parseMapLayers = computed(() => {
@@ -45,28 +36,6 @@ const parseMapLayers = computed(() => {
 
 	return { hasMap: hasMap, noMap: noMap };
 });
-
-watch(
-	() => route.query.index,
-	(newIndex, oldIndex) => {
-		if (newIndex !== oldIndex) {
-			toggleOn.value = {
-				hasMap: new Array(parseMapLayers.value.hasMap?.length).fill(
-					false,
-				),
-				noMap: new Array(parseMapLayers.value.noMap?.length).fill(
-					false,
-				),
-				mapLayer: new Array(
-					contentStore.currentDashboard.components?.length,
-				).fill(false),
-				basicLayer: new Array(contentStore.mapLayers?.length).fill(
-					false,
-				),
-			};
-		}
-	},
-);
 
 function handleOpenSettings() {
 	contentStore.editDashboard = JSON.parse(
@@ -95,10 +64,6 @@ function handleToggle(value, map_config) {
 	}
 }
 
-function toggleSwitchBtn(value, Btn, BtnIndex) {
-	toggleOn.value[Btn][BtnIndex] = value;
-}
-
 function shouldDisable(map_config) {
 	const allMapLayerIds = map_config.map(
 		(el) => `${el.index}-${el.type}-${el.city}`,
@@ -111,6 +76,17 @@ function shouldDisable(map_config) {
 				.length > 0
 		);
 	}
+}
+
+function getMapLayerIds(map_config = []) {
+	return map_config.map((el) => `${el.index}-${el.type}-${el.city}`);
+}
+
+function isMapConfigVisible(map_config = []) {
+	const layerIds = getMapLayerIds(map_config);
+	return layerIds.some((layerId) =>
+		mapStore.currentVisibleLayers.includes(layerId),
+	);
 }
 
 // 開啟主題圖層時觸發GA自訂事件
@@ -149,7 +125,7 @@ function popularBasicLayerGA(map_config) {
         class="map-charts"
       >
         <DashboardComponent
-          v-for="(item, arrayIdx) in contentStore.currentDashboard
+          v-for="item in contentStore.currentDashboard
             .components"
           :key="`map-layer-${item.index}-${item.city}`"
           :config="item"
@@ -173,7 +149,7 @@ function popularBasicLayerGA(map_config) {
             )
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.mapLayer[arrayIdx]"
+          :toggle-on="isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -182,7 +158,6 @@ function popularBasicLayerGA(map_config) {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'mapLayer', arrayIdx);
               popularThematicLayerGA(map_config);
             }
           "
@@ -256,7 +231,7 @@ function popularBasicLayerGA(map_config) {
         class="map-charts"
       >
         <DashboardComponent
-          v-for="(item, arrayIdx) in parseMapLayers.hasMap"
+          v-for="item in parseMapLayers.hasMap"
           :key="`map-layer-${item.index}-${item.city}`"
           :config="item"
           mode="map"
@@ -288,7 +263,7 @@ function popularBasicLayerGA(map_config) {
               : contentStore.cityManager.getTagList(item.city)
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.hasMap[arrayIdx]"
+          :toggle-on="isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -297,7 +272,6 @@ function popularBasicLayerGA(map_config) {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'hasMap', arrayIdx);
               popularThematicLayerGA(map_config);
             }
           "
@@ -394,7 +368,7 @@ function popularBasicLayerGA(map_config) {
             )
           "
           :toggle-disable="shouldDisable(item.map_config)"
-          :toggle-on="toggleOn.basicLayer[arrayIdx]"
+          :toggle-on="isMapConfigVisible(item.map_config)"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -403,7 +377,6 @@ function popularBasicLayerGA(map_config) {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'basicLayer', arrayIdx);
               popularBasicLayerGA(map_config);
             }
           "
@@ -466,7 +439,7 @@ function popularBasicLayerGA(map_config) {
           無空間資料組件
         </h2>
         <DashboardComponent
-          v-for="(item, arrayIdx) in parseMapLayers.noMap"
+          v-for="item in parseMapLayers.noMap"
           :key="`map-layer-${item.index}-${item.city}`"
           :config="item"
           mode="map"
@@ -497,7 +470,7 @@ function popularBasicLayerGA(map_config) {
               )
               : contentStore.cityManager.getTagList(item.city)
           "
-          :toggle-on="toggleOn.noMap[arrayIdx]"
+          :toggle-on="false"
           @info="
             (item) => {
               dialogStore.showMoreInfo(item);
@@ -506,7 +479,6 @@ function popularBasicLayerGA(map_config) {
           @toggle="
             (value, map_config) => {
               handleToggle(value, map_config);
-              toggleSwitchBtn(value, 'noMap', arrayIdx);
             }
           "
           @change-city="
@@ -573,6 +545,64 @@ function popularBasicLayerGA(map_config) {
       </div>
     </div>
     <MapContainer />
+    <aside
+      v-if="mapStore.aiPanel"
+      class="ai-panel"
+    >
+      <div class="ai-panel-header">
+        <h3>{{ mapStore.aiPanel.title || "AI 地圖輔助" }}</h3>
+        <button
+          type="button"
+          @click="mapStore.aiPanel = null"
+        >
+          close
+        </button>
+      </div>
+      <div
+        v-if="mapStore.aiPanel.type === 'candidate_list'"
+        class="ai-panel-list"
+      >
+        <button
+          v-for="item in mapStore.aiPanel.items || []"
+          :key="item.feature_id || item.title"
+          type="button"
+          @click="mapStore.handleAiPanelItemClick(item)"
+        >
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.subtitle }}</span>
+        </button>
+      </div>
+      <div
+        v-else-if="mapStore.aiPanel.type === 'compare'"
+        class="ai-panel-table"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th
+                v-for="column in mapStore.aiPanel.columns || []"
+                :key="column"
+              >
+                {{ column }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, rowIndex) in mapStore.aiPanel.rows || []"
+              :key="rowIndex"
+            >
+              <td
+                v-for="(cell, cellIndex) in row"
+                :key="`${rowIndex}-${cellIndex}`"
+              >
+                {{ cell }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </aside>
     <MoreInfo />
     <ReportIssue />
   </div>
@@ -639,6 +669,83 @@ function popularBasicLayerGA(map_config) {
 				border-top: solid 4px var(--color-highlight);
 				animation: spin 0.7s ease-in-out infinite;
 			}
+		}
+	}
+}
+
+.ai-panel {
+	position: absolute;
+	right: 2rem;
+	top: 7.5rem;
+	z-index: 2;
+	width: min(360px, calc(100vw - 4rem));
+	max-height: calc(100% - 10rem);
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+	background: var(--color-component-background);
+	box-shadow: 0 10px 28px rgb(0 0 0 / 35%);
+
+	&-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		border-bottom: 1px solid var(--color-border);
+
+		h3 {
+			margin: 0;
+			font-size: var(--font-m);
+		}
+
+		button {
+			font-family: var(--font-icon);
+			color: var(--color-complement-text);
+		}
+	}
+
+	&-list {
+		display: grid;
+		max-height: 420px;
+		overflow-y: auto;
+
+		button {
+			display: grid;
+			gap: 0.25rem;
+			padding: 0.75rem;
+			border-bottom: 1px solid var(--color-border);
+			text-align: left;
+			color: var(--color-complement-text);
+
+			&:hover {
+				background: rgb(255 255 255 / 8%);
+			}
+
+			span {
+				color: var(--color-complement-text);
+				opacity: 0.75;
+				font-size: var(--font-s);
+			}
+		}
+	}
+
+	&-table {
+		max-height: 420px;
+		overflow: auto;
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: var(--font-s);
+		}
+
+		th,
+		td {
+			padding: 0.5rem;
+			border-bottom: 1px solid var(--color-border);
+			text-align: left;
+			white-space: nowrap;
 		}
 	}
 }

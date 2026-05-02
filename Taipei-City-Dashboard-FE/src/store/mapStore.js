@@ -1,4 +1,4 @@
-// Developed by Taipei Urban Intelligence Center 2023-2024
+﻿// Developed by Taipei Urban Intelligence Center 2023-2024
 
 /* mapStore */
 /*
@@ -48,7 +48,7 @@ import { marchingSquare } from "../assets/utilityFunctions/marchingSquare.js";
 import { voronoi } from "../assets/utilityFunctions/voronoi.js";
 import { calculateHaversineDistance } from "../assets/utilityFunctions/calculateHaversineDistance";
 import { AnimatedArcLayer } from "../assets/configs/mapbox/arcAnimate.js";
-// 3D Mrt Map 相關 Utility Functions
+// 3D Mrt Map ?賊? Utility Functions
 import { cutRouteSegment } from "../assets/utilityFunctions/getRouteForAnimation.js";
 import { interpolateAlongSegment } from "../assets/utilityFunctions/geometryUtils.js";
 import { updateCarsPosition } from "../assets/utilityFunctions/mrtCars.js";
@@ -57,6 +57,33 @@ import {
 	getCrowdColor,
 	mrtLineColor,
 } from "../assets/utilityFunctions/getThematicColor.js";
+
+const safeParseJsonArray = (value) => {
+	if (Array.isArray(value)) return value;
+	if (typeof value !== "string") return [];
+
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+};
+
+const escapeHtml = (value) =>
+	String(value ?? "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+
+const normalizeLngLat = (coordinate) => {
+	if (!Array.isArray(coordinate) || coordinate.length < 2) return null;
+	const lng = Number(coordinate[0]);
+	const lat = Number(coordinate[1]);
+	return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+};
 
 export const useMapStore = defineStore("map", {
 	state: () => ({
@@ -84,17 +111,23 @@ export const useMapStore = defineStore("map", {
 		tempMarkerCoordinates: null,
 		// Store the user's current location,
 		userLocation: { latitude: null, longitude: null },
-		// 3D Mrt Map 相關參數
-		// 模型及圖徵是否預載中
+		// 3D Mrt Map ?賊??
+		// 璅∪???敺菜?阡?頛葉
 		isPreloading: true,
-		// 預載 3D 模型
+		// ?? 3D 璅∪?
 		preloadedModels: {},
-		// 前一包列車動畫資料
+		// ????頠??怨???
 		prevMrtCars: [],
-		// 儲存圖層更新時間
+		// ?脣??惜?湔??
 		layerUpdateTime: {
 			// [layerId]: Date
 		},
+		geoLocateControl: null,
+		aiOverlayLayers: [],
+		aiOverlaySources: [],
+		aiLayerHandlers: {},
+		aiPanel: null,
+		aiInteractionModel: null,
 	}),
 	actions: {
 		/* Initialize Mapbox */
@@ -117,6 +150,7 @@ export const useMapStore = defineStore("map", {
 				trackUserLocation: true,
 				showUserHeading: true,
 			});
+			this.geoLocateControl = geoLocate;
 			this.map.addControl(geoLocate);
 			this.map.addControl(new mapboxGl.NavigationControl());
 			this.map.doubleClickZoom.disable();
@@ -147,23 +181,27 @@ export const useMapStore = defineStore("map", {
 						(el) => el !== "rendering",
 					);
 				})
-				// 圖臺縮放時觸發GA自訂事件
+				// ?蝮格?孛?嘮A?芾?鈭辣
 				.on("zoomend", () => {
 					if (isFirstZoom) {
 						isFirstZoom = false;
 					} else {
 						gtag("event", "map_actions", {
-							action_type: "地圖縮放",
+							action_type: "?啣?蝮格",
 							time: Date.now(),
 						});
 					}
 				});
 			this.renderMarkers();
 
-			// 使用者點擊定位功能後觸發GA自訂事件
-			geoLocate.on("geolocate", () => {
+			// 雿輻????雿??賢?閫貊GA?芾?鈭辣
+			geoLocate.on("geolocate", (event) => {
+				this.setUserLocation({
+					latitude: event.coords.latitude,
+					longitude: event.coords.longitude,
+				});
 				gtag("event", "map_actions", {
-					action_type: "所在位置定位",
+					action_type: "geolocate",
 					time: Date.now(),
 				});
 			});
@@ -237,11 +275,11 @@ export const useMapStore = defineStore("map", {
 					})
 					.addLayer(metroTpDistrict);
 			} else {
-				// 加入 loading
+				// ? loading
 				this.loadingLayers.push("metrotaipei_town");
 
-				// 載入區界
-				// 加入 source + layer
+				// 頛???
+				// ? source + layer
 				this.map.addSource("metrotaipei_town", {
 					type: "geojson",
 					data: "/mapData/metrotaipei_town.geojson",
@@ -253,7 +291,7 @@ export const useMapStore = defineStore("map", {
 					source: "metrotaipei_town",
 				});
 
-				// 綁定 loading 完成
+				// 蝬? loading 摰?
 				this.map.on("sourcedata", (e) => {
 					if (
 						e.sourceId === "metrotaipei_town" &&
@@ -266,11 +304,11 @@ export const useMapStore = defineStore("map", {
 					}
 				});
 
-				// 載入村里界
-				// 加入 loading
+				// 頛????
+				// ? loading
 				this.loadingLayers.push("metrotaipei_village");
 
-				// 加入 source + layer
+				// ? source + layer
 				this.map.addSource("metrotaipei_village", {
 					type: "geojson",
 					data: "/mapData/metrotaipei_village.geojson",
@@ -282,7 +320,7 @@ export const useMapStore = defineStore("map", {
 					source: "metrotaipei_village",
 				});
 
-				// 綁定 loading 完成
+				// 蝬? loading 摰?
 				this.map.on("sourcedata", (e) => {
 					if (
 						e.sourceId === "metrotaipei_village" &&
@@ -320,7 +358,7 @@ export const useMapStore = defineStore("map", {
 					},
 				);
 			});
-			// 預載 3D 模型給 3D Mrt Map
+			// ?? 3D 璅∪?蝯?3D Mrt Map
 			const models = [
 				{ id: "mrt_car_c381", url: "/images/map/mrt_car_c381.glb" },
 				{ id: "mrt_car_c370", url: "/images/map/mrt_car_c370.glb" },
@@ -338,17 +376,17 @@ export const useMapStore = defineStore("map", {
 						},
 						undefined,
 						(err) => {
-							console.error(`3D 模型 ${m.id} 載入失敗:`, err);
+							console.error(`3D 璅∪? ${m.id} 頛憭望?:`, err);
 							reject(err);
 						},
 					);
 				});
 			};
 
-			// 等待所有 3D 模型載入完成
+			// 蝑????3D 璅∪?頛摰?
 			await Promise.all(models.map(loadModel));
 
-			// 全部載入完畢才變 false
+			// ?券頛摰?? false
 			this.isPreloading = false;
 		},
 		// 4. Toggle district boundaries
@@ -406,10 +444,10 @@ export const useMapStore = defineStore("map", {
 			if (navigator.geolocation) {
 				navigator.geolocation.getCurrentPosition(
 					(position) => {
-						this.userLocation = {
+						this.setUserLocation({
 							latitude: position.coords.latitude,
 							longitude: position.coords.longitude,
-						};
+						});
 					},
 					(error) => {
 						console.error(error.message);
@@ -418,6 +456,12 @@ export const useMapStore = defineStore("map", {
 			} else {
 				console.error("Geolocation is not supported by this browser.");
 			}
+		},
+		setUserLocation(location) {
+			this.userLocation = {
+				latitude: Number(location?.latitude),
+				longitude: Number(location?.longitude),
+			};
 		},
 
 		/* Adding Map Layers */
@@ -533,7 +577,7 @@ export const useMapStore = defineStore("map", {
 				}
 			} else {
 				try {
-					// 添加源
+					// 瘛餃?皞?
 					this.map.addSource(`${map_config.layerId}-source`, {
 						type: "vector",
 						scheme: "tms",
@@ -543,12 +587,12 @@ export const useMapStore = defineStore("map", {
 						],
 					});
 
-					// 監聽錯誤
+					// ???航炊
 					this.map.on("error", (e) => {
 						if (e.sourceId === `${map_config.layerId}-source`) {
 							console.error("Source error:", e);
 
-							// 清理已添加的源（如果存在）
+							// 皜?撌脫溶??皞?憒?摮嚗?
 							if (
 								this.map.getSource(
 									`${map_config.layerId}-source`,
@@ -558,14 +602,14 @@ export const useMapStore = defineStore("map", {
 									`${map_config.layerId}-source`,
 								);
 							}
-							// 從 loadingLayers 中移除
+							// 敺?loadingLayers 銝剔宏??
 							this.loadingLayers = this.loadingLayers.filter(
 								(el) => el !== map_config.layerId,
 							);
 						}
 					});
 
-					// 監聽源加載完成
+					// ??皞?頛???
 					const sourceLoaded = new Promise((resolve, reject) => {
 						const checkSource = (e) => {
 							if (e.sourceId === `${map_config.layerId}-source`) {
@@ -573,7 +617,7 @@ export const useMapStore = defineStore("map", {
 									this.map.off("sourcedata", checkSource);
 									resolve();
 								}
-								// 如果有錯誤也需要處理
+								// 憒??隤支??閬???
 								if (e.error) {
 									this.map.off("sourcedata", checkSource);
 									reject(e.error);
@@ -583,23 +627,23 @@ export const useMapStore = defineStore("map", {
 
 						this.map.on("sourcedata", checkSource);
 
-						// 設置超時
+						// 閮剔蔭頞?
 						setTimeout(() => {
 							this.map.off("sourcedata", checkSource);
 							reject(new Error("Source load timeout"));
 						}, 10000);
 					});
 
-					// 等待源加載完成後添加圖層
+					// 蝑?皞?頛???瘛餃??惜
 					await sourceLoaded;
 					this.addMapLayer(map_config);
 				} catch (error) {
 					console.error("Failed to add source:", error);
-					// 清理已添加的源（如果存在）
+					// 皜?撌脫溶??皞?憒?摮嚗?
 					if (this.map.getSource(`${map_config.layerId}-source`)) {
 						this.map.removeSource(`${map_config.layerId}-source`);
 					}
-					// 從 loadingLayers 中移除
+					// 敺?loadingLayers 銝剔宏??
 					this.loadingLayers = this.loadingLayers.filter(
 						(el) => el !== map_config.layerId,
 					);
@@ -644,7 +688,7 @@ export const useMapStore = defineStore("map", {
 				["24h200r", "24h350r", "24h500r", "24h650r"],
 			];
 
-			// 初始 filter 設定為第一組 (6 小時降雨)
+			// ?? filter 閮剖??箇洵銝蝯?(6 撠??)
 			const initialFilter = ["in", "hazard_class", ...filterClass[0]];
 			const config = {
 				id: map_config.layerId,
@@ -700,10 +744,10 @@ export const useMapStore = defineStore("map", {
 			this.waitUntilReady = setInterval(() => {
 				if (this.loadingLayers.length !== 0) return;
 
-				clearInterval(this.waitUntilReady); // 停止等待
+				clearInterval(this.waitUntilReady); // ?迫蝑?
 				this.waitUntilReady = null;
 
-				// 啟動動畫
+				// ???
 				this.filterInterval = setInterval(() => {
 					const currentFilter = [
 						"in",
@@ -823,30 +867,30 @@ export const useMapStore = defineStore("map", {
 		// 4-2-3. Animate Arc Layer
 		// Developed by Weeee Chill, Taipei Codefest 2024
 		animateArcLayer() {
-			// 開始時間
+			// ????
 			let startTime = performance.now();
-			// 每個動畫步驟的持續時間（毫秒）
-			const duration = 1000; // 1秒
+			// 瘥??急郊撽?????嚗神蝘?
+			const duration = 1000; // 1蝘?
 			const _this = this;
 
 			const step = (timestamp) => {
-				// 計算已經過的時間
+				// 閮?撌脩?????
 				const elapsedTime = timestamp - startTime;
-				// 計算進度
+				// 閮??脣漲
 				const progress = (elapsedTime / duration) * 100;
 
-				// 如果時間已經超過一個步驟，則增加步驟數
+				// 憒???撌脩?頞?銝?郊撽????郊撽
 				if (progress >= (_this.step / 1000) * 100) {
 					_this.step = _this.step + 1;
 					_this.renderDeckGLLayer();
 				}
 
-				// 如果動畫還未完成，繼續下一個動畫步驟
+				// 憒???摰?嚗匱蝥?銝???急郊撽?
 				if (_this.step <= 1000) {
 					requestAnimationFrame(step);
 				}
 			};
-			// 啟動動畫
+			// ???
 			requestAnimationFrame(step);
 		},
 		// 4-3. Add Map Layer for Voronoi Maps
@@ -1013,35 +1057,35 @@ export const useMapStore = defineStore("map", {
 			};
 			this.addMapLayer(new_map_config);
 		},
-		// 4-5. Create 3DMap for mrtp 202511月新開發
+		// 4-5. Create 3DMap for mrtp 202511??
 		Add3dMapLayer(map_config, data, data2, data3) {
-			// 3D 動態圖載入前設定
+			// 3D ?????亙?閮剖?
 			this.loadingLayers.push("rendering");
 			this.currentLayers.push(map_config.layerId);
 			this.mapConfigs[map_config.layerId] = map_config;
 
-			// 紀錄資料更新時間
+			// 蝝????唳???
 			this.layerUpdateTime[map_config.layerId] = new Date();
 
-			// 注意重複加入Id
+			// 瘜冽????Id
 			if (!this.currentVisibleLayers.includes(map_config.layerId)) {
 				this.currentVisibleLayers.push(map_config.layerId);
 			}
 
-			// 組成渲染所須的列車資料
+			// 蝯?皜脫??????鞈?
 
-			// 須注意的支線特例
+			// ?釣???舐??嫣?
 			const branchLineStations = [
-				"蘆洲",
-				"三民高中",
-				"徐匯中學",
-				"三和國中",
-				"三重國小",
-				"小碧潭",
-				"新北投",
+				"?散",
+				"銝?擃葉",
+				"敺銝剖飛",
+				"銝??葉",
+				"銝???",
+				"撠╡瞏?",
+				"?啣???",
 			];
 
-			// 建立 mrtCarsInit
+			// 撱箇? mrtCarsInit
 			const mrtCarsInit = data.features.map((item, i) => {
 				let routeCoordinates = null;
 
@@ -1082,19 +1126,19 @@ export const useMapStore = defineStore("map", {
 				};
 			});
 
-			// 整併 prevMrtCars
+			// ?港蔥 prevMrtCars
 			let mrtCars = [];
-			// 把不同路線的舊資料保存起來
+			// ???楝蝺?????摮絲靘?
 			let updatePrevCar = [];
 
 			if (this.prevMrtCars.length > 0) {
-				// 建立 Map 加速查找
+				// 撱箇? Map ???
 				const initTrainMap = new Map(
 					mrtCarsInit.map((car) => [car.trainnumber, car]),
 				);
-				// 先確認上一輪有的車
+				// ?Ⅱ隤?銝頛芣???
 				this.prevMrtCars.forEach((prevCar) => {
-					// 先確認新來的資料是不是同一路線
+					// ?Ⅱ隤靘?鞈??臭??臬?銝頝舐?
 					if (prevCar.route_id !== mrtCarsInit[0].route_id) {
 						updatePrevCar.push(prevCar);
 						return;
@@ -1102,15 +1146,15 @@ export const useMapStore = defineStore("map", {
 
 					const newCar = initTrainMap.get(prevCar.trainnumber);
 
-					// 同路線新資料沒有該車 → 跳過
+					// ?楝蝺鞈?瘝?閰脰? ??頝喲?
 					if (!newCar) return;
 
-					// 判斷車子是否進站（curr_stationname 有無變）
+					// ?斗頠??臬?脩?嚗urr_stationname ?霈?
 					const stationChanged =
 						prevCar.curr_stationid !== newCar.curr_stationid;
 
 					if (stationChanged) {
-						// 用舊 final_coord 當作起點，切新路線到新 curr_station
+						// ?刻? final_coord ?嗡?韏琿?嚗??啗楝蝺??curr_station
 						const start = prevCar.final_coord;
 						const end = [newCar.curr_lon, newCar.curr_lat];
 
@@ -1142,30 +1186,30 @@ export const useMapStore = defineStore("map", {
 								0,
 							]);
 
-						// 更新新車物件
+						// ?湔?啗??拐辣
 						newCar.coords = coords;
 						newCar.final_coord = interpolateAlongSegment(coords, 1);
 
-						// progress 重置
+						// progress ?蔭
 						newCar.progress = 0;
 						newCar.dataChanged = true;
 					} else {
-						// curr_station 沒變 → 保留舊狀態
+						// curr_station 瘝? ??靽?????
 						newCar.coords = prevCar.coords;
 						newCar.final_coord = prevCar.final_coord;
 						newCar.progress = 0.99;
 						newCar.dataChanged = false;
 					}
-					// 把新資料有找到的車推去待跑動畫列車陣列
+					// ?鞈???啁?頠?餃?頝??怠?頠??
 					mrtCars.push(newCar);
 				});
 
-				// 新資料出現的車
+				// ?啗???曄?頠?
 				for (const [trainNumber, car] of initTrainMap) {
 					const existed = this.prevMrtCars.some(
 						(prev) => prev.trainnumber === trainNumber,
 					);
-					if (existed) continue; // 已存在 → 不處理
+					if (existed) continue; // 撌脣?????銝???
 					const { coords } = car;
 
 					if (!coords || coords.length === 0) {
@@ -1184,9 +1228,9 @@ export const useMapStore = defineStore("map", {
 					}
 
 					const ratio = 90 / 100;
-					const finalCoord = interpolateAlongSegment(coords, ratio); // 插值後 2/3 的點
+					const finalCoord = interpolateAlongSegment(coords, ratio); // ?澆? 2/3 ??
 
-					// 切出 2/3 的前段 coords
+					// ? 2/3 ??畾?coords
 					const trimmed = [];
 					trimmed.push(coords[0]);
 
@@ -1219,15 +1263,15 @@ export const useMapStore = defineStore("map", {
 					car.final_coord = finalCoord;
 					car.progress = 0;
 
-					// 把新資料出現的車推去待跑動畫列車陣列
+					// ?鞈??箇???典敺???????
 					mrtCars.push(car);
 				}
 			} else {
-				// 如果是第一次開組件則執行初始化
+				// 憒??舐洵銝甈⊿?蝯辣?銵?憪?
 				mrtCars = mrtCarsInit.map((item) => {
 					const { coords } = item || {};
 
-					// 無座標 -> 返回空 coords 且 final_coord 為 null
+					// ?∪漣璅?-> 餈?蝛?coords 銝?final_coord ??null
 					if (!coords || coords.length === 0) {
 						return {
 							...item,
@@ -1237,7 +1281,7 @@ export const useMapStore = defineStore("map", {
 						};
 					}
 
-					// 只有一個點 -> 2/3 仍然是該點本身
+					// ?芣?銝?? -> 2/3 隞?航府暺頨?
 					if (coords.length === 1) {
 						const only = coords[0];
 						return {
@@ -1248,11 +1292,11 @@ export const useMapStore = defineStore("map", {
 						};
 					}
 
-					// 兩點或以上 -> 正常按距離計算 2/3 並切出前段 coords（含插值點）
+					// ?拚??誑銝?-> 甇?虜???Ｚ?蝞?2/3 銝血??箏?畾?coords嚗?潮?嚗?
 					const ratio = 90 / 100;
 					const finalCoord = interpolateAlongSegment(coords, ratio); // [lng, lat, z]
 
-					// 計算每段長度以取得 trimmedCoords
+					// 閮?瘥挾?瑕漲隞亙?敺?trimmedCoords
 					const segLens = [];
 					let totalLength = 0;
 					for (let i = 0; i < coords.length - 1; i++) {
@@ -1275,7 +1319,7 @@ export const useMapStore = defineStore("map", {
 							trimmedCoords.push(coords[i + 1]);
 							accum += segLens[i];
 						} else {
-							// 2/3 落在這段 -> 補上精準的插值點（finalCoord）然後中斷
+							// 2/3 ?賢?挾 -> 鋆?蝎暹????潮?嚗inalCoord嚗敺葉??
 							trimmedCoords.push(finalCoord);
 							break;
 						}
@@ -1291,13 +1335,13 @@ export const useMapStore = defineStore("map", {
 			}
 
 			if (mrtCars.length === 0) {
-				console.error("待跑動畫列車資料為空，請確認!");
+				console.error("敺????鞈??箇征嚗?蝣箄?!");
 				return;
 			}
 
 			this.prevMrtCars = [...updatePrevCar, ...mrtCars];
 
-			// === 自訂 3D 圖層 ===
+			// === ?芾? 3D ?惜 ===
 
 			const customLayer = {
 				id: map_config.layerId,
@@ -1307,9 +1351,9 @@ export const useMapStore = defineStore("map", {
 					customLayer.map = markRaw(map);
 					customLayer.camera = markRaw(new THREE.Camera());
 					customLayer.scene = markRaw(new THREE.Scene());
-					customLayer.lastUpdateTime = 0; // 節流用
+					customLayer.lastUpdateTime = 0; // 蝭瘚
 
-					// 環境光
+					// ?啣???
 					const hemiLight = new THREE.HemisphereLight(
 						0xffffff,
 						0x444444,
@@ -1318,7 +1362,7 @@ export const useMapStore = defineStore("map", {
 					hemiLight.position.set(0, 20, 0);
 					customLayer.scene.add(hemiLight);
 
-					// 預載列車模型
+					// ????璅∪?
 					for (const car of mrtCars) {
 						if (!car.model) {
 							const carIcon = car.car_icon;
@@ -1337,7 +1381,7 @@ export const useMapStore = defineStore("map", {
 								customLayer.scene.add(modelClone);
 							} else {
 								console.warn(
-									`⚠️ 3D 模型尚未預載完成: ${carIcon}`,
+									`?? 3D 璅∪?撠??摰?: ${carIcon}`,
 								);
 							}
 						}
@@ -1352,7 +1396,7 @@ export const useMapStore = defineStore("map", {
 					);
 					customLayer.renderer.autoClear = false;
 
-					// 加入 2D 圓圈資料
+					// ? 2D ??鞈?
 					const sourceId = `mrt-2d-source-${map_config.layerId}`;
 					const layerId = `mrt-2d-circles-${map_config.layerId}`;
 
@@ -1379,13 +1423,13 @@ export const useMapStore = defineStore("map", {
 						});
 					}
 
-					// 儲存 sourceId 和 layerId 供 render 和 onRemove 使用
+					// ?脣? sourceId ??layerId 靘?render ??onRemove 雿輻
 					customLayer.sourceId = sourceId;
 					customLayer.layerId2D = layerId;
 
-					// === Tooltip 只建一次 ===
+					// === Tooltip ?芸遣銝甈?===
 					if (!customLayer.carTooltip) {
-						// popup 最外層
+						// popup ?憭惜
 						customLayer.carTooltip = document.createElement("div");
 						customLayer.carTooltip.style.position = "absolute";
 						customLayer.carTooltip.style.left = 0;
@@ -1407,9 +1451,9 @@ export const useMapStore = defineStore("map", {
 						customLayer.tooltipOffsetX = 5;
 						customLayer.tooltipOffsetY = 5;
 
-						// popup 關閉按鈕
+						// popup ????
 						const closeBtn = document.createElement("button");
-						closeBtn.innerText = "×";
+						closeBtn.innerText = "?";
 						closeBtn.style.position = "absolute";
 						closeBtn.style.top = "1px";
 						closeBtn.style.right = "8px";
@@ -1425,7 +1469,7 @@ export const useMapStore = defineStore("map", {
 						};
 						customLayer.carTooltip.appendChild(closeBtn);
 
-						// popup 顯示屬性區塊
+						// popup 憿舐內撅祆批?憛?
 						const contentWrapper = document.createElement("div");
 						contentWrapper.style.paddingRight = "12px";
 						contentWrapper.style.height = "100%";
@@ -1437,7 +1481,7 @@ export const useMapStore = defineStore("map", {
 						map.getContainer().appendChild(customLayer.carTooltip);
 					}
 
-					// === Click 事件只綁一次 ===
+					// === Click 鈭辣?芰?銝甈?===
 					if (customLayer._carClickHandler) {
 						map.off("click", customLayer._carClickHandler);
 					}
@@ -1446,12 +1490,12 @@ export const useMapStore = defineStore("map", {
 						let closestCar = null;
 						let minDist = Infinity;
 
-						// 根據 zoom 等級調整點擊範圍
+						// ?寞? zoom 蝑?隤踵暺?蝭?
 						const zoom = customLayer.map.getZoom();
-						let clickRadius = 45; // 預設值
+						let clickRadius = 45; // ?身??
 
 						if (zoom < 11) {
-							clickRadius = 120; // zoom < 11 時範圍較大
+							clickRadius = 120; // zoom < 11 ????憭?
 						} else if (zoom < 13) {
 							clickRadius = 90;
 						} else {
@@ -1490,12 +1534,12 @@ export const useMapStore = defineStore("map", {
 
 						customLayer.selectedCar = closestCar;
 
-						// 清空 tooltip 內容
+						// 皜征 tooltip ?批捆
 						customLayer.tooltipContent.innerHTML = "";
 						const infoContainer = document.createElement("div");
 						const fields = map_config.property.map((prop) => ({
 							label: prop.name,
-							value: prop.name.includes("擁擠度")
+							value: prop.name.includes("crowd")
 								? getCrowdColor(closestCar[prop.key])
 								: closestCar[prop.key] || "",
 						}));
@@ -1514,19 +1558,19 @@ export const useMapStore = defineStore("map", {
 				},
 
 				onRemove(map) {
-					// 清理 tooltip
+					// 皜? tooltip
 					if (customLayer.carTooltip) {
 						customLayer.carTooltip.remove();
 						customLayer.carTooltip = null;
 					}
 
-					// 清理 click 事件
+					// 皜? click 鈭辣
 					if (customLayer._carClickHandler) {
 						map.off("click", customLayer._carClickHandler);
 						customLayer._carClickHandler = null;
 					}
 
-					// 用 sourceId 和 layerId 清理該路線的 2D 圖層
+					// ??sourceId ??layerId 皜?閰脰楝蝺? 2D ?惜
 					if (
 						customLayer.layerId2D &&
 						map.getLayer(customLayer.layerId2D)
@@ -1541,17 +1585,17 @@ export const useMapStore = defineStore("map", {
 						map.removeSource(customLayer.sourceId);
 					}
 
-					// 清理 3D 模型
+					// 皜? 3D 璅∪?
 					if (customLayer.scene && mrtCars?.length) {
 						for (const car of mrtCars) {
 							if (car.model) {
 								car.model.traverse((child) => {
 									if (child.isMesh) {
-										// 釋放 geometry
+										// ? geometry
 										if (child.geometry)
 											child.geometry.dispose();
 
-										// 釋放材質和貼圖
+										// ??釭?票??
 										if (child.material) {
 											const disposeMaterial = (mat) => {
 												if (mat.map) mat.map.dispose();
@@ -1575,19 +1619,19 @@ export const useMapStore = defineStore("map", {
 									}
 								});
 
-								// 從 scene 移除
+								// 敺?scene 蝘駁
 								customLayer.scene.remove(car.model);
 								car.model = null;
 							}
 						}
 
-						// 清空 mrtCars 陣列，避免舊引用被再次使用
+						// 皜征 mrtCars ???嚗??撘鋡怠?甈∩蝙??
 						mrtCars.length = 0;
 					}
 
-					// 清理 scene / camera
+					// 皜? scene / camera
 					if (customLayer.scene) {
-						// 移除剩餘 children
+						// 蝘駁?拚? children
 						while (customLayer.scene.children.length) {
 							customLayer.scene.remove(
 								customLayer.scene.children[0],
@@ -1597,23 +1641,23 @@ export const useMapStore = defineStore("map", {
 					customLayer.scene = null;
 					customLayer.camera = null;
 
-					// 清理 selectedCar
+					// 皜? selectedCar
 					customLayer.selectedCar = null;
 				},
 
 				render: (gl, matrix) => {
-					// 取得當下的 zoom
+					// ???嗡???zoom
 					const zoom = customLayer.map.getZoom();
 					const now = performance.now();
 
 					let allFinished = true;
-					// 確認當下各列車是否都跑完動畫
+					// 蝣箄??嗡???頠?阡頝??
 					for (const car of mrtCars) {
 						if (car.progress < 1) allFinished = false;
 					}
 
 					if (zoom < 13) {
-						// 2D 模式
+						// 2D 璅∪?
 						for (const car of mrtCars)
 							if (car.model) car.model.visible = false;
 						if (!allFinished) {
@@ -1635,10 +1679,10 @@ export const useMapStore = defineStore("map", {
 									type: "FeatureCollection",
 									features,
 								});
-							customLayer.updated2D = true; // 標記已經更新過一次
+							customLayer.updated2D = true; // 璅?撌脩??湔??甈?
 						}
 
-						// 更新 2D tooltip
+						// ?湔 2D tooltip
 						if (
 							customLayer.selectedCar?.currentLngLat &&
 							customLayer.selectedCar?.lastDir
@@ -1662,7 +1706,7 @@ export const useMapStore = defineStore("map", {
 							customLayer.carTooltip.style.transform = `translate(${screenPos.x + customLayer.tooltipOffsetX}px, ${screenPos.y + customLayer.tooltipOffsetY}px)`;
 						}
 
-						// 顯示 2D layer
+						// 憿舐內 2D layer
 						if (
 							customLayer.map.getLayoutProperty(
 								customLayer.layerId2D,
@@ -1676,11 +1720,11 @@ export const useMapStore = defineStore("map", {
 							);
 						}
 					} else {
-						// 3D 模式
+						// 3D 璅∪?
 						for (const car of mrtCars)
 							if (car.model) car.model.visible = true;
 
-						// 隱藏 2D layer
+						// ?梯? 2D layer
 						if (
 							customLayer.map.getLayoutProperty(
 								customLayer.layerId2D,
@@ -1708,7 +1752,7 @@ export const useMapStore = defineStore("map", {
 						}
 
 						for (const car of mrtCars) {
-							// updateCarsPosition([car]); // 單台車也用同一個計算
+							// updateCarsPosition([car]); // ?桀頠??典?銝??蝞?
 
 							const pos = car.currentLngLat;
 							const dir = car.lastDir;
@@ -1758,7 +1802,7 @@ export const useMapStore = defineStore("map", {
 							renderer.resetState();
 							renderer.render(scene, camera);
 
-							// 更新 tooltip
+							// ?湔 tooltip
 							if (
 								customLayer.selectedCar?.currentLngLat &&
 								customLayer.selectedCar?.lastDir
@@ -1786,7 +1830,7 @@ export const useMapStore = defineStore("map", {
 							}
 						}
 					}
-					// 下一幀
+					// 銝?撟
 					customLayer.map.triggerRepaint();
 				},
 			};
@@ -1794,10 +1838,10 @@ export const useMapStore = defineStore("map", {
 			if (!this.customLayers) this.customLayers = {};
 			this.customLayers[map_config.layerId] = customLayer;
 
-			// === 加入圖層 ===
+			// === ??惜 ===
 			this.map.addLayer(customLayer);
 
-			// loading 結束
+			// loading 蝯?
 			this.loadingLayers = this.loadingLayers.filter(
 				(el) => el !== map_config.layerId,
 			);
@@ -1822,7 +1866,7 @@ export const useMapStore = defineStore("map", {
 						["24h200r", "24h350r", "24h500r", "24h650r"],
 					];
 
-					// 初始 filter 設定為第一組 (6 小時降雨)
+					// ?? filter 閮剖??箇洵銝蝯?(6 撠??)
 					const initialFilter = [
 						"in",
 						"hazard_class",
@@ -1869,8 +1913,8 @@ export const useMapStore = defineStore("map", {
 			});
 			this.removePopup();
 
-			// 如果3D捷運地圖 popup 存在把它清除
-			// 關閉 popup + reset
+			// 憒?3D?琿??啣? popup 摮??皜
+			// ?? popup + reset
 			map_config.forEach((item) => {
 				if (item.type === "symbol-3d") {
 					const customLayer =
@@ -1929,11 +1973,11 @@ export const useMapStore = defineStore("map", {
 			const layerClosestFeature = {}; // key: layerId, value: { feature, distance }
 			const clickPoint = [event.lngLat.lng, event.lngLat.lat];
 
-			// 計算每個圖層最近的 feature
+			// 閮?瘥?撅斗?餈? feature
 			for (const rawFeature of clickFeatureDatas) {
 				const layerId = rawFeature.layer.id;
 
-				// 計算距離最近的點
+				// 閮?頝?餈?暺?
 				const featureCenter =
 					rawFeature.geometry?.type === "Point"
 						? rawFeature.geometry.coordinates
@@ -1943,12 +1987,12 @@ export const useMapStore = defineStore("map", {
 				const dy = featureCenter[1] - clickPoint[1];
 				const dist2 = dx * dx + dy * dy;
 
-				// 如果是該圖層第一次或更近，就存
+				// 憒??航府?惜蝚砌?甈⊥??渲?嚗停摮?
 				if (
 					!layerClosestFeature[layerId] ||
 					dist2 < layerClosestFeature[layerId].distance
 				) {
-					// 格式化 properties
+					// ?澆???properties
 					const feature = { ...rawFeature };
 					feature.geometry =
 						rawFeature.geometry || rawFeature._geometry;
@@ -1964,7 +2008,7 @@ export const useMapStore = defineStore("map", {
 				}
 			}
 
-			// 取前 3 個不同圖層最近的 feature
+			// ?? 3 ????撅斗?餈? feature
 			const closestLayers = Object.keys(layerClosestFeature).slice(0, 3);
 			for (const layerId of closestLayers) {
 				const { feature } = layerClosestFeature[layerId];
@@ -1985,7 +2029,7 @@ export const useMapStore = defineStore("map", {
 				.setHTML('<div id="vue-popup-content"></div>')
 				.addTo(this.map);
 
-			// 定義 popup 給 PopupComponent 內使用
+			// 摰儔 popup 蝯?PopupComponent ?找蝙??
 			const { popup } = this;
 
 			// Mount a vue component (MapPopup) to the id "vue-popup-content" and pass in data
@@ -2007,7 +2051,7 @@ export const useMapStore = defineStore("map", {
 						if (Hls.isSupported()) {
 							const hlsInstance = new Hls();
 
-							// 添加錯誤監聽
+							// 瘛餃??航炊??
 							hlsInstance.on(Hls.Events.ERROR, (event, data) => {
 								if (data.fatal) {
 									hlsInstance.destroy();
@@ -2033,7 +2077,7 @@ export const useMapStore = defineStore("map", {
 						const activeTabValue = activeTab.value;
 						let videoElement = videoRef.value;
 
-						// 如果 videoRef 是數組，取第一個元素
+						// 憒? videoRef ?舀蝯??洵銝??蝝?
 						if (Array.isArray(videoElement)) {
 							videoElement = videoElement[0];
 						}
@@ -2045,7 +2089,7 @@ export const useMapStore = defineStore("map", {
 							return;
 						}
 
-						// 找到 video 模式的 property
+						// ?曉 video 璅∪???property
 						const videoProperty = mapConfigs[
 							activeTabValue
 						].property.find((item) => item.mode === "video");
@@ -2061,7 +2105,7 @@ export const useMapStore = defineStore("map", {
 							return;
 						}
 
-						// 如果是 HLS URL，使用 HLS 播放器
+						// 憒???HLS URL嚗蝙??HLS ?剜??
 						if (isHlsUrl(videoUrl)) {
 							if (hls.value) {
 								hls.value.destroy();
@@ -2072,12 +2116,12 @@ export const useMapStore = defineStore("map", {
 						}
 					};
 
-					// 初始化影像
+					// ???蔣??
 					nextTick(() => {
 						handleVideoLoad();
 					});
 
-					// 監聽 activeTab 變化，重新載入影片
+					// ?? activeTab 霈?嚗??啗??亙蔣??
 					watch(activeTab, () => {
 						nextTick(() => {
 							handleVideoLoad();
@@ -2107,7 +2151,7 @@ export const useMapStore = defineStore("map", {
 				app.mount("#vue-popup-content");
 			});
 
-			// 使用者點擊圖徵時觸發GA自訂事件
+			// 雿輻????敺菜?閫貊GA?芾?鈭辣
 			if (
 				mapConfigs[0].city &&
 				mapConfigs[0].title &&
@@ -2216,7 +2260,7 @@ export const useMapStore = defineStore("map", {
 					await http.delete(
 						`user/${authStore.user.user_id}/viewpoint/${markerId}`,
 					);
-					dialogStore.showNotification("success", "地標刪除成功");
+					dialogStore.showNotification("success", "?唳??芷??");
 					this.viewPoints = this.viewPoints.filter(
 						(viewPoint) => viewPoint.id !== markerId,
 					);
@@ -2239,7 +2283,7 @@ export const useMapStore = defineStore("map", {
 			this.viewPoints = this.viewPoints.filter(
 				(viewPoint) => viewPoint.id !== item.id,
 			);
-			dialogStore.showNotification("success", "視角刪除成功");
+			dialogStore.showNotification("success", "閬??芷??");
 		},
 		// 5. Fetch all view points
 		async fetchViewPoints() {
@@ -2562,6 +2606,371 @@ export const useMapStore = defineStore("map", {
 			this.flyToLocation(res.geometry.coordinates);
 		},
 
+		/* AI guide map commands */
+		openComponentLayer(mapConfig = []) {
+			if (!Array.isArray(mapConfig) || mapConfig.length === 0) return;
+			this.addToMapLayerList(mapConfig);
+		},
+		executeAiMapCommands(actions = [], interactionModel = null) {
+			if (interactionModel) {
+				this.aiInteractionModel = interactionModel;
+			}
+			(actions || []).forEach((action) => {
+				this.executeAiMapCommand(action);
+			});
+		},
+		executeAiMapCommand(action) {
+			if (!action?.type) return;
+			const payload = action.payload || {};
+			switch (action.type) {
+			case "map.clear_ai_overlay":
+				this.clearAiOverlay();
+				break;
+			case "map.add_points":
+				this.addAiPoints(payload);
+				break;
+			case "map.add_polygon":
+				this.addAiPolygon(payload);
+				break;
+			case "map.add_line":
+			case "map.add_route":
+				this.addAiLine(payload);
+				break;
+			case "map.fit_bounds":
+				this.fitAiBounds(payload);
+				break;
+			case "map.fly_to":
+				this.flyToAiLocation(payload);
+				break;
+			case "map.open_card":
+				this.openAiCard(payload);
+				break;
+			case "map.highlight_feature":
+				this.highlightAiFeature(payload);
+				break;
+			case "map.set_filter":
+				this.setAiLayerFilter(payload);
+				break;
+			case "panel.open_candidate_list":
+				this.aiPanel = { type: "candidate_list", ...payload };
+				break;
+			case "panel.open_compare":
+				this.aiPanel = { type: "compare", ...payload };
+				break;
+			case "dialog.notify": {
+				const dialogStore = useDialogStore();
+				dialogStore.showNotification(
+					payload.status || "info",
+					payload.message || payload.title || "AI guide updated map.",
+					payload.duration || 5000,
+				);
+				break;
+			}
+			default:
+				break;
+			}
+		},
+		clearAiOverlay() {
+			if (!this.map) return;
+			Object.entries(this.aiLayerHandlers).forEach(([layerId, handlers]) => {
+				if (this.map.getLayer(layerId)) {
+					this.map.off("mouseenter", layerId, handlers.onMouseEnter);
+					this.map.off("mouseleave", layerId, handlers.onMouseLeave);
+					this.map.off("click", layerId, handlers.onClick);
+				}
+				handlers.hoverPopup?.remove();
+			});
+			this.aiLayerHandlers = {};
+			[...this.aiOverlayLayers].reverse().forEach((layerId) => {
+				if (this.map.getLayer(layerId)) {
+					this.map.removeLayer(layerId);
+				}
+			});
+			this.aiOverlaySources.forEach((sourceId) => {
+				if (this.map.getSource(sourceId)) {
+					this.map.removeSource(sourceId);
+				}
+			});
+			this.aiOverlayLayers = [];
+			this.aiOverlaySources = [];
+			this.aiPanel = null;
+			this.removePopup();
+		},
+		trackAiLayer(layerId) {
+			if (layerId && !this.aiOverlayLayers.includes(layerId)) {
+				this.aiOverlayLayers.push(layerId);
+			}
+		},
+		trackAiSource(sourceId) {
+			if (sourceId && !this.aiOverlaySources.includes(sourceId)) {
+				this.aiOverlaySources.push(sourceId);
+			}
+		},
+		addAiPoints(payload) {
+			if (!this.map || !payload.sourceId || !payload.layerId) return;
+			if (this.map.getLayer(payload.layerId)) {
+				this.map.removeLayer(payload.layerId);
+			}
+			if (this.map.getSource(payload.sourceId)) {
+				this.map.getSource(payload.sourceId).setData(payload.geojson);
+			} else {
+				this.map.addSource(payload.sourceId, {
+					type: "geojson",
+					data: payload.geojson || {
+						type: "FeatureCollection",
+						features: [],
+					},
+				});
+				this.trackAiSource(payload.sourceId);
+			}
+			this.map.addLayer({
+				id: payload.layerId,
+				type: "circle",
+				source: payload.sourceId,
+				paint: {
+					"circle-radius": [
+						"interpolate",
+						["linear"],
+						["zoom"],
+						10,
+						6,
+						15,
+						11,
+					],
+					"circle-color": [
+						"match",
+						["get", "status_level"],
+						"critical",
+						"#ef4444",
+						"busy",
+						"#f59e0b",
+						"ok",
+						"#22c55e",
+						"#38bdf8",
+					],
+					"circle-stroke-color": "#ffffff",
+					"circle-stroke-width": 2,
+					"circle-opacity": 0.9,
+				},
+			});
+			this.trackAiLayer(payload.layerId);
+			this.bindAiLayerInteractions(payload.layerId, payload.featureIdProperty);
+		},
+		addAiPolygon(payload) {
+			if (!this.map || !payload.sourceId || !payload.layerId) return;
+			if (!this.map.getSource(payload.sourceId)) {
+				this.map.addSource(payload.sourceId, {
+					type: "geojson",
+					data: payload.geojson,
+				});
+				this.trackAiSource(payload.sourceId);
+			} else {
+				this.map.getSource(payload.sourceId).setData(payload.geojson);
+			}
+			if (!this.map.getLayer(payload.layerId)) {
+				this.map.addLayer({
+					id: payload.layerId,
+					type: "fill",
+					source: payload.sourceId,
+					paint: {
+						"fill-color": payload.fillColor || "#22c55e",
+						"fill-opacity": payload.fillOpacity ?? 0.25,
+					},
+				});
+				this.trackAiLayer(payload.layerId);
+			}
+			if (payload.outlineLayerId && !this.map.getLayer(payload.outlineLayerId)) {
+				this.map.addLayer({
+					id: payload.outlineLayerId,
+					type: "line",
+					source: payload.sourceId,
+					paint: {
+						"line-color": payload.lineColor || "#ffffff",
+						"line-width": payload.lineWidth || 2,
+					},
+				});
+				this.trackAiLayer(payload.outlineLayerId);
+			}
+			this.bindAiLayerInteractions(payload.layerId, payload.featureIdProperty);
+		},
+		addAiLine(payload) {
+			if (!this.map || !payload.sourceId || !payload.layerId) return;
+			const geojson =
+				payload.geojson ||
+				(Array.isArray(payload.coordinates)
+					? {
+						type: "FeatureCollection",
+						features: [
+							{
+								type: "Feature",
+								geometry: {
+									type: "LineString",
+									coordinates: payload.coordinates,
+								},
+								properties: { summary: payload.summary },
+							},
+						],
+					}
+					: null);
+			if (!geojson) return;
+			if (!this.map.getSource(payload.sourceId)) {
+				this.map.addSource(payload.sourceId, { type: "geojson", data: geojson });
+				this.trackAiSource(payload.sourceId);
+			} else {
+				this.map.getSource(payload.sourceId).setData(geojson);
+			}
+			if (!this.map.getLayer(payload.layerId)) {
+				this.map.addLayer({
+					id: payload.layerId,
+					type: "line",
+					source: payload.sourceId,
+					paint: {
+						"line-color": payload.lineColor || "#60a5fa",
+						"line-width": payload.lineWidth || 4,
+						"line-dasharray": payload.lineDasharray || [1, 1],
+					},
+				});
+				this.trackAiLayer(payload.layerId);
+			}
+		},
+		fitAiBounds(payload) {
+			if (!this.map || !Array.isArray(payload.bounds)) return;
+			this.map.fitBounds(payload.bounds, {
+				padding: payload.padding || 90,
+				duration: payload.duration || 800,
+				maxZoom: payload.maxZoom,
+			});
+		},
+		flyToAiLocation(payload) {
+			if (!this.map) return;
+			const center = normalizeLngLat(payload.center || payload.coordinate);
+			if (!center) return;
+			this.map.flyTo({
+				center,
+				zoom: payload.zoom || 15,
+				pitch: payload.pitch,
+				bearing: payload.bearing,
+				duration: payload.duration || 1000,
+			});
+		},
+		openAiCard(payload) {
+			if (!this.map) return;
+			const coordinate = normalizeLngLat(payload.coordinate || payload.center);
+			if (!coordinate) return;
+			this.removePopup();
+			const fields = safeParseJsonArray(payload.fields);
+			const fieldsHtml = fields
+				.map(
+					(field) =>
+						`<div class="ai-card-field"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(field.value)}</strong></div>`,
+				)
+				.join("");
+			this.popup = new mapboxGl.Popup({ maxWidth: "320px" })
+				.setLngLat(coordinate)
+				.setHTML(`
+					<div class="ai-map-card">
+						<h3>${escapeHtml(payload.title || "AI 地圖資訊")}</h3>
+						${payload.summary ? `<p>${escapeHtml(payload.summary)}</p>` : ""}
+						${fieldsHtml ? `<div>${fieldsHtml}</div>` : ""}
+					</div>
+				`)
+				.addTo(this.map);
+		},
+		bindAiLayerInteractions(layerId, featureIdProperty) {
+			if (!this.map || this.aiLayerHandlers[layerId]) return;
+			const hoverPopup = new mapboxGl.Popup({
+				closeButton: false,
+				closeOnClick: false,
+				offset: 12,
+			});
+			const onMouseEnter = (event) => {
+				this.map.getCanvas().style.cursor = "pointer";
+				const feature = event.features?.[0];
+				if (!feature) return;
+				const props = feature.properties || {};
+				const coordinate = normalizeLngLat(
+					feature.geometry?.coordinates || event.lngLat?.toArray?.(),
+				);
+				if (!coordinate) return;
+				const lines = safeParseJsonArray(props.tooltip_lines);
+				const root = document.createElement("div");
+				root.className = "ai-map-tooltip";
+				root.innerHTML = `
+					<strong>${escapeHtml(props.tooltip_title || props.name || props.card_title || "AI 地圖資訊")}</strong>
+					${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+				`;
+				hoverPopup.setLngLat(coordinate).setDOMContent(root).addTo(this.map);
+			};
+			const onMouseLeave = () => {
+				this.map.getCanvas().style.cursor = "";
+				hoverPopup.remove();
+			};
+			const onClick = (event) => {
+				const feature = event.features?.[0];
+				if (!feature) return;
+				const props = feature.properties || {};
+				const coordinate = normalizeLngLat(feature.geometry?.coordinates);
+				this.openAiCard({
+					coordinate,
+					feature_id: props[featureIdProperty] || props.hospital_id || props.pharmacy_id,
+					title: props.card_title || props.name || props.tooltip_title,
+					summary: props.card_summary || "",
+					fields: safeParseJsonArray(props.card_fields),
+				});
+			};
+			this.map.on("mouseenter", layerId, onMouseEnter);
+			this.map.on("mouseleave", layerId, onMouseLeave);
+			this.map.on("click", layerId, onClick);
+			this.aiLayerHandlers[layerId] = {
+				onMouseEnter,
+				onMouseLeave,
+				onClick,
+				hoverPopup,
+			};
+		},
+		highlightAiFeature(payload) {
+			if (!this.map || !payload.layerId || !payload.sourceId) return;
+			const highlightLayerId = `${payload.layerId}-highlight`;
+			if (this.map.getLayer(highlightLayerId)) {
+				this.map.removeLayer(highlightLayerId);
+			}
+			this.map.addLayer({
+				id: highlightLayerId,
+				type: "circle",
+				source: payload.sourceId,
+				filter: [
+					"==",
+					["get", payload.featureIdProperty || "id"],
+					payload.featureId,
+				],
+				paint: {
+					"circle-radius": 16,
+					"circle-color": "rgba(255,255,255,0)",
+					"circle-stroke-color": "#facc15",
+					"circle-stroke-width": 4,
+				},
+			});
+			this.trackAiLayer(highlightLayerId);
+		},
+		setAiLayerFilter(payload) {
+			if (!this.map || !payload.layerId || !this.map.getLayer(payload.layerId)) {
+				return;
+			}
+			this.map.setFilter(payload.layerId, payload.filter || null);
+		},
+		handleAiPanelItemClick(item) {
+			const coordinate = normalizeLngLat(item?.coordinate);
+			if (!coordinate) return;
+			this.flyToAiLocation({ center: coordinate, zoom: item.zoom || 15 });
+			this.openAiCard({
+				coordinate,
+				feature_id: item.feature_id,
+				title: item.title,
+				summary: item.subtitle,
+				fields: item.fields || [],
+			});
+		},
+
 		/* Clearing the map */
 		// 1. Called when the user is switching between maps
 		clearOnlyLayers() {
@@ -2587,3 +2996,4 @@ export const useMapStore = defineStore("map", {
 		},
 	},
 });
+

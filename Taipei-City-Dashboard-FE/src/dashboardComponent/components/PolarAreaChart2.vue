@@ -101,7 +101,6 @@ const rHovered = ref(-1);
 const rtext = 105; // xAxis label position radius
 
 const aspc = (2 * Math.PI) / 180;
-const agap = (6 * Math.PI) / 180;
 const rmin = 10; // sector radius adder
 const rmax = 75; // sector radius multiplier
 const rselected = 80; // selected sector radius multiplier
