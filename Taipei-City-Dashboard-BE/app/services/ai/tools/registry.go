@@ -14,9 +14,11 @@ type ToolFunc func(ctx context.Context, args string) (string, error)
 var registry = make(map[string]ToolFunc)
 
 func init() {
-	// Register demo tools
 	Register("get_current_time", GetCurrentTime)
 	Register("get_population_summary", GetPopulationSummary)
+	Register("search_dashboard_datasets", SearchDashboardDatasets)
+	Register("query_dashboard_dataset", QueryDashboardDataset)
+	Register("get_component_chart_data", GetComponentChartData)
 }
 
 // Register adds a tool to the registry
@@ -56,11 +58,11 @@ func GetPopulationSummary(ctx context.Context, args string) (string, error) {
 
 	// Define result structure based on database schema
 	var result struct {
-		Year      int `gorm:"column:year"`
-		Young     int `gorm:"column:young_population"`
-		Working   int `gorm:"column:working_age_population"`
-		Elderly   int `gorm:"column:elderly_population"`
-		DataTime  time.Time `gorm:"column:data_time"`
+		Year     int       `gorm:"column:year"`
+		Young    int       `gorm:"column:young_population"`
+		Working  int       `gorm:"column:working_age_population"`
+		Elderly  int       `gorm:"column:elderly_population"`
+		DataTime time.Time `gorm:"column:data_time"`
 	}
 
 	// Query the dashboard database

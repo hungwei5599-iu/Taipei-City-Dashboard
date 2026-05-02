@@ -1,128 +1,243 @@
-import { ref, watch } from 'vue'
-import { defineStore } from 'pinia'
+import { ref, watch } from "vue";
+import { defineStore } from "pinia";
 import http from "../router/axios";
 
-export const useChatStore = defineStore('chat', () => {
-  	// 預設訊息
-  	const defaultChatData = [
-    	{
-      		id: 1,
-      		role: 'bot',
-	  		isDefault: true,
-      		content:
-        	'您好，我是【臺北城市儀表板】小幫手，很高興為您服務！\n 您可以： \n\n • 點擊左側既有的儀表板主題，快速查看各主題內容 \n • 輸入您感興趣的主題描述，我會自動為您組建最適合的儀表板 \n\n 如果有想了解的內容，歡迎直接告訴我，我會盡力協助！\n\n 📩 聯絡信箱：tuic@gov.taipei \n 🏢 臺北大數據中心 \n\n',
-    	},
-  	];
+const defaultChatData = [
+	{
+		id: 1,
+		role: "bot",
+		isDefault: true,
+		content:
+			"你好，我是台北城市儀表板助理。你可以問我想看的城市議題、趨勢或指標，我會先從圖表知識庫找相關元件，再視問題需要請 AI 查詢資料庫後回答。",
+	},
+];
 
-	const recommendComponents = ref(null)
+const fetchComponentChartData = async (component) => {
+	const city = component.city || "metrotaipei";
+	const response = await http.get(`/component/${component.id}/chart`, {
+		params: { city },
+	});
 
-  	// 從 sessionStorage 讀取
-  	const savedChatData = JSON.parse(sessionStorage.getItem('chatData')) || [];
+	return {
+		id: component.id,
+		name: component.name,
+		city,
+		chart_data: response.data,
+	};
+};
 
-  	// 拼接預設訊息 + sessionStorage 的聊天紀錄
-  	const chatData = ref([...defaultChatData, ...savedChatData]);
+const buildDatabaseContext = async (components) => {
+	const targets = (components ?? [])
+		.slice(0, 3)
+		.filter((item) => item.id);
 
-  	// 監聽 chatData 的變化，自動同步到 sessionStorage
-  	watch(
-    	chatData,
-    	(newVal) => {
-      	// 只存使用者與機器人的聊天訊息，不存重複的預設訊息
-      	const userBotMessages = newVal.filter((item) => !item.isDefault)
-      	sessionStorage.setItem('chatData', JSON.stringify(userBotMessages))
-    	},
-    	{ deep: true }
-  	);
+	const results = await Promise.allSettled(
+		targets.map(fetchComponentChartData),
+	);
 
-  	const addChatData = (newChatData) => {
-    	chatData.value.push({ id: chatData.value.length + 1, isDefault: false, ...newChatData });
-  	};
-
-  	const addQueryData = async (newChatData) => {
-
-    	chatData.value.push({ id: chatData.value.length + 1, isDefault: false, ...newChatData });
-
-		recommendComponents.value = [];
-		let topK = null;
-
-		try {
-			const response = await http.post(
-  				"/vector/component",
-  				new URLSearchParams({
-    				query: newChatData.content,
-    				limit: 10,
-    				score: 0.8,
-  				}),
-  				{
-    				headers: {
-      					"Content-Type": "application/x-www-form-urlencoded",
-    				},
-  				}
-			);
-			if (response.data?.data?.length > 0) {
-				recommendComponents.value = response.data.data;
-			}
-
-			// 去除重複項目存到 result
-			const result = Array.from(
-  				recommendComponents.value.reduce((map, item) => {
-    				const key = item.index
-    				const exist = map.get(key)
-
-    				// 如果還沒放過，直接放
-    				if (!exist) {
-      					map.set(key, item)
-      					return map
-    				}
-
-    				// 如果已存在，但現在的是 metrotaipei，就覆蓋
-    				if (item.city === 'metrotaipei') {
-      					map.set(key, item)
-    				}
-
-    				return map
-  				}, new Map()).values()
-			)
-			// 把 result 蓋回去 recommendComponents
-			recommendComponents.value = result
-
-		} catch (error) { 
-			console.error("VectorAnalysisError :", error);
+	return results.map((result, index) => {
+		if (result.status === "fulfilled") {
+			return result.value;
 		}
 
-		if (recommendComponents.value && recommendComponents.value?.length > 0) {
-			topK = [...recommendComponents.value].sort((a, b) => b.score - a.score);
-			chatData.value.push({ id: chatData.value.length + 1, role: 'bot', isDefault: false, button: [{ id:1, text:'建立儀表板' }], content: `您好 😊 \n 以下是根據您的問題，自動為您推薦的「組件清單」。您可以將這些組件整批加入「個人儀表板」，方便日後快速查看與使用。\n`, relations: topK });
-			chatData.value.push({ id: chatData.value.length + 1, role: 'bot', isDefault: false, content: `若您有任何新的查詢或想深入探索的內容，都可以隨時在對話框告訴我～\n 我很樂意再協助您 💬✨` });
-		} else {
-			chatData.value.push({ id: chatData.value.length + 1, role: 'bot', isDefault: false, content: `很抱歉，您提供的描述沒有相似組件，請繼續提問 ! ` });
-		}
+		const component = targets[index];
+		return {
+			id: component.id,
+			name: component.name,
+			city: component.city,
+			error: String(result.reason?.message || result.reason),
+		};
+	});
+};
 
-		// 分析結束後紀錄問答log
-		saveChatLog(newChatData.content, recommendComponents.value);
-  	};
+const dedupeComponents = (components) =>
+	Array.from(
+		components
+			.reduce((map, item) => {
+				const exist = map.get(item.index);
+				if (!exist || item.city === "metrotaipei") {
+					map.set(item.index, item);
+				}
+				return map;
+			}, new Map())
+			.values(),
+	);
 
-	const saveChatLog = async(question, answer) => {
-		try {
-        	const formData = new FormData();
-        	const d = new Date();
-        	const todayId =
-          		d.getFullYear() +
-          		String(d.getMonth() + 1).padStart(2, "0") +
-          		String(d.getDate()).padStart(2, "0");
+export const useChatStore = defineStore("chat", () => {
+	const recommendComponents = ref(null);
+	const savedChatData = JSON.parse(sessionStorage.getItem("chatData")) || [];
+	const chatData = ref([...defaultChatData, ...savedChatData]);
 
-        	formData.append("session", "session_" + todayId);
-        	formData.append("question", question);
-        	formData.append("answer", JSON.stringify(answer));
+	watch(
+		chatData,
+		(newVal) => {
+			const userBotMessages = newVal.filter((item) => !item.isDefault);
+			sessionStorage.setItem("chatData", JSON.stringify(userBotMessages));
+		},
+		{ deep: true },
+	);
 
-        	await http.post("/chatlog/", formData, {
-          		headers: {
-            		"Content-Type": "multipart/form-data",
-          		},
-        	});
-      	} catch (error) {
-        	console.error("saveChatLog error:", error);
-      	}
+	const addChatData = (newChatData) => {
+		chatData.value.push({
+			id: chatData.value.length + 1,
+			isDefault: false,
+			...newChatData,
+		});
 	};
 
-	return { chatData, addChatData, addQueryData, saveChatLog }
-})
+	const searchRelatedComponents = async (question) => {
+		const response = await http.post(
+			"/vector/component",
+			new URLSearchParams({
+				query: question,
+				limit: 10,
+				score: 0.8,
+			}),
+			{
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+			},
+		);
+
+		return dedupeComponents(response.data?.data || []);
+	};
+
+	const askTWCCAI = async (question, components) => {
+		const databaseContext = await buildDatabaseContext(components);
+
+		console.log("AI components:", components);
+		console.log("AI database context:", databaseContext);
+
+		const response = await http.post("/ai/chat/twai", {
+			session: getTodaySessionId(),
+			stream: false,
+			messages: [
+				{
+					role: "system",
+					content: [
+						"你是台北城市儀表板的資料助理，回答請使用繁體中文。",
+						"系統已根據使用者問題找到相關圖表，並已從後端圖表 API 預先取得資料。",
+						"以下 database context 是真實後端資料，請優先根據它回答。",
+						"",
+						"database context:",
+						JSON.stringify(databaseContext, null, 2),
+						"",
+						"回答規則：",
+						"1. 若 database context 有 chart_data，必須根據 chart_data 的數值回答。",
+						"2. 不要只回答找到哪個圖表。",
+						"3. 不要顯示 component index、score、tool name 或內部流程。",
+						"4. 若資料中有 categories 和 data，請把同一個位置的 category 與 data 對齊後解讀。",
+						"5. 若使用者問排名、最高、最低、比較，請直接計算後回答。",
+						"6. 只有在 chart_data 缺失或 status 不是 success 時，才說資料抓取失敗，並列出 debug error。",
+					].join("\n"),
+				},
+				{
+					role: "user",
+					content: question,
+				},
+			],
+			max_new_tokens: 700,
+			temperature: 0.2,
+		});
+
+		return response.data?.data;
+	};
+
+	const addQueryData = async (newChatData) => {
+		addChatData(newChatData);
+		recommendComponents.value = [];
+
+		try {
+			recommendComponents.value = await searchRelatedComponents(newChatData.content);
+		} catch (error) {
+			console.error("VectorAnalysisError:", error);
+		}
+
+		try {
+			const aiResult = await askTWCCAI(newChatData.content, recommendComponents.value);
+			if (aiResult?.content) {
+				addChatData({
+					role: "bot",
+					content: aiResult.content,
+					relations: recommendComponents.value,
+				});
+				saveChatLog(newChatData.content, {
+					answer: aiResult.content,
+					components: recommendComponents.value,
+					tool_used: aiResult.tool_used,
+				});
+				return;
+			}
+		} catch (error) {
+			console.error("TWCCAIError:", getRequestErrorMessage(error), error);
+			addChatData({
+				role: "bot",
+				content: `AI 回答暫時無法取得：${getRequestErrorMessage(error)}`,
+			});
+		}
+
+		addFallbackComponentAnswer(newChatData.content);
+	};
+
+	const addFallbackComponentAnswer = (question) => {
+		if (recommendComponents.value?.length > 0) {
+			const topK = [...recommendComponents.value].sort((a, b) => b.score - a.score);
+			addChatData({
+				role: "bot",
+				content:
+					"我目前無法取得 AI 回答，但已先根據問題找到語意相近的圖表元件。測試階段請檢查後端 AI / component chart data prefetch log。",
+				relations: topK,
+			});
+			saveChatLog(question, topK);
+			return;
+		}
+
+		addChatData({
+			role: "bot",
+			content: "目前沒有找到足夠相關的圖表，也暫時無法取得 AI 回答。請換個關鍵字再試一次。",
+		});
+		saveChatLog(question, []);
+	};
+
+	const saveChatLog = async (question, answer) => {
+		try {
+			const formData = new FormData();
+			formData.append("session", getTodaySessionId());
+			formData.append("question", question);
+			formData.append("answer", JSON.stringify(answer));
+
+			await http.post("/chatlog/", formData, {
+				headers: {
+					"Content-Type": "multipart/form-data",
+				},
+			});
+		} catch (error) {
+			console.error("saveChatLog error:", error);
+		}
+	};
+
+	const getTodaySessionId = () => {
+		const d = new Date();
+		const todayId =
+			d.getFullYear() +
+			String(d.getMonth() + 1).padStart(2, "0") +
+			String(d.getDate()).padStart(2, "0");
+		return `session_${todayId}`;
+	};
+
+	const getRequestErrorMessage = (error) => {
+		if (error?.response) {
+			const {status} = error.response;
+			const message =
+				error.response.data?.message ||
+				error.response.data?.error ||
+				error.response.data?.error_code ||
+				"後端回傳錯誤";
+			return `${status} ${message}`;
+		}
+		return error?.message || "未知錯誤";
+	};
+
+	return { chatData, recommendComponents, addChatData, addQueryData, saveChatLog };
+});

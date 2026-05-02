@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "PowerShell(Get-Command go -ErrorAction SilentlyContinue; $env:Path -split \";\" | Where-Object { $_ -match \"go\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\Go\\\\bin\\\\go.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Go\\\\bin\\\\go.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:USERPROFILE\\\\go\\\\bin\\\\go.exe\" -ErrorAction SilentlyContinue)",
+      "Bash(grep -E \"\\\\.\\(go\\)$\")"
+    ]
+  }
+}
