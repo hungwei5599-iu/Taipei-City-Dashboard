@@ -33,14 +33,20 @@ import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from utils.etl_utils import (
-    extract_data_taipei,
+
+from utils.extract_utils import (
+	extract_data_taipei,
     extract_ntpc,
-    batch_geocode,
-    load_csv,
-    load_db,
     TAIPEI_TZ,
 )
+from utils.transform_utils import (
+	batch_geocode,
+)
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
+
 # ── 讀取 job_config.json ────────────────────────────────────
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _CONFIG_PATH = os.path.join(_HERE, "job_config.json")
@@ -235,11 +241,10 @@ def step_transform(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
 # 依賴：step_transform() 輸出
 # ─────────────────────────────────────────────────────────────
 
-def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
+def step_load(df: pd.DataFrame, output_dir: str) -> str:
     print("[Step 3] Load 開始")
     filepath = load_csv(df, output_dir, OUTPUT_TABLE)
-    if write_db:
-        load_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
+    load_to_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)  # 無條件寫入
     print("[Step 3] Load 完成\n")
     return filepath
 
@@ -248,29 +253,28 @@ def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
 # 主流程
 # ─────────────────────────────────────────────────────────────
 
-def main(output_dir: str = "./data", write_db: bool = False):
+def main(output_dir: str = "./data"):
     print("=" * 55)
     print(f"ETL 開始：{DAG_INFOS['dag_id']}")
-    print("  ⚠ 含 ArcGIS 地理編碼，耗時較長")
     print("=" * 55)
 
-    raw = step_extract()
-    if all(df.empty for df in raw.values()):
-        print("[ETL] 所有來源無資料，中止。"); return
+    df_raw = step_extract()
+    if not df_raw or all(df.empty for df in df_raw.values()):
+        print("[ETL] Extract 無資料，中止。"); return
 
-    df = step_transform(raw)
+    df = step_transform(df_raw)
     if df.empty:
         print("[ETL] Transform 結果為空，中止。"); return
 
-    step_load(df, output_dir=output_dir, write_db=write_db)
+    step_load(df, output_dir=output_dir)
+
     print("=" * 55)
     print("ETL 完成")
     print("=" * 55)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="C11 雙北環保餐廳地圖 ETL")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="./data")
-    parser.add_argument("--db", action="store_true")
     args = parser.parse_args()
-    main(output_dir=args.output, write_db=args.db)
+    main(output_dir=args.output)
