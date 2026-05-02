@@ -143,18 +143,34 @@ const findMatchedComponent = (target, components = []) => {
 
 const buildGuideComponentPayload = (target, components = []) => {
 	const matchedComponent = findMatchedComponent(target, components);
+	const preferredCity =
+		target?.dashboardCity ||
+		target?.city ||
+		"metrotaipei";
+	const matchedComponentCity = matchedComponent?.city;
+	const useMatchedComponentId =
+		!!matchedComponent?.id &&
+		(!matchedComponentCity || matchedComponentCity === preferredCity);
 	return {
 		component: matchedComponent || null,
 		componentIndex: target?.componentIndex,
 		componentIndexes: target?.componentIndexes || [],
-		componentId: matchedComponent?.id,
-		city: matchedComponent?.city || target?.city || "metrotaipei",
+		componentId: useMatchedComponentId ? matchedComponent?.id : null,
+		city: preferredCity,
 		mapConfig: target?.mapConfig || [],
 		title: target?.componentName || target?.title,
 	};
 };
 
 let guideTargetRegistry = null;
+
+const moduleIdToGuideModuleKey = {
+	medical_access: "emergency",
+	pharmacy_access: "pharmacy",
+	water_quality: "water_quality",
+	eco_restaurant: "eco_restaurant",
+	food_inspection: "food_inspection",
+};
 
 const loadGuideTargetRegistry = async () => {
 	if (guideTargetRegistry) return guideTargetRegistry;
@@ -206,6 +222,54 @@ const resolveGuideTarget = async (question, components = []) => {
 		);
 		return matchedComponent || matchedKeyword;
 	});
+};
+
+const resolveGuideTargetFromModules = async (
+	selectedModuleIds = [],
+	question = "",
+	components = [],
+) => {
+	const registry = await loadGuideTargetRegistry();
+	const moduleKeys = (selectedModuleIds || [])
+		.map((moduleId) => moduleIdToGuideModuleKey[moduleId])
+		.filter(Boolean);
+
+	for (const moduleKey of moduleKeys) {
+		const target = registry.find((item) => item.moduleKey === moduleKey);
+		if (target) return target;
+	}
+
+	return resolveGuideTarget(question, components);
+};
+
+const tryParseJson = (value) => {
+	if (typeof value !== "string") return null;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return null;
+	}
+};
+
+const normalizeAiPayload = (aiResult) => {
+	if (!aiResult) return {};
+	if (typeof aiResult === "string") {
+		const parsed = tryParseJson(aiResult);
+		return parsed || { content: aiResult };
+	}
+
+	if (typeof aiResult === "object") {
+		const contentParsed = tryParseJson(aiResult.content);
+		if (contentParsed && typeof contentParsed === "object") {
+			return {
+				...aiResult,
+				...contentParsed,
+				content: contentParsed.answer || aiResult.content,
+			};
+		}
+	}
+
+	return aiResult;
 };
 
 const waitForMapReady = (mapStore, timeout = 20000) =>
@@ -1404,27 +1468,50 @@ export const useChatStore = defineStore("chat", () => {
 		const mapStore = useMapStore();
 		const contentStore = useContentStore();
 		const openComponentOnly =
-			options.componentOnly || shouldOpenComponentOnly(question, target);
+		options.componentOnly || shouldOpenComponentOnly(question, target);
+		const currentQuery = router.currentRoute.value.query || {};
+		const targetCity =
+			target?.dashboardCity ||
+			target?.city ||
+			currentQuery.city ||
+			contentStore.currentDashboard.city ||
+			"metrotaipei";
+		const targetIndex =
+			target?.dashboardIndex ||
+			currentQuery.index ||
+			contentStore.currentDashboard.index;
+		const shouldNavigateToTargetMap =
+			router.currentRoute.value.name !== "mapview" ||
+			currentQuery.city !== targetCity ||
+			(targetIndex && currentQuery.index !== targetIndex);
 
-		if (router.currentRoute.value.name !== "mapview") {
-			const currentQuery = router.currentRoute.value.query || {};
-			const city =
-				currentQuery.city ||
-				contentStore.currentDashboard.city ||
-				"metrotaipei";
-			const index =
-				currentQuery.index ||
-				contentStore.currentDashboard.index;
-			const query = index ? { city, index } : { city };
+		console.log("[ai-guide] openGuideMapTarget routing", {
+			target,
+			currentRoute: router.currentRoute.value.fullPath,
+			targetCity,
+			targetIndex,
+			shouldNavigateToTargetMap,
+			openComponentOnly,
+		});
+
+		if (shouldNavigateToTargetMap) {
+			const query = targetIndex
+				? { city: targetCity, index: targetIndex }
+				: { city: targetCity };
 
 			await router.push({
 				path: "/mapview",
 				query,
 			});
+			console.log("[ai-guide] navigated to guide map route", {
+				query,
+				routeAfterPush: router.currentRoute.value.fullPath,
+			});
 			await nextTick();
 		}
 
 		const guideComponentPayload = buildGuideComponentPayload(target, components);
+		console.log("[ai-guide] guide component payload", guideComponentPayload);
 		mapStore.openGuideComponent(guideComponentPayload);
 
 		const ready = await waitForMapReady(mapStore);
@@ -1478,13 +1565,50 @@ export const useChatStore = defineStore("chat", () => {
 		}
 
 		try {
-			const guideTarget = await resolveGuideTarget(
+			const provisionalGuideTarget = await resolveGuideTarget(
 				newChatData.content,
 				recommendComponents.value,
 			);
 			let guideUiActions = [];
 			let mapToolContext = null;
-			let guideOpened = false;
+			let guideTarget = null;
+			if (provisionalGuideTarget) {
+				guideUiActions = shouldOpenComponentOnly(
+					newChatData.content,
+					provisionalGuideTarget,
+				)
+					? buildClearGuideOverlayAction(provisionalGuideTarget)
+					: await ensureGuideMapActions(
+						provisionalGuideTarget,
+						[],
+						newChatData.content,
+						recommendComponents.value,
+						"",
+					);
+				mapToolContext = buildGuideAiMapContext(
+					provisionalGuideTarget,
+					guideUiActions,
+					newChatData.content,
+				);
+			}
+			const aiResult = await askTWCCAI(
+				newChatData.content,
+				recommendComponents.value,
+				mapToolContext,
+			);
+			const aiPayload = normalizeAiPayload(aiResult);
+			const selectedModuleIds =
+				aiPayload?.selected_module_ids ||
+				aiPayload?.guide?.selected_module_ids ||
+				[];
+			guideTarget = await resolveGuideTargetFromModules(
+				selectedModuleIds,
+				newChatData.content,
+				recommendComponents.value,
+			);
+			if (!guideTarget) {
+				guideTarget = provisionalGuideTarget;
+			}
 			if (guideTarget) {
 				guideUiActions = shouldOpenComponentOnly(
 					newChatData.content,
@@ -1493,33 +1617,12 @@ export const useChatStore = defineStore("chat", () => {
 					? buildClearGuideOverlayAction(guideTarget)
 					: await ensureGuideMapActions(
 						guideTarget,
-						[],
+						guideUiActions,
 						newChatData.content,
 						recommendComponents.value,
-						"",
+						aiPayload?.answer || aiPayload?.content || "",
 					);
-				mapToolContext = buildGuideAiMapContext(
-					guideTarget,
-					guideUiActions,
-					newChatData.content,
-				);
-				guideOpened = true;
-				openGuideMapTarget(
-					guideTarget,
-					guideUiActions,
-					newChatData.content,
-					recommendComponents.value,
-					"",
-				).catch((error) => {
-					console.error("[ai-guide] auto open failed", error);
-				});
 			}
-			const aiResult = await askTWCCAI(
-				newChatData.content,
-				recommendComponents.value,
-				mapToolContext,
-			);
-			const aiPayload = typeof aiResult === "string" ? { content: aiResult } : aiResult;
 			const guideAnswer = aiPayload?.answer || aiPayload?.content;
 			let guidePayload = null;
 
@@ -1531,6 +1634,17 @@ export const useChatStore = defineStore("chat", () => {
 						answer: guideAnswer,
 						ui_actions: guideUiActions,
 					};
+				}
+				if (guideTarget) {
+					openGuideMapTarget(
+						guideTarget,
+						guideUiActions,
+						newChatData.content,
+						recommendComponents.value,
+						guideAnswer,
+					).catch((error) => {
+						console.error("[ai-guide] auto open failed", error);
+					});
 				}
 				addChatData({
 					role: "bot",
@@ -1550,21 +1664,11 @@ export const useChatStore = defineStore("chat", () => {
 						]
 						: undefined,
 				});
-				if (guideTarget && !guideOpened) {
-					openGuideMapTarget(
-						guideTarget,
-						guideUiActions,
-						newChatData.content,
-						recommendComponents.value,
-						guideAnswer,
-					).catch((error) => {
-						console.error("[ai-guide] auto open failed", error);
-					});
-				}
 				saveChatLog(newChatData.content, {
 					answer: guideAnswer,
 					components: recommendComponents.value,
 					tool_used: aiPayload?.tool_used,
+					selected_module_ids: selectedModuleIds,
 				});
 				return;
 			}

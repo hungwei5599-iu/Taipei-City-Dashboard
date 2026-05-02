@@ -4,6 +4,7 @@ interface chartType {
 
 export const chartTypes: chartType = {
 	DonutChart: "甜甜圈圖",
+	PieChart: "圓餅圖",
 	BarChart: "橫向長條圖",
 	ColumnChart: "直向長條圖",
 	BarPercentChart: "橫條圖(%)",

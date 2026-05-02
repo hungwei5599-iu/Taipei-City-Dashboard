@@ -5,6 +5,7 @@ import (
 	"TaipeiCityDashboardBE/app/services/ai/tools"
 	"TaipeiCityDashboardBE/app/util"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
 	"log"
@@ -135,8 +136,26 @@ func ChatWithTWCC(c *gin.Context) {
 			"latency_ms": logEntry.LatencyMS,
 			"model":      logEntry.Model,
 			"provider":   logEntry.Provider,
+			"guide":      extractGuideMetadata(logEntry.Tools),
 		},
 	})
+}
+
+func extractGuideMetadata(raw string) interface{} {
+	if raw == "" {
+		return nil
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil
+	}
+
+	guide, ok := payload["guide"]
+	if !ok {
+		return nil
+	}
+	return guide
 }
 
 func injectComponentContext(ctx context.Context, input *AIChatInput) bool {

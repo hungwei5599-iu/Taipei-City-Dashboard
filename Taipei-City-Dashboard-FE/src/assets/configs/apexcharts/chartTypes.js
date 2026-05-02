@@ -1,5 +1,6 @@
 export const chartTypes = {
 	DonutChart: "甜甜圈圖",
+	PieChart: "圓餅圖",
 	BarChart: "橫向長條圖",
 	ColumnChart: "直向長條圖",
 	BarPercentChart: "橫條圖(%)",
@@ -28,6 +29,7 @@ export const chartTypes = {
 export const chartsPerDataType = {
 	two_d: [
 		"DonutChart",
+		"PieChart",
 		"BarChart",
 		"ColumnChart",
 		"TreemapChart",
@@ -37,6 +39,7 @@ export const chartsPerDataType = {
 		"MetroChart",
 	],
 	three_d: [
+		"PieChart",
 		"ColumnChart",
 		"BarPercentChart",
 		"RadarChart",
@@ -55,6 +58,7 @@ export const chartsPerDataType = {
 		"ColumnLineChart",
 	],
 	percent: [
+		"PieChart",
 		"GuageChart",
 		"BarPercentChart",
 		"BarChartWithGoal",
