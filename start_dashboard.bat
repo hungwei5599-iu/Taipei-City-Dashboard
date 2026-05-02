@@ -12,8 +12,10 @@ docker compose up -d
 echo Waiting for services to start...
 timeout /t 15 /nobreak > nul
 
+<<<<<<< HEAD
 start http://192.168.8.80
 start http://192.168.8.80:8889
+=======
 
 echo All services started!
 pause
