@@ -1,12 +1,12 @@
 """
-轉換策略：水質檢測 (C10) - 含座標轉換
-=======================================
+轉換策略：水質檢測 (C10) - 只保留合格紀錄 + 預設座標 + ArcGIS地理編碼備用
+===========================================================================
 功能：
   1. 從環保署 CSV API 抓取全國水質檢測資料
   2. 過濾只保留 台北市 + 新北市 的資料
-  3. 保留每個淨水場的全部檢驗項目（item）
-  4. 去掉同一淨水場 + 同一採樣日期的重複紀錄
-  5. 使用 ArcGIS REST API 進行地理編碼，取得經緯度
+  3. 只保留 itemid=PASS 的合格紀錄（去掉個別檢驗項目）
+  4. 使用預設淨水場座標補齊高信心度資料
+  5. 對其他淨水場使用 ArcGIS REST API 進行地理編碼
   6. 標準化欄位、清洗資料
   7. 新增系統欄位供資料庫使用
 """
@@ -20,24 +20,18 @@ from typing import Dict
 from transform_utils import TAIPEI_TZ
 
 
-# ========== 輔助函式 ==========
+# ========== 淨水場座標預設值（高信心度） ==========
+WATER_PLANT_COORDS = {
+    "板新淨水廠": (24.940313, 121.356482),  # ★★★★★ 非常高
+    "貢寮淨水場": (25.010992, 121.920722),  # ★★★★ 高
+    "老梅淨水場": (25.254823, 121.551272),  # ★★★ 中高
+    "萬里淨水場": (25.179375, 121.688809),  # ★★★ 中高
+    "中幅淨水場": (25.165400, 121.675186),  # ★★ 中
+    "烏來淨水場": (24.864725, 121.552571),  # ★★ 中
+}
 
-def _to_float(val) -> float | None:
-    """安全地轉換為浮點數"""
-    try:
-        result = float(val)
-        return result if result == result else None
-    except (TypeError, ValueError):
-        return None
 
-
-def _extract_district(text) -> str | None:
-    """從地址字串萃取行政區名稱"""
-    if pd.isna(text):
-        return None
-    m = re.search(r'([^\s市縣]+[區鄉鎮市])', str(text))
-    return m.group(1) if m else str(text).strip()
-
+# ========== 輔助函式：地理編碼 ==========
 
 def _geocode_address(address: str) -> Dict[str, any]:
     """
@@ -100,7 +94,7 @@ def _batch_geocode_addresses(df: pd.DataFrame, address_col: str, plant_col: str 
         plant_col: 淨水場欄位名（用於去重）
     
     Returns:
-        包含 lat、lng 的 DataFrame
+        包含 latitude、longitude 的 DataFrame
     """
     print(f"\n[Geocoding] 啟動 ArcGIS 地理編碼...")
     
@@ -144,64 +138,26 @@ def _batch_geocode_addresses(df: pd.DataFrame, address_col: str, plant_col: str 
         return pd.DataFrame(results)
 
 
-# ========== 淨水場座標預設值（備用） ==========
-WATER_PLANT_COORDS = {
-    "公館淨水場": (25.0013, 121.5167),
-    "南軟淨水場": (25.0400, 121.5500),
-    "鶯歌淨水場": (24.9717, 121.5556),
-    "陶山淨水場": (25.0933, 121.4625),
-}
-
-
-def _merge_coordinates(df: pd.DataFrame, geocoded_df: pd.DataFrame, plant_col: str = 'plant') -> pd.DataFrame:
+def transform(raw_dict: dict, data_time: str, config: dict = None, dataset_configs: dict = None) -> pd.DataFrame:
     """
-    合併座標資料到原始 DataFrame
-    
-    優先級：
-    1. ArcGIS 編碼結果
-    2. 預設座標表
-    3. None
-    """
-    if geocoded_df.empty:
-        df['latitude'] = None
-        df['longitude'] = None
-        return df
-    
-    # 合併編碼結果
-    df = df.merge(
-        geocoded_df,
-        on=plant_col,
-        how='left'
-    )
-    
-    # 填補缺失值：使用預設座標表
-    if plant_col in df.columns:
-        for plant, (lat, lng) in WATER_PLANT_COORDS.items():
-            mask = (df[plant_col] == plant) & (df['latitude'].isna())
-            df.loc[mask, 'latitude'] = lat
-            df.loc[mask, 'longitude'] = lng
-    
-    return df
+    水質檢測資料轉換函式（預設座標 + ArcGIS地理編碼備用）
 
-
-# ========== 主要轉換函式 ==========
-
-def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
-    """
-    水質檢測資料轉換函式（含座標轉換）
-    
     Args:
         raw_dict: {"C10_水質檢測資訊": DataFrame}
         data_time: ISO 格式時間戳字串
-        config: 配置字典
-    
+        config: 資料集配置（可選）
+        dataset_configs: 全部資料集配置（可選）
+
     Returns:
         transformed_df: 標準化後的 DataFrame（含經緯度）
     """
-    dag_id = config["dag_id"]
-    df = raw_dict[dag_id]
+    # 從raw_dict提取DataFrame
+    df = raw_dict.get(list(raw_dict.keys())[0])
+    if df is None or df.empty:
+        print("[Transform] 資料為空")
+        return pd.DataFrame()
     
-    print(f"\n[Transform] 開始轉換水質檢測資料 ({dag_id})")
+    print(f"\n[Transform] 開始轉換水質檢測資料")
     print(f"[Transform] 原始資料行數：{len(df):,}")
     
     # ========== 步驟 1: 過濾地理位置 ==========
@@ -221,7 +177,21 @@ def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
         print(f"[Transform][警告] 過濾後無資料！")
         return df
     
-    # ========== 步驟 2: 資料清洗 ==========
+    # ========== 步驟 2: 只保留 itemid=PASS 的合格紀錄 ==========
+    print(f"\n[Transform] 篩選合格紀錄（itemid=PASS）...")
+    print(f"[Transform] 篩選前行數：{len(df):,}")
+    
+    if 'itemid' in df.columns:
+        df = df[df['itemid'] == 'PASS']
+        print(f"[Transform] 篩選後行數：{len(df):,}")
+    else:
+        print(f"[Transform][警告] 找不到 itemid 欄位，跳過篩選")
+    
+    if df.empty:
+        print(f"[Transform][警告] 篩選後無資料！")
+        return df
+    
+    # ========== 步驟 3: 資料清洗 ==========
     initial_rows = len(df)
     df = df.drop_duplicates()
     duplicates = initial_rows - len(df)
@@ -231,14 +201,14 @@ def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
     df = df.dropna(axis=1, how='all')
     df.columns = df.columns.str.strip()
     
-    # ========== 步驟 3: 淨水場採樣紀錄去重 ==========
+    # ========== 步驟 4: 淨水場採樣紀錄去重 ==========
     print(f"\n[Transform] 進行淨水場採樣紀錄去重...")
     print(f"[Transform] 去重前行數：{len(df):,}")
     
-    if 'plant' in df.columns and 'ckdate' in df.columns and 'item' in df.columns:
+    if 'plant' in df.columns and 'ckdate' in df.columns:
         df['ckdate'] = pd.to_datetime(df['ckdate'], errors='coerce', format='%Y%m%d')
         df = df.drop_duplicates(
-            subset=['plant', 'ckdate', 'item'],
+            subset=['plant', 'ckdate'],
             keep='first'
         )
         
@@ -247,35 +217,65 @@ def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
         plant_sample_counts = df.groupby('plant')['ckdate'].nunique()
         print(f"\n[Transform] 淨水場採樣統計：")
         print(f"    總淨水場數：{len(plant_sample_counts)}")
-        print(f"    前 5 個淨水場：")
-        for plant, count in plant_sample_counts.head(5).items():
+        print(f"    淨水場列表：")
+        for plant, count in plant_sample_counts.items():
             print(f"      {plant}: {count} 個採樣日期")
     
-    # ========== 步驟 4: 地理編碼（取得經緯度） ==========
-    print(f"\n[Transform] 進行地理編碼...")
+    # ========== 步驟 5: 新增座標欄位（預設 + ArcGIS備用） ==========
+    print(f"\n[Transform] 新增座標欄位...")
     
-    if 'address' in df.columns and 'plant' in df.columns:
-        # 按淨水場分組，進行高效地理編碼
-        geocoded_df = _batch_geocode_addresses(df, 'address', 'plant')
+    df['latitude'] = None
+    df['longitude'] = None
+    
+    if 'plant' in df.columns:
+        # 優先使用預設座標
+        for plant, (lat, lng) in WATER_PLANT_COORDS.items():
+            mask = df['plant'] == plant
+            df.loc[mask, 'latitude'] = lat
+            df.loc[mask, 'longitude'] = lng
         
-        # 合併座標
-        df = _merge_coordinates(df, geocoded_df, 'plant')
+        # 統計需要地理編碼的淨水場
+        need_geocode = df[df['latitude'].isna()]['plant'].unique()
         
-        # 統計編碼結果
+        if len(need_geocode) > 0:
+            print(f"[Transform] 需要地理編碼的淨水場：{len(need_geocode)} 個")
+            print(f"[Transform] 淨水場列表：{', '.join(need_geocode)}")
+            
+            # 對需要編碼的淨水場進行批量編碼
+            if 'address' in df.columns:
+                need_geocode_df = df[df['plant'].isin(need_geocode)]
+                geocoded_df = _batch_geocode_addresses(need_geocode_df, 'address', 'plant')
+                
+                # 合併編碼結果
+                for _, row in geocoded_df.iterrows():
+                    plant = row['plant']
+                    mask = df['plant'] == plant
+                    df.loc[mask, 'latitude'] = row['latitude']
+                    df.loc[mask, 'longitude'] = row['longitude']
+            else:
+                print(f"[Transform][警告] 找不到地址欄位，無法進行地理編碼")
+        
+        # 統計座標補齊情況
         valid_coords = df['latitude'].notna().sum()
-        print(f"[Transform] 地理編碼完成：{valid_coords}/{len(df['plant'].unique())} 個淨水場有座標")
-    else:
-        print(f"[Transform][警告] 缺少地址或淨水場欄位，跳過地理編碼")
-        df['latitude'] = None
-        df['longitude'] = None
+        print(f"[Transform] 座標補齊完成：{valid_coords} 筆有效座標")
+        
+        # 顯示各淨水場的座標
+        print(f"[Transform] 淨水場座標補齊情況：")
+        plant_coords = df[['plant', 'latitude', 'longitude']].drop_duplicates(subset=['plant'])
+        for _, row in plant_coords.iterrows():
+            if pd.notna(row['latitude']) and pd.notna(row['longitude']):
+                source = "預設" if row['plant'] in WATER_PLANT_COORDS else "ArcGIS"
+                print(f"    {row['plant']}: ({row['latitude']:.6f}, {row['longitude']:.6f}) [{source}]")
+            else:
+                print(f"    {row['plant']}: 無座標")
     
-    # ========== 步驟 5: 欄位轉換 ==========
+    # ========== 步驟 6: 欄位清洗 ==========
     # 文字欄位清洗
     text_cols = df.select_dtypes(include=['object']).columns
     for col in text_cols:
-        if col not in ['latitude', 'longitude']:  # 保留座標
+        if col not in ['latitude', 'longitude']:
             df[col] = df[col].astype(str).str.strip()
-    print(f"[Transform] 文字欄位清洗完成")
+    print(f"\n[Transform] 文字欄位清洗完成")
     
     # 日期欄位轉換
     if 'ckdate' in df.columns and df['ckdate'].dtype == 'object':
@@ -285,20 +285,18 @@ def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
     if 'itemval' in df.columns:
         df['itemval'] = pd.to_numeric(df['itemval'], errors='coerce')
     
-    # ========== 步驟 6: 新增系統欄位 ==========
+    # ========== 步驟 7: 新增系統欄位 ==========
     df['data_time'] = data_time
     df['_fetch_time'] = datetime.now(tz=TAIPEI_TZ).isoformat()
     df['_source'] = 'Environment Agency'
-    df['_table_name'] = config.get("output_table", "hackathon_component_10_water_quality_ready")
     
     print(f"[Transform] 新增系統欄位")
     
-    # ========== 步驟 7: 重新整理欄位順序 ==========
-    # 將地理資訊欄位放在前面
+    # ========== 步驟 8: 重新整理欄位順序 ==========
     priority_cols = [
         'data_time', 'county', 'township', 'plant', 'address',
-        'latitude', 'longitude',  # 座標欄位
-        'ckdate', 'item', 'itemid', 'itemval', 'standards'
+        'latitude', 'longitude',
+        'ckdate', 'itemid', 'item', 'itemval', 'standards'
     ]
     
     existing_priority = [c for c in priority_cols if c in df.columns]
@@ -306,37 +304,40 @@ def transform(raw_dict: dict, data_time: str, config: dict) -> pd.DataFrame:
     
     df = df[existing_priority + other_cols]
     
-    # ========== 步驟 8: 統計資訊 ==========
+    # ========== 步驟 9: 統計資訊 ==========
     print(f"\n[Transform] 轉換完成")
     print(f"[Transform] 最終行數：{len(df):,}")
     print(f"[Transform] 欄位數：{len(df.columns)}")
-    print(f"[Transform] 新增的地理欄位：")
+    print(f"[Transform] 座標欄位統計：")
     print(f"    latitude: {df['latitude'].notna().sum()} 筆有效數據")
     print(f"    longitude: {df['longitude'].notna().sum()} 筆有效數據")
     
-    # ========== 步驟 9: 資料品質檢查 ==========
+    # ========== 步驟 10: 資料品質檢查 ==========
     print(f"\n[Transform] 資料品質檢查：")
     
     missing = df.isnull().sum()
     if missing.sum() > 0:
-        print(f"[Transform] 缺失值統計（前 10 個）：")
-        for col, count in missing[missing > 0].head(10).items():
+        print(f"[Transform] 缺失值統計：")
+        for col, count in missing[missing > 0].items():
             pct = (count / len(df)) * 100
             print(f"    {col}: {count:,} ({pct:.1f}%)")
     
     if 'plant' in df.columns:
         print(f"\n[Transform] 淨水場統計：")
         print(f"    總淨水場數：{df['plant'].nunique()}")
-        for plant, count in df['plant'].value_counts().head(5).items():
+        for plant, count in df['plant'].value_counts().items():
             lat = df[df['plant'] == plant]['latitude'].iloc[0]
             lng = df[df['plant'] == plant]['longitude'].iloc[0]
-            print(f"      {plant}: {count} 筆 ({lat:.4f}, {lng:.4f})")
+            if pd.notna(lat) and pd.notna(lng):
+                print(f"      {plant}: {count} 筆 ({lat:.6f}, {lng:.6f})")
+            else:
+                print(f"      {plant}: {count} 筆 (無座標)")
     
     if 'county' in df.columns:
         print(f"\n[Transform] 縣市分布確認：")
         for county, count in df['county'].value_counts().items():
             print(f"    {county}: {count:,} 筆")
     
-    print(f"\n[Transform] ✅ 轉換完成：保留全部檢驗項目 + 新增經緯度")
+    print(f"\n[Transform] ✅ 轉換完成：預設座標 + ArcGIS地理編碼備用")
     
     return df

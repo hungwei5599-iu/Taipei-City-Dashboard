@@ -401,7 +401,7 @@
   "C11_雙北環保餐廳地圖": {
     "dag_id": "C11_雙北環保餐廳地圖",
     "transform_module": "C11_雙北環保餐廳地圖",
-    "output_table": "hackathon_component_11_environmental_protection_restaurants_ready",
+    "output_table": "hackathon_c11_env_protect_restaurant_ready",
     "source_type": "merged",
     "sources": [
       "臺北市環保餐廳",

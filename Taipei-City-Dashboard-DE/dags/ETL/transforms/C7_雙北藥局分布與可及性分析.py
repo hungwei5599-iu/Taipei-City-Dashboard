@@ -95,7 +95,7 @@ def _attach_pharmacy_per_10k(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Transform 主函式 ──────────────────────────────────────────
 
-def transform(raw: dict, data_time: str, **kwargs) -> pd.DataFrame:
+def transform(raw: dict, data_time: str, config: dict) -> pd.DataFrame:
     print("[C7 轉換開始] 雙北藥局分布與可及性分析")
 
     # key 對應 etl_config.json 的 dag_id
@@ -132,7 +132,7 @@ def transform(raw: dict, data_time: str, **kwargs) -> pd.DataFrame:
     # 各區每萬人藥局數
     df = _attach_pharmacy_per_10k(df)
 
-    print(f"[C7 轉換完成] ✓ 藥局數：{len(df)}")
+    print(f"[C7 轉換完成] OK 藥局數：{len(df)}")
     print(f"  城市分布：{df['city'].value_counts().to_dict()}")
     print(f"  NHI：{df['nhi'].sum()} 家，非NHI：{(~df['nhi']).sum()} 家")
 

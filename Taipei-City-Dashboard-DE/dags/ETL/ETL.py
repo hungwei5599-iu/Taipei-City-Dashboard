@@ -442,16 +442,16 @@ def extract_api(
 # 有專屬策略檔 → 用 importlib 動態載入
 # 無專屬策略檔 → 走 transform_single 通用清洗
 # ─────────────────────────────────────────────
-def transform(raw: dict[str, pd.DataFrame], data_time: str, config: dict) -> pd.DataFrame:
+def transform(raw: dict[str, pd.DataFrame], data_time: str, config: dict, dataset_configs: dict) -> pd.DataFrame:
     """
     依 transform_module 或 dag_id 尋找 transforms/{module}.py。
-    找到則呼叫其 transform(raw, data_time, config)。
+    找到則呼叫其 transform(raw, data_time, config, dataset_configs)。
     找不到則以 transform_single 通用清洗。
     """
     module_name = config.get("transform_module") or config["dag_id"]
     try:
         mod = importlib.import_module(f"transforms.{module_name}")
-        return mod.transform(raw, data_time, config)
+        return mod.transform(raw, data_time, config, dataset_configs)
     except ModuleNotFoundError:
         df = next(iter(raw.values()))
         return transform_single(df, data_time, config)
@@ -534,6 +534,7 @@ def load_to_db(
       - data_time 轉字串再寫入，避免 tzinfo 型別映射失敗
       - 使用 TEXT 明確宣告 wkb_geometry 欄位型別
       - replace 改為先 TRUNCATE 再 INSERT，確保表結構保留
+      - 設定連接池參數與 dispose() 避免連接未釋放
     """
     try:
         from sqlalchemy import create_engine, text as sa_text
@@ -551,10 +552,16 @@ def load_to_db(
         host = os.environ.get("DB_DASHBOARD_HOST", "192.168.8.80")
         port = os.environ.get("DB_DASHBOARD_PORT", "5433")
         db   = os.environ.get("DB_DASHBOARD_DBNAME", "dashboard")
-        #db_url = f"postgresql+pg8000://{user}:{pwd}@{host}:{port}/{db}"
+        db_url = f"postgresql+pg8000://{user}:{pwd}@{host}:{port}/{db}"
 
     try:
-        engine = create_engine(db_url)
+        engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+            echo=False
+        )
         write_df = df.copy()
 
         # ── 修正 1：data_time 轉字串，避免 tzinfo 型別衝突 ──
@@ -632,8 +639,11 @@ def load_to_db(
                 except Exception as e:
                     print(f"[LoadDB][知悉] dataset_info 更新失敗（{e}）")
 
+        engine.dispose()
+
     except Exception as e:
         print(f"[LoadDB][警告] 寫入 DB 失敗（{e}），資料已保存至 CSV。")
+        engine.dispose()
 
 
 # ─────────────────────────────────────────────
@@ -683,7 +693,7 @@ def main(config: dict):
     else:
         data_time = get_source_last_modified(config.get("PAGE_ID", ""))
 
-    result = transform(raw, data_time, config)
+    result = transform(raw, data_time, config, DATASET_CONFIGS)
     dfs, output_tables = normalize_output_tables(result, config)
 
     for ready_df, table_name in zip(dfs, output_tables):
