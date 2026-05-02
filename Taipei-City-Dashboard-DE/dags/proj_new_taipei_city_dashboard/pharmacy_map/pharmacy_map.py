@@ -40,6 +40,17 @@ from utils.etl_utils import (
     TAIPEI_TZ,
 )
 
+from utils.extract_utils import (
+	extract_data_taipei,
+    extract_ntpc,
+    TAIPEI_TZ,
+)
+
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ── 讀取 job_config.json ────────────────────────────────────
