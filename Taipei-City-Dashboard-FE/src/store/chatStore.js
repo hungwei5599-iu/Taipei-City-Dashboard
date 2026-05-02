@@ -1,6 +1,8 @@
 import { ref, watch } from "vue";
 import { defineStore } from "pinia";
 import http from "../router/axios";
+import router from "../router/index";
+import { useUiActionStore } from "./uiActionStore";
 
 const defaultChatData = [
 	{
@@ -8,7 +10,7 @@ const defaultChatData = [
 		role: "bot",
 		isDefault: true,
 		content:
-			"你好，我是台北城市儀表板助理。你可以問我想看的城市議題、趨勢或指標，我會先從圖表知識庫找相關元件，再視問題需要請 AI 查詢資料庫後回答。",
+			"\u4f60\u597d\uff0c\u6211\u662f\u53f0\u5317\u57ce\u5e02\u5100\u8868\u677f\u52a9\u7406\u3002\u4f60\u53ef\u4ee5\u554f\u6211\u60f3\u770b\u7684\u57ce\u5e02\u8b70\u984c\u3001\u8da8\u52e2\u6216\u6307\u6a19\uff0c\u6211\u6703\u5148\u5f9e\u5716\u8868\u77e5\u8b58\u5eab\u627e\u76f8\u95dc\u5143\u4ef6\uff0c\u518d\u8996\u554f\u984c\u9700\u8981\u8acb AI \u67e5\u8a62\u8cc7\u6599\u5eab\u5f8c\u56de\u7b54\u3002",
 	},
 ];
 
@@ -27,13 +29,8 @@ const fetchComponentChartData = async (component) => {
 };
 
 const buildDatabaseContext = async (components) => {
-	const targets = (components ?? [])
-		.slice(0, 3)
-		.filter((item) => item.id);
-
-	const results = await Promise.allSettled(
-		targets.map(fetchComponentChartData),
-	);
+	const targets = (components ?? []).slice(0, 3).filter((item) => item.id);
+	const results = await Promise.allSettled(targets.map(fetchComponentChartData));
 
 	return results.map((result, index) => {
 		if (result.status === "fulfilled") {
@@ -50,6 +47,15 @@ const buildDatabaseContext = async (components) => {
 	});
 };
 
+const buildComponentContext = (components) =>
+	(components ?? []).slice(0, 10).map((component) => ({
+		id: component.id,
+		index: component.index,
+		name: component.name,
+		city: component.city,
+		score: component.score,
+	}));
+
 const dedupeComponents = (components) =>
 	Array.from(
 		components
@@ -63,10 +69,65 @@ const dedupeComponents = (components) =>
 			.values(),
 	);
 
+const routeToComponentOpenAction = (action) => {
+	if (!action?.dashboardIndex) return;
+
+	router.push({
+		path: "/mapview",
+		query: {
+			index: action.dashboardIndex,
+			city: action.city || "metrotaipei",
+			aiOpen: action.componentIndex,
+			aiOpenTs: Date.now(),
+		},
+	});
+};
+
+const normalizeUiAction = (action) => {
+	if (action?.type !== "open_component" || !action.component_index) {
+		return null;
+	}
+
+	return {
+		componentIndex: action.component_index,
+		componentName: action.component_name,
+		dashboardIndex: action.dashboard_index || "hackathon_food_health",
+		city: action.city || "metrotaipei",
+		reason: action.reason,
+		source: "ai-ui-action",
+	};
+};
+
+const parseAiDecision = (aiResult) => {
+	const rawContent = aiResult?.content || "";
+	const fallback = {
+		answer: rawContent,
+		uiActions: [],
+	};
+
+	try {
+		const jsonText =
+			rawContent.match(/```json\s*([\s\S]*?)```/)?.[1] ||
+			rawContent.match(/\{[\s\S]*\}/)?.[0] ||
+			rawContent;
+		const parsed = JSON.parse(jsonText);
+		return {
+			answer: parsed.answer || rawContent,
+			uiActions: Array.isArray(parsed.ui_actions)
+				? parsed.ui_actions.map(normalizeUiAction).filter(Boolean)
+				: [],
+		};
+	} catch (error) {
+		console.warn("[ai-ui] AI response is not JSON; using text only", error);
+		return fallback;
+	}
+};
+
 export const useChatStore = defineStore("chat", () => {
 	const recommendComponents = ref(null);
 	const savedChatData = JSON.parse(sessionStorage.getItem("chatData")) || [];
 	const chatData = ref([...defaultChatData, ...savedChatData]);
+	const uiActionStore = useUiActionStore();
 
 	watch(
 		chatData,
@@ -105,6 +166,7 @@ export const useChatStore = defineStore("chat", () => {
 
 	const askTWCCAI = async (question, components) => {
 		const databaseContext = await buildDatabaseContext(components);
+		const componentContext = buildComponentContext(components);
 
 		console.log("AI components:", components);
 		console.log("AI database context:", databaseContext);
@@ -116,20 +178,34 @@ export const useChatStore = defineStore("chat", () => {
 				{
 					role: "system",
 					content: [
-						"你是台北城市儀表板的資料助理，回答請使用繁體中文。",
-						"系統已根據使用者問題找到相關圖表，並已從後端圖表 API 預先取得資料。",
-						"以下 database context 是真實後端資料，請優先根據它回答。",
+						"You are the Taipei City Dashboard assistant.",
+						"Answer in the user's language.",
+						"You can decide whether the frontend should open a dashboard component.",
+						"Use ONLY the components listed in available_components for UI actions.",
+						"Return STRICT JSON only. Do not use markdown.",
+						"The JSON shape must be:",
+						"{",
+						'  "answer": "natural language answer for the user",',
+						'  "ui_actions": [',
+						"    {",
+						'      "type": "open_component",',
+						'      "component_index": "component index from available_components",',
+						'      "component_name": "component name from available_components",',
+						'      "dashboard_index": "hackathon_food_health",',
+						'      "city": "metrotaipei",',
+						'      "reason": "why this component should be opened"',
+						"    }",
+						"  ]",
+						"}",
+						"Set ui_actions to [] when opening a component is not useful.",
+						"If the user asks for a location, nearest resource, waiting-room status, map points, distribution, or wants to inspect data on the map, choose the most relevant component from available_components.",
+						"Do not invent component indexes.",
+						"",
+						"available_components:",
+						JSON.stringify(componentContext, null, 2),
 						"",
 						"database context:",
 						JSON.stringify(databaseContext, null, 2),
-						"",
-						"回答規則：",
-						"1. 若 database context 有 chart_data，必須根據 chart_data 的數值回答。",
-						"2. 不要只回答找到哪個圖表。",
-						"3. 不要顯示 component index、score、tool name 或內部流程。",
-						"4. 若資料中有 categories 和 data，請把同一個位置的 category 與 data 對齊後解讀。",
-						"5. 若使用者問排名、最高、最低、比較，請直接計算後回答。",
-						"6. 只有在 chart_data 缺失或 status 不是 success 時，才說資料抓取失敗，並列出 debug error。",
 					].join("\n"),
 				},
 				{
@@ -139,9 +215,18 @@ export const useChatStore = defineStore("chat", () => {
 			],
 			max_new_tokens: 700,
 			temperature: 0.2,
+			component_context: componentContext,
 		});
 
 		return response.data?.data;
+	};
+
+	const executeUiActions = (uiActions) => {
+		uiActions.forEach((action) => {
+			console.log("[ai-ui] AI selected component open action", action);
+			uiActionStore.requestComponentOpen(action);
+			routeToComponentOpenAction(action);
+		});
 	};
 
 	const addQueryData = async (newChatData) => {
@@ -157,14 +242,17 @@ export const useChatStore = defineStore("chat", () => {
 		try {
 			const aiResult = await askTWCCAI(newChatData.content, recommendComponents.value);
 			if (aiResult?.content) {
+				const aiDecision = parseAiDecision(aiResult);
+				executeUiActions(aiDecision.uiActions);
 				addChatData({
 					role: "bot",
-					content: aiResult.content,
+					content: aiDecision.answer,
 					relations: recommendComponents.value,
 				});
 				saveChatLog(newChatData.content, {
-					answer: aiResult.content,
+					answer: aiDecision.answer,
 					components: recommendComponents.value,
+					ui_actions: aiDecision.uiActions,
 					tool_used: aiResult.tool_used,
 				});
 				return;
@@ -173,7 +261,7 @@ export const useChatStore = defineStore("chat", () => {
 			console.error("TWCCAIError:", getRequestErrorMessage(error), error);
 			addChatData({
 				role: "bot",
-				content: `AI 回答暫時無法取得：${getRequestErrorMessage(error)}`,
+				content: `AI response is temporarily unavailable: ${getRequestErrorMessage(error)}`,
 			});
 		}
 
@@ -186,7 +274,7 @@ export const useChatStore = defineStore("chat", () => {
 			addChatData({
 				role: "bot",
 				content:
-					"我目前無法取得 AI 回答，但已先根據問題找到語意相近的圖表元件。測試階段請檢查後端 AI / component chart data prefetch log。",
+					"AI response is temporarily unavailable, but I found related dashboard components for this question.",
 				relations: topK,
 			});
 			saveChatLog(question, topK);
@@ -195,7 +283,8 @@ export const useChatStore = defineStore("chat", () => {
 
 		addChatData({
 			role: "bot",
-			content: "目前沒有找到足夠相關的圖表，也暫時無法取得 AI 回答。請換個關鍵字再試一次。",
+			content:
+				"I could not find a related dashboard component or AI answer for this question.",
 		});
 		saveChatLog(question, []);
 	};
@@ -228,15 +317,15 @@ export const useChatStore = defineStore("chat", () => {
 
 	const getRequestErrorMessage = (error) => {
 		if (error?.response) {
-			const {status} = error.response;
+			const { status } = error.response;
 			const message =
 				error.response.data?.message ||
 				error.response.data?.error ||
 				error.response.data?.error_code ||
-				"後端回傳錯誤";
+				"request failed";
 			return `${status} ${message}`;
 		}
-		return error?.message || "未知錯誤";
+		return error?.message || "request failed";
 	};
 
 	return { chatData, recommendComponents, addChatData, addQueryData, saveChatLog };

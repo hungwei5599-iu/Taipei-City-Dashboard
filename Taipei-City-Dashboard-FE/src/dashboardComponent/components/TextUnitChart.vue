@@ -1,5 +1,7 @@
 
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps([
 	"chart_config",
 	"activeChart",
@@ -9,13 +11,14 @@ const props = defineProps([
 	"map_filter_on",
 ]);
 
-// const emits = defineEmits([
-// 	"filterByParam",
-// 	"filterByLayer",
-// 	"clearByParamFilter",
-// 	"clearByLayerFilter",
-// 	"fly"
-// ]);
+const displayItems = computed(() =>
+	props.series.map((item) => ({
+		...item,
+		total: Array.isArray(item.data)
+			? item.data.reduce((sum, value) => sum + Number(value || 0), 0)
+			: Number(item.data || 0),
+	}))
+);
 </script>
 
 <template>
@@ -25,24 +28,24 @@ const props = defineProps([
   >
     <div class="TextUnitChart__container">
       <div
-        v-for="item in series"
+        v-for="item in displayItems"
         :key="item.name"
         class="TextUnitChart__content"
       >
         <div
           class="TextUnitChart__name"
-          :style="{ color: props.chart_config.color[0] }"
+          :style="{ color: props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
         >
           {{ item.name }}
         </div>
         <div>
           <span
             class="TextUnitChart__value"
-            :style="{ color: props.chart_config.color[1] }"
-          >{{ item.data[0] }}</span>
+            :style="{ color: props.chart_config.color?.[1] || props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
+          >{{ item.total }}</span>
           <span
             class="TextUnitChart__unit"
-            :style="{ color: props.chart_config.color[2] }"
+            :style="{ color: props.chart_config.color?.[2] || props.chart_config.color?.[1] || props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
           >{{ item.icon }}</span>
         </div>
       </div>

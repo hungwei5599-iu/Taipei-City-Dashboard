@@ -12,12 +12,13 @@ Testing: Jack Huang (Data Scientist), Ian Huang (Data Analysis Intern)
 
 <script setup>
 /* global gtag */
-import { computed, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import DashboardComponent from "../dashboardComponent/DashboardComponent.vue";
 import { useContentStore } from "../store/contentStore";
 import { useDialogStore } from "../store/dialogStore";
 import { useMapStore } from "../store/mapStore";
+import { useUiActionStore } from "../store/uiActionStore";
 import MapContainer from "../components/map/MapContainer.vue";
 import MoreInfo from "../components/dialogs/MoreInfo.vue";
 import ReportIssue from "../components/dialogs/ReportIssue.vue";
@@ -25,7 +26,9 @@ import ReportIssue from "../components/dialogs/ReportIssue.vue";
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
 const mapStore = useMapStore();
+const uiActionStore = useUiActionStore();
 const route = useRoute();
+const router = useRouter();
 
 const toggleOn = ref({
 	hasMap: [],
@@ -33,6 +36,19 @@ const toggleOn = ref({
 	mapLayer: [],
 	basicLayer: [],
 });
+const pendingAiComponentOpen = ref(null);
+
+function getRouteAiOpenRequest() {
+	if (!route.query.aiOpen) return null;
+
+	return {
+		requestId: Number(route.query.aiOpenTs) || Date.now(),
+		componentIndex: String(route.query.aiOpen),
+		dashboardIndex: String(route.query.index || "hackathon_food_health"),
+		city: String(route.query.city || "metrotaipei"),
+		source: "route-query",
+	};
+}
 
 // Separate components with maps from those without
 const parseMapLayers = computed(() => {
@@ -136,6 +152,186 @@ function popularBasicLayerGA(map_config) {
 		});
 	}
 }
+
+function getComponentSection(componentIndex) {
+	if (contentStore.currentDashboard.index?.includes("map-layers")) {
+		const arrayIdx = contentStore.currentDashboard.components?.findIndex(
+			(item) => item.index === componentIndex,
+		);
+		if (arrayIdx >= 0) {
+			return {
+				section: "mapLayer",
+				arrayIdx,
+				component: contentStore.currentDashboard.components[arrayIdx],
+			};
+		}
+	}
+
+	const hasMapIdx = parseMapLayers.value.hasMap?.findIndex(
+		(item) => item.index === componentIndex,
+	);
+	if (hasMapIdx >= 0) {
+		return {
+			section: "hasMap",
+			arrayIdx: hasMapIdx,
+			component: parseMapLayers.value.hasMap[hasMapIdx],
+		};
+	}
+
+	const noMapIdx = parseMapLayers.value.noMap?.findIndex(
+		(item) => item.index === componentIndex,
+	);
+	if (noMapIdx >= 0) {
+		return {
+			section: "noMap",
+			arrayIdx: noMapIdx,
+			component: parseMapLayers.value.noMap[noMapIdx],
+		};
+	}
+
+	const basicLayerIdx = contentStore.mapLayers?.findIndex(
+		(item) => item.index === componentIndex,
+	);
+	if (basicLayerIdx >= 0) {
+		return {
+			section: "basicLayer",
+			arrayIdx: basicLayerIdx,
+			component: contentStore.mapLayers[basicLayerIdx],
+		};
+	}
+
+	return null;
+}
+
+function openComponentFromAi(request, retryCount = 0) {
+	if (!request?.componentIndex) return;
+
+	pendingAiComponentOpen.value = request;
+	console.log("[ai-ui] open request", {
+		request,
+		retryCount,
+		currentDashboard: contentStore.currentDashboard.index,
+		currentCity: contentStore.currentDashboard.city,
+		components: contentStore.currentDashboard.components?.map((item) => ({
+			index: item.index,
+			city: item.city,
+			hasMap: !!item.map_config?.[0],
+		})),
+		isPreloading: mapStore.isPreloading,
+		loadingLayers: mapStore.loadingLayers,
+	});
+
+	if (
+		request.dashboardIndex &&
+		contentStore.currentDashboard.index !== request.dashboardIndex
+	) {
+		if (
+			route.path !== "/mapview" ||
+			route.query.index !== request.dashboardIndex ||
+			route.query.city !== request.city
+		) {
+			router.push({
+				path: "/mapview",
+				query: {
+					index: request.dashboardIndex,
+					city: request.city || contentStore.currentDashboard.city,
+					aiOpen: request.componentIndex,
+					aiOpenTs: request.requestId || Date.now(),
+				},
+			});
+		}
+		return;
+	}
+
+	const target = getComponentSection(request.componentIndex);
+	if (!target?.component) {
+		console.log("[ai-ui] target component not ready", request.componentIndex);
+		if (retryCount < 20) {
+			setTimeout(() => openComponentFromAi(request, retryCount + 1), 250);
+		}
+		return;
+	}
+
+	const mapConfig = target.component.map_config || [];
+	if (mapConfig?.[0] && shouldDisable(mapConfig)) {
+		console.log("[ai-ui] target map layer still loading", mapConfig);
+		if (retryCount < 20) {
+			setTimeout(() => openComponentFromAi(request, retryCount + 1), 250);
+		}
+		return;
+	}
+
+	handleToggle(true, mapConfig);
+	toggleSwitchBtn(true, target.section, target.arrayIdx);
+	console.log("[ai-ui] component opened", {
+		section: target.section,
+		arrayIdx: target.arrayIdx,
+		component: target.component.index,
+		mapConfig,
+	});
+	if (mapConfig?.[0]) {
+		popularThematicLayerGA(mapConfig);
+	}
+	uiActionStore.clearComponentOpenRequest(request.requestId);
+	pendingAiComponentOpen.value = null;
+}
+
+watch(
+	() => uiActionStore.componentOpenRequest,
+	(request) => {
+		if (!request) return;
+		nextTick(() => openComponentFromAi(request));
+	},
+	{ deep: true, immediate: true },
+);
+
+watch(
+	() => [route.query.aiOpen, route.query.aiOpenTs],
+	() => {
+		const request = getRouteAiOpenRequest();
+		if (request) {
+			nextTick(() => openComponentFromAi(request));
+		}
+	},
+	{ immediate: true },
+);
+
+watch(
+	() => contentStore.currentDashboard.components,
+	() => {
+		if (pendingAiComponentOpen.value) {
+			nextTick(() => openComponentFromAi(pendingAiComponentOpen.value));
+		}
+	},
+	{ deep: true },
+);
+
+watch(
+	() => [
+		contentStore.currentDashboard.index,
+		contentStore.currentDashboard.city,
+		contentStore.currentDashboard.components?.length,
+		mapStore.isPreloading,
+		mapStore.loadingLayers.length,
+	],
+	() => {
+		if (pendingAiComponentOpen.value || uiActionStore.componentOpenRequest) {
+			nextTick(() =>
+				openComponentFromAi(
+					pendingAiComponentOpen.value || uiActionStore.componentOpenRequest,
+				),
+			);
+		}
+	},
+);
+
+onMounted(() => {
+	const savedRequest = uiActionStore.getSavedComponentOpenRequest();
+	const routeRequest = getRouteAiOpenRequest();
+	if (routeRequest || savedRequest) {
+		nextTick(() => openComponentFromAi(routeRequest || savedRequest));
+	}
+});
 </script>
 
 <template>

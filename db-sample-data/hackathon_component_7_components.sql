@@ -64,8 +64,8 @@ new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#4CB495', '#2F80ED', '#F5C860'],
-    ARRAY['BarChart', 'ColumnChart'],
+    ARRAY['#C7D2F4', '#B7C1E0', '#A6B0CC', '#959FB9', '#848EA6', '#737D92', '#626C7F', '#515B6C'],
+    ARRAY['DistrictChart', 'BarChart'],
     '家'
   FROM new_component
 ),
