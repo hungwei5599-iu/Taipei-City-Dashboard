@@ -25,7 +25,7 @@ DELETE FROM public.components
 WHERE index = 'hackathon_component_10_water_quality_overview';
 
 DELETE FROM public.component_maps
-WHERE index = 'hackathon_component_10_water_quality_ready';
+WHERE index = 'Component4_water_quality_ready';
 
 WITH new_component AS (
   INSERT INTO public.components (index, name)
@@ -36,7 +36,7 @@ new_map AS (
   INSERT INTO public.component_maps
     (index, title, type, source, size, icon, paint, property)
   VALUES (
-    'hackathon_component_10_water_quality_ready',
+    'Component4_water_quality_ready',
     '淨水場水質檢測點位',
     'symbol',
     'geojson',
@@ -59,8 +59,8 @@ new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#6FE8A3', '#FF6B6B'],
-    ARRAY['DistrictChart', 'BarPercentChart'],
+    ARRAY['#8ED4A8', '#E9EEF6', '#8B95A7'],
+    ARRAY['DistrictChart', 'TextUnitChart2'],
     '座'
   FROM new_component
 ),
@@ -95,7 +95,7 @@ new_queries AS (
           township,
           plant,
           BOOL_OR(itemid <> 'PASS') AS has_failed
-        FROM public.hackathon_component_10_water_quality_ready
+        FROM public."Component4_water_quality_ready"
         WHERE county = '臺北市'
           AND township IS NOT NULL
           AND plant IS NOT NULL
@@ -155,7 +155,7 @@ new_queries AS (
           township,
           plant,
           BOOL_OR(itemid <> 'PASS') AS has_failed
-        FROM public.hackathon_component_10_water_quality_ready
+        FROM public."Component4_water_quality_ready"
         WHERE township IS NOT NULL
           AND plant IS NOT NULL
         GROUP BY township, plant

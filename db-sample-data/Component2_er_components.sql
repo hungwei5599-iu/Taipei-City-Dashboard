@@ -33,7 +33,7 @@ DELETE FROM public.components
 WHERE index LIKE 'hackathon_component_9_er_%';
 
 DELETE FROM public.component_maps
-WHERE index = 'hackathon_component_9_flood_risk_ready';
+WHERE index = 'Component2_er_ready';
 
 WITH new_component AS (
   INSERT INTO public.components (index, name)
@@ -44,7 +44,7 @@ new_map AS (
   INSERT INTO public.component_maps
     (index, title, type, source, size, icon, paint, property)
   VALUES (
-    'hackathon_component_9_flood_risk_ready',
+    'Component2_er_ready',
     '急診即時壅塞地圖',
     'symbol',
     'geojson',
@@ -97,11 +97,11 @@ new_queries AS (
     'three_d',
     $$
       SELECT hospital_name AS x_axis, '待診人數' AS y_axis, COALESCE(patient_count, 0)::integer AS data
-      FROM public.hackathon_component_9_flood_risk_ready
+      FROM public."Component2_er_ready"
       WHERE city_scope = 'Taipei'
       UNION ALL
       SELECT hospital_name AS x_axis, '等候時間' AS y_axis, COALESCE(waiting_time, 0)::integer AS data
-      FROM public.hackathon_component_9_flood_risk_ready
+      FROM public."Component2_er_ready"
       WHERE city_scope = 'Taipei'
       ORDER BY x_axis, y_axis
     $$,
@@ -131,10 +131,10 @@ new_queries AS (
     'three_d',
     $$
       SELECT hospital_name AS x_axis, '待診人數' AS y_axis, COALESCE(patient_count, 0)::integer AS data
-      FROM public.hackathon_component_9_flood_risk_ready
+      FROM public."Component2_er_ready"
       UNION ALL
       SELECT hospital_name AS x_axis, '等候時間' AS y_axis, COALESCE(waiting_time, 0)::integer AS data
-      FROM public.hackathon_component_9_flood_risk_ready
+      FROM public."Component2_er_ready"
       ORDER BY x_axis, y_axis
     $$,
     NULL::text,

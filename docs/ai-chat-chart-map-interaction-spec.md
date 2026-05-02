@@ -25,7 +25,7 @@ Expected behavior:
 1. AI finds the emergency-related component, for example `hackathon_component_9_er_overview`.
 2. Frontend fetches chart data from `/component/{id}/chart`.
 3. AI summarizes current emergency status from chart data.
-4. Frontend also loads map-ready GeoJSON, for example `/mapData/hackathon_component_9_flood_risk_ready.geojson`.
+4. Frontend also loads map-ready GeoJSON, for example `/mapData/Component2_er_ready.geojson`.
 5. Map displays hospitals as points, styled by `patient_count`.
 6. User can click a point and see hospital name, waiting count, waiting time, and data time.
 
@@ -61,7 +61,7 @@ Minimum frontend action contract:
   "type": "show_map_layer",
   "layer_id": "ai-er-patient-count",
   "source": "local_geojson",
-  "url": "/mapData/hackathon_component_9_flood_risk_ready.geojson",
+  "url": "/mapData/Component2_er_ready.geojson",
   "value_key": "patient_count",
   "popup_fields": [
     "hospital_name",
@@ -87,8 +87,8 @@ Each component that wants map interaction needs one of:
 For emergency and pharmacy, these are available now:
 
 ```text
-Taipei-City-Dashboard-FE/public/mapData/hackathon_component_9_flood_risk_ready.geojson
-Taipei-City-Dashboard-FE/public/mapData/hackathon_component_7_pharmacy_map_ready.geojson
+Taipei-City-Dashboard-FE/public/mapData/Component2_er_ready.geojson
+Taipei-City-Dashboard-FE/public/mapData/Component3_pharmacy_map_ready.geojson
 ```
 
 Important fields:
@@ -133,13 +133,13 @@ We should maintain a small registry that maps a component or intent to map data:
   emergency_access: {
     componentIndexes: ["hackathon_component_9_er_overview"],
     keywords: ["急診", "待診", "等候", "醫院"],
-    mapUrl: "/mapData/hackathon_component_9_flood_risk_ready.geojson",
+    mapUrl: "/mapData/Component2_er_ready.geojson",
     valueKey: "patient_count",
   },
   pharmacy_access: {
     componentIndexes: ["hackathon_component_7_pharmacy_map"],
     keywords: ["藥局", "健保藥局"],
-    mapUrl: "/mapData/hackathon_component_7_pharmacy_map_ready.geojson",
+    mapUrl: "/mapData/Component3_pharmacy_map_ready.geojson",
     valueKey: "pharmacy_per_10k",
   },
 }
@@ -153,8 +153,8 @@ Implement emergency and pharmacy first:
 
 - Detect emergency-related questions or component matches.
 - Detect pharmacy-related questions or component matches.
-- Load `hackathon_component_9_flood_risk_ready.geojson`.
-- Load `hackathon_component_7_pharmacy_map_ready.geojson`.
+- Load `Component2_er_ready.geojson`.
+- Load `Component3_pharmacy_map_ready.geojson`.
 - Add a Mapbox circle layer named `ai-er-patient-count`.
 - Add a Mapbox circle layer named `ai-pharmacy-access`.
 - Style circle radius and color by `patient_count`.

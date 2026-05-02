@@ -72,7 +72,7 @@ new_queries AS (
       SELECT
         COALESCE(NULLIF(product_category, ''), '未分類') AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public."hackathon_c12_Food_samples_failed_inspection_ready"
+      FROM public."Components6_Food_samples_failed_inspection_ready"
       WHERE product_category IS NOT NULL
       GROUP BY COALESCE(NULLIF(product_category, ''), '未分類')
       ORDER BY data DESC, x_axis
@@ -106,7 +106,7 @@ new_queries AS (
       SELECT
         COALESCE(NULLIF(product_category, ''), '未分類') AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public."hackathon_c12_Food_samples_failed_inspection_ready"
+      FROM public."Components6_Food_samples_failed_inspection_ready"
       WHERE product_category IS NOT NULL
       GROUP BY COALESCE(NULLIF(product_category, ''), '未分類')
       ORDER BY data DESC, x_axis

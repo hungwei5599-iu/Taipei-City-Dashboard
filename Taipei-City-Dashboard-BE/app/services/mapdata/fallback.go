@@ -107,12 +107,12 @@ func BuildFallbackChartData(componentIndex string, city string) (FallbackChartDa
 func fallbackSource(componentIndex string) (string, string) {
 	index := strings.ToLower(componentIndex)
 	switch {
-	case strings.Contains(index, "hackathon_component_7"):
+	case strings.Contains(index, "hackathon_component_7"), strings.Contains(index, "component3_"):
 		return "pharmacy_by_town", "hackathon_component_7_pharmacy_density_by_town.geojson"
-	case strings.Contains(index, "hackathon_component_9"):
-		return "emergency_points", "hackathon_component_9_flood_risk_ready.geojson"
-	case strings.Contains(index, "hackathon_component_10"):
-		return "water_quality_points", "hackathon_component_10_water_quality_ready.geojson"
+	case strings.Contains(index, "hackathon_component_9"), strings.Contains(index, "component2_"):
+		return "emergency_points", "Component2_er_ready.geojson"
+	case strings.Contains(index, "hackathon_component_10"), strings.Contains(index, "component4_"):
+		return "water_quality_points", "Component4_water_quality_ready.geojson"
 	default:
 		return "", ""
 	}
@@ -226,7 +226,7 @@ func buildEmergencyPoints(componentIndex string, city string, fc featureCollecti
 			"bed_utilization": asFloat(props["bed_utilization"]),
 			"data_time":       props["data_time"],
 			"source_trace":    props["source_trace"],
-			"source_mapdata":  "hackathon_component_9_flood_risk_ready",
+			"source_mapdata":  "Component2_er_ready",
 		})
 	}
 
@@ -263,7 +263,7 @@ func buildWaterQualityPoints(componentIndex string, city string, fc featureColle
 			"record_count":   asFloat(props["record_count"]),
 			"measured_count": asFloat(props["measured_count"]),
 			"data_time":      props["data_time"],
-			"source_mapdata": "hackathon_component_10_water_quality_ready",
+			"source_mapdata": "Component4_water_quality_ready",
 		})
 	}
 

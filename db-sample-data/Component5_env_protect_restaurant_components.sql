@@ -1,9 +1,9 @@
 BEGIN;
 
 WITH old_components AS (
-  SELECT id::integer AS id
+  SELECT id
   FROM public.components
-  WHERE index = 'hackathon_component_7_pharmacy_overview'
+  WHERE index = 'hackathon_c11_env_restaurant_overview'
 )
 UPDATE public.dashboards d
 SET components = COALESCE((
@@ -13,49 +13,44 @@ SET components = COALESCE((
       SELECT 1 FROM old_components old WHERE old.id = u.component_id
     )
   ), ARRAY[]::integer[]),
-  updated_at = now()
-WHERE EXISTS (
-  SELECT 1
-  FROM old_components old
-  WHERE old.id = ANY(COALESCE(d.components, ARRAY[]::integer[]))
-);
+  updated_at = now();
 
 DELETE FROM public.query_charts
-WHERE index = 'hackathon_component_7_pharmacy_overview';
+WHERE index = 'hackathon_c11_env_restaurant_overview';
 
 DELETE FROM public.component_charts
-WHERE index = 'hackathon_component_7_pharmacy_overview';
+WHERE index = 'hackathon_c11_env_restaurant_overview';
 
 DELETE FROM public.components
-WHERE index = 'hackathon_component_7_pharmacy_overview';
+WHERE index = 'hackathon_c11_env_restaurant_overview';
 
 DELETE FROM public.component_maps
-WHERE index = 'hackathon_component_7_pharmacy_map_ready';
+WHERE index = 'Component5_env_protect_restaurant_ready';
 
 WITH new_component AS (
   INSERT INTO public.components (index, name)
-  VALUES ('hackathon_component_7_pharmacy_overview', '藥局資源分布概況')
+  VALUES ('hackathon_c11_env_restaurant_overview', '環保餐廳分布概況')
   RETURNING id, index
 ),
 new_map AS (
   INSERT INTO public.component_maps
     (index, title, type, source, size, icon, paint, property)
   VALUES (
-    'hackathon_component_7_pharmacy_map_ready',
-    '藥局點位',
+    'Component5_env_protect_restaurant_ready',
+    '環保餐廳點位',
     'symbol',
     'geojson',
     NULL,
-    'Pharmacy',
+    'Restaurant',
     '{}'::json,
     '[
-      {"key":"name","name":"藥局"},
+      {"key":"name","name":"餐廳"},
       {"key":"city","name":"縣市"},
       {"key":"district","name":"行政區"},
       {"key":"address","name":"地址"},
-      {"key":"telephone","name":"電話"},
-      {"key":"nhi","name":"健保特約"},
-      {"key":"pharmacy_per_10k","name":"每萬人藥局數"}
+      {"key":"phone","name":"電話"},
+      {"key":"certification_level","name":"認證狀態"},
+      {"key":"data_source","name":"來源"}
     ]'::json
   )
   RETURNING id
@@ -64,8 +59,28 @@ new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#4CB495', '#2F80ED', '#F5C860'],
-    ARRAY['BarChart', 'ColumnChart'],
+    ARRAY[
+      '#104680',
+      '#1d5f99',
+      '#317cb7',
+      '#4a94c4',
+      '#6dadd1',
+      '#91c2dd',
+      '#b6d7e8',
+      '#d1e4ed',
+      '#e9f1f4',
+      '#f4eadf',
+      '#fbe3d5',
+      '#f9cbb4',
+      '#f6b293',
+      '#eb8f75',
+      '#dc6d57',
+      '#cf4c47',
+      '#b72230',
+      '#941323',
+      '#6d011f'
+    ],
+    ARRAY['TreemapChart'],
     '家'
   FROM new_component
 ),
@@ -85,10 +100,10 @@ new_queries AS (
     NULL,
     10,
     'minute',
-    '臺北市政府衛生局 / 新北市政府衛生局',
-    '顯示臺北市各行政區藥局數量。',
-    '彙整藥局點位資料，呈現各行政區藥局數量與空間分布，並可連動地圖點位。',
-    '協助民眾快速掌握鄰近藥局資源分布。',
+    '臺北市環保局 / 新北市環保局',
+    '顯示臺北市各行政區環保餐廳數量。',
+    '彙整環保餐廳點位資料，呈現各行政區環保餐廳分布，並可連動地圖點位。',
+    '協助民眾快速尋找附近具有環保餐廳認證的店家。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
@@ -98,7 +113,7 @@ new_queries AS (
       SELECT
         district AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public.hackathon_component_7_pharmacy_map_ready
+      FROM public."Component5_env_protect_restaurant_ready"
       WHERE city = '臺北市'
         AND district IS NOT NULL
         AND district <> 'unknown'
@@ -120,10 +135,10 @@ new_queries AS (
     NULL,
     10,
     'minute',
-    '臺北市政府衛生局 / 新北市政府衛生局',
-    '顯示雙北各行政區藥局數量。',
-    '彙整雙北藥局點位資料，呈現各行政區藥局數量與空間分布，並可連動地圖點位。',
-    '協助民眾比較不同行政區藥局資源密度。',
+    '臺北市環保局 / 新北市環保局',
+    '顯示雙北各行政區環保餐廳數量。',
+    '彙整雙北環保餐廳點位資料，呈現各行政區環保餐廳分布，並可連動地圖點位。',
+    '協助民眾快速尋找附近具有環保餐廳認證的店家。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
@@ -133,7 +148,7 @@ new_queries AS (
       SELECT
         CONCAT(city, district) AS x_axis,
         COUNT(*)::numeric AS data
-      FROM public.hackathon_component_7_pharmacy_map_ready
+      FROM public."Component5_env_protect_restaurant_ready"
       WHERE district IS NOT NULL
         AND district <> 'unknown'
       GROUP BY city, district
@@ -195,12 +210,8 @@ SELECT c.id, c.index, c.name, cc.types, cc.unit, q.city, q.query_type, q.map_con
 FROM public.components c
 JOIN public.component_charts cc ON cc.index = c.index
 JOIN public.query_charts q ON q.index = c.index
-WHERE c.index = 'hackathon_component_7_pharmacy_overview'
+WHERE c.index = 'hackathon_c11_env_restaurant_overview'
 ORDER BY q.city;
-
-SELECT m.id, m.index, m.title, m.type, m.source, m.size, m.icon
-FROM public.component_maps m
-WHERE m.index = 'hackathon_component_7_pharmacy_map_ready';
 
 SELECT d.id, d.index, d.name, d.components, dg.group_id
 FROM public.dashboards d

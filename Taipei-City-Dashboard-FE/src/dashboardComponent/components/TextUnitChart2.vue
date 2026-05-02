@@ -1,5 +1,5 @@
 <script setup>
-defineProps([
+const props = defineProps([
 	"chart_config",
 	"activeChart",
 	"series",
@@ -8,18 +8,15 @@ defineProps([
 	"map_filter_on",
 ]);
 
-// const emits = defineEmits([
-// 	"filterByParam",
-// 	"filterByLayer",
-// 	"clearByParamFilter",
-// 	"clearByLayerFilter",
-// 	"fly"
-// ]);
+const alertKeywords = ["不合格", "異常", "警示", "失敗"];
+
+const isAlertItem = (itemName = "") =>
+	alertKeywords.some((keyword) => itemName.includes(keyword));
 </script>
 
 <template>
   <div
-    v-if="activeChart === 'TextUnitChart'"
+    v-if="activeChart === 'TextUnitChart2'"
     class="TextUnitChart"
   >
     <div class="TextUnitChart__container">
@@ -30,18 +27,18 @@ defineProps([
       >
         <div
           class="TextUnitChart__name"
-          :style="{ color: chart_config.color[0] }"
+          :style="{ color: isAlertItem(item.name) ? '#F29B9B' : chart_config.color[0] }"
         >
           {{ item.name }}
         </div>
         <div>
           <span
             class="TextUnitChart__value"
-            :style="{ color: chart_config.color[1] }"
+            :style="{ color: '#EEF2F8' }"
           >{{ item.data[0] }}</span>
           <span
             class="TextUnitChart__unit"
-            :style="{ color: chart_config.color[2] }"
+            :style="{ color: '#EEF2F8' }"
           >{{ item.icon }}</span>
         </div>
       </div>

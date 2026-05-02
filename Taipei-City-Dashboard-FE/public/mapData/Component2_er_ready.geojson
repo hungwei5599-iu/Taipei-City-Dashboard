@@ -5,7 +5,7 @@
       "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
     }
   },
-  "name": "hackathon_component_9_flood_risk_ready",
+  "name": "Component2_er_ready",
   "type": "FeatureCollection",
   "features": [
     {"type":"Feature","geometry":{"type":"Point","coordinates":[121.5494,25.0381]},"properties":{"data_mode":"real","data_time":"2026-05-02T10:34:24.995614+08:00","city_scope":"Taipei","hospital_id":101020017,"source_trace":"健保署 NHI","waiting_time":1,"hospital_name":"聯醫仁愛","patient_count":1,"bed_utilization":0}},

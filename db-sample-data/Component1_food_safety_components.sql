@@ -38,8 +38,8 @@ new_chart AS (
   INSERT INTO public.component_charts (index, color, types, unit)
   SELECT
     index,
-    ARRAY['#7BDCA8', '#F28482'],
-    ARRAY['FoodSafetyPercentChart', 'BarPercentChart'],
+    ARRAY['#9ADFB1', '#EEF2F8', '#8F98A9'],
+    ARRAY['TextUnitChart2', 'BarPercentChart'],
     '%'
   FROM new_component
 ),
@@ -62,33 +62,33 @@ new_queries AS (
     '臺北市政府主計處 / 新北市政府衛生局',
     '顯示臺北市食品抽驗合格率與不合格率。',
     '以最新年度資料呈現臺北市食品抽驗合格率與不合格率，協助民眾快速掌握食品安全抽驗結果。',
-    '用於快速比較食品抽驗合格與不合格比例。',
+    '民眾可藉由食品抽驗合格率快速了解當期食品安全狀況，作為日常消費與風險判讀參考。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
     now(),
-    'percent',
+    'three_d',
     $$
       WITH latest AS (
         SELECT MAX(year) AS year
-        FROM public.hackathon_component_2_food_safety_ready
+        FROM public."Component1_food_safety_ready"
         WHERE city = '臺北市'
       )
       SELECT
         '臺北市' AS x_axis,
         metric AS y_axis,
-        icon,
+        '%' AS icon,
         ROUND(value)::integer AS data
-      FROM public.hackathon_component_2_food_safety_ready f
+      FROM public."Component1_food_safety_ready" f
       CROSS JOIN LATERAL (
         VALUES
-          ('合格率', 'check_circle', f.pass_rate::double precision),
-          ('不合格率', 'cancel', f.fail_rate::double precision)
-      ) AS metrics(metric, icon, value)
+          ('合格率', f.pass_rate::double precision),
+          ('不合格率', f.fail_rate::double precision)
+      ) AS metrics(metric, value)
       WHERE f.city = '臺北市'
         AND f.year = (SELECT year FROM latest)
         AND value IS NOT NULL
-      ORDER BY x_axis, array_position(ARRAY['合格率','不合格率'], metric)
+      ORDER BY array_position(ARRAY['合格率', '不合格率'], metric)
     $$,
     NULL::text,
     'taipei'
@@ -108,32 +108,38 @@ new_queries AS (
     '臺北市政府主計處 / 新北市政府衛生局',
     '顯示雙北食品抽驗合格率與不合格率。',
     '以最新年度資料彙整臺北市與新北市食品抽驗合格率與不合格率，協助民眾快速掌握雙北食品安全抽驗結果。',
-    '用於快速比較雙北食品抽驗合格與不合格比例。',
+    '民眾可藉由雙北食品抽驗合格率快速掌握整體食品安全趨勢，作為日常消費與風險判讀參考。',
     ARRAY[]::text[],
     ARRAY[]::text[],
     now(),
     now(),
-    'percent',
+    'three_d',
     $$
+      WITH latest AS (
+        SELECT MAX(year) AS year
+        FROM public."Component1_food_safety_ready"
+      ),
+      summary AS (
+        SELECT
+          ROUND(AVG(pass_rate)::numeric, 0)::integer AS pass_rate,
+          ROUND(AVG(fail_rate)::numeric, 0)::integer AS fail_rate
+        FROM public."Component1_food_safety_ready"
+        WHERE year = (SELECT year FROM latest)
+          AND city IN ('臺北市', '新北市')
+      )
       SELECT
-        city AS x_axis,
+        '雙北' AS x_axis,
         metric AS y_axis,
-        icon,
-        ROUND(value)::integer AS data
-      FROM public.hackathon_component_2_food_safety_ready
+        '%' AS icon,
+        value AS data
+      FROM summary
       CROSS JOIN LATERAL (
         VALUES
-          ('合格率', 'check_circle', pass_rate::double precision),
-          ('不合格率', 'cancel', fail_rate::double precision)
-      ) AS metrics(metric, icon, value)
-      WHERE year = (
-          SELECT MAX(year)
-          FROM public.hackathon_component_2_food_safety_ready
-        )
-        AND city IN ('臺北市', '新北市')
-        AND value IS NOT NULL
-      ORDER BY array_position(ARRAY['臺北市','新北市'], city),
-        array_position(ARRAY['合格率','不合格率'], metric)
+          ('合格率', pass_rate),
+          ('不合格率', fail_rate)
+      ) AS metrics(metric, value)
+      WHERE value IS NOT NULL
+      ORDER BY array_position(ARRAY['合格率', '不合格率'], metric)
     $$,
     NULL::text,
     'metrotaipei'

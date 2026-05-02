@@ -29,6 +29,7 @@ import BarChartWithGoal from "./components/BarChartWithGoal.vue";
 import IconPercentChart from "./components/IconPercentChart.vue";
 import IndicatorChart from "./components/IndicatorChart.vue";
 import TextUnitChart from "./components/TextUnitChart.vue";
+import TextUnitChart2 from "./components/TextUnitChart2.vue";
 import ButterflyChart from "./components/ButterflyChart.vue";
 import FoodSafetyPercentChart from "./components/FoodSafetyPercentChart.vue";
 
@@ -227,6 +228,8 @@ function returnChartComponent(name, svg) {
 		return svg ? IndicatorChartSvg : IndicatorChart;
 	case "TextUnitChart":
 		return svg ? TextUnitChartSvg : TextUnitChart;
+	case "TextUnitChart2":
+		return svg ? TextUnitChartSvg : TextUnitChart2;
 	case "ButterflyChart":
 		return svg ? ButterflyChartSvg : ButterflyChart;
 	case "FoodSafetyPercentChart":

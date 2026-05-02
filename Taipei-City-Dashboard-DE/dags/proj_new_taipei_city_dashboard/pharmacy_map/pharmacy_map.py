@@ -64,7 +64,7 @@ DAG_INFOS  = _JOB["dag_infos"]
 DATA_INFOS = _JOB["data_infos"]
 
 # 輸出表名稱
-OUTPUT_TABLE = DAG_INFOS["ready_data_default_table"]   # hackathon_component_7_pharmacy_map_ready
+OUTPUT_TABLE = DAG_INFOS["ready_data_default_table"]   # Component3_pharmacy_map_ready
 LOAD_BEHAVIOR = DAG_INFOS["load_behavior"]             # replace
 
 # 各來源 PAGE_ID / RID（從 job_config_C7.json 的 data_infos.sources 讀取）

@@ -123,7 +123,7 @@ location-required action
 使用資料：
 
 ```text
-public/mapData/hackathon_component_9_flood_risk_ready.geojson
+public/mapData/Component2_er_ready.geojson
 ```
 
 主要欄位：

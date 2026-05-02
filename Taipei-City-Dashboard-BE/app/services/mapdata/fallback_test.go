@@ -3,7 +3,7 @@ package mapdata
 import "testing"
 
 func TestBuildFallbackChartDataPharmacy(t *testing.T) {
-	data, ok, err := BuildFallbackChartData("hackathon_component_7_pharmacy_map_ready", "metrotaipei")
+	data, ok, err := BuildFallbackChartData("Component3_pharmacy_map_ready", "metrotaipei")
 	if err != nil {
 		t.Fatalf("BuildFallbackChartData returned error: %v", err)
 	}

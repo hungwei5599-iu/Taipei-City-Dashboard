@@ -3,11 +3,11 @@
 		"id": "emergency_access",
 		"moduleKey": "emergency",
 		"title": "急診",
-		"componentIndex": "hackathon_component_9_flood_risk_ready",
+		"componentIndex": "Component2_er_ready",
 		"componentName": "急診壅塞概況",
 		"componentIndexes": [
 			"hackathon_component_9_er_overview",
-			"hackathon_component_9_flood_risk_ready"
+			"Component2_er_ready"
 		],
 		"keywords": [
 			"急診",
@@ -70,7 +70,7 @@
 				}
 			},
 			{
-				"index": "hackathon_component_9_flood_risk_ready",
+				"index": "Component2_er_ready",
 				"type": "circle",
 				"city": "metrotaipei",
 				"source": "geojson",
@@ -175,7 +175,7 @@
 		"componentName": "藥局分布",
 		"componentIndexes": [
 			"hackathon_component_7_pharmacy_map",
-			"hackathon_component_7_pharmacy_map_ready"
+			"Component3_pharmacy_map_ready"
 		],
 		"keywords": [
 			"藥局",
@@ -271,7 +271,7 @@
 				"role": "context"
 			},
 			{
-				"index": "hackathon_component_7_pharmacy_map_ready",
+				"index": "Component3_pharmacy_map_ready",
 				"type": "circle",
 				"city": "metrotaipei",
 				"source": "geojson",
@@ -342,7 +342,7 @@
 		},
 		"zoom": 15,
 		"focusMode": "point",
-		"focusLayerIndex": "hackathon_component_7_pharmacy_map_ready",
+		"focusLayerIndex": "Component3_pharmacy_map_ready",
 		"areaLayerIndex": "hackathon_component_7_pharmacy_density_by_town"
 	}
 ]
