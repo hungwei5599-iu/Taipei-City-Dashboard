@@ -13,6 +13,7 @@ export const chartTypes = {
 	HeatmapChart: "熱力圖",
 	PolarAreaChart: "極區圖",
 	ColumnLineChart: "長條折線圖",
+	CategoryColumnLineChart: "類別長條折線圖",
 	BarChartWithGoal: "橫條圖(目標)",
 	IconPercentChart: "圖示比例圖",
 	SpeedometerChart: "速度儀表圖",
@@ -44,6 +45,7 @@ export const chartsPerDataType = {
 		"PolarAreaChart",
 		"TextUnitChart",
 		"ButterflyChart",
+		"CategoryColumnLineChart",
 	],
 	time: [
 		"TimelineSeparateChart",
