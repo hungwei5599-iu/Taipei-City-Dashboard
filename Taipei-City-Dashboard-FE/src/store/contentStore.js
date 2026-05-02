@@ -93,14 +93,7 @@ export const useContentStore = defineStore("content", {
 				this.currentDashboard.index === index &&
 				this.currentDashboard.city === city
 			) {
-				if (
-					this.currentDashboard.mode === "/mapview" &&
-					!index.includes("map-layers")
-				) {
-					this.setMapLayers(city);
-				} else {
-					return;
-				}
+				return;
 			}
 			this.currentDashboard.city = city;
 			this.currentDashboard.index = index;
@@ -673,9 +666,8 @@ export const useContentStore = defineStore("content", {
 			}
 			if (
 				this.currentDashboard.mode === "/mapview" &&
-				!this.currentDashboard.index?.includes("map-layers")
+				this.currentDashboard.index?.includes("map-layers")
 			) {
-				// In /mapview, map layer components are also present and need to be fetched
 				try {
 					await this.setMapLayers(this.currentDashboard.city);
 				} catch (error) {
@@ -683,6 +675,7 @@ export const useContentStore = defineStore("content", {
 					this.loading = false;
 				}
 			} else {
+				this.mapLayers = [];
 				this.loading = false;
 			}
 		},
