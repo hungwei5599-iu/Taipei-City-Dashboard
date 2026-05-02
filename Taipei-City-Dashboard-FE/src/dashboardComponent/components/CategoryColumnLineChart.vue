@@ -92,10 +92,31 @@ const chartSeries = computed(() => [
 	},
 ]);
 
-const chartWidth = computed(() => {
-	const width = Math.max(360, rows.value.length * 44);
-	return rows.value.length > 8 ? `${width}px` : "100%";
+const isDenseData = computed(() => rows.value.length > 8);
+
+const barColumnWidth = computed(() => {
+	if (rows.value.length > 18) return "34%";
+	if (rows.value.length > 12) return "42%";
+	return "54%";
 });
+
+function buildAxisMax(values) {
+	const max = Math.max(...values, 0);
+	if (max <= 0) return 10;
+	return Math.ceil(max * 1.25);
+}
+
+const columnAxisMax = computed(() =>
+	buildAxisMax(rows.value.map((row) => row.columnValue))
+);
+
+const lineAxisMax = computed(() =>
+	buildAxisMax(rows.value.map((row) => row.lineValue))
+);
+
+// Computed labels exposed for the custom vertical-text overlay
+const leftAxisLabel = computed(() => axisLabel(columnSeriesRaw.value?.name, "column_unit"));
+const rightAxisLabel = computed(() => axisLabel(lineSeriesRaw.value?.name, "line_unit"));
 
 const chartOptions = computed(() => {
 	const colors = props.chart_config?.color?.length >= 2
@@ -115,6 +136,12 @@ const chartOptions = computed(() => {
 			show: true,
 			borderColor: "rgba(255,255,255,0.08)",
 			strokeDashArray: 3,
+			padding: {
+				top: 16,
+				right: 12,
+				bottom: 8,
+				left: 8,
+			},
 			xaxis: { lines: { show: false } },
 			yaxis: { lines: { show: true } },
 		},
@@ -131,7 +158,7 @@ const chartOptions = computed(() => {
 		plotOptions: {
 			bar: {
 				borderRadius: 4,
-				columnWidth: "54%",
+				columnWidth: barColumnWidth.value,
 			},
 		},
 		stroke: {
@@ -173,13 +200,18 @@ const chartOptions = computed(() => {
 			axisTicks: { show: false },
 			categories: sortedCategories.value,
 			labels: {
-				rotate: -35,
-				trim: true,
+				rotate: 0,
+				rotateAlways: false,
+				trim: false,
 				hideOverlappingLabels: false,
 				style: { colors: "rgba(255,255,255,0.56)" },
 				formatter: function (value) {
 					const text = String(value ?? "");
-					return text.length > 5 ? `${text.slice(0, 5)}...` : text;
+					const maxLength = isDenseData.value ? 6 : 8;
+					const truncated = text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+					// Split each character onto its own line so ApexCharts renders
+					// them as stacked <tspan> elements – true top-to-bottom vertical text.
+					return truncated.split("");
 				},
 			},
 			tooltip: { enabled: false },
@@ -188,26 +220,28 @@ const chartOptions = computed(() => {
 		yaxis: [
 			{
 				min: 0,
+				max: columnAxisMax.value,
+				forceNiceScale: true,
+				tickAmount: 4,
 				labels: {
 					formatter: (val) => Number(val).toFixed(0),
 					style: { colors: "rgba(255,255,255,0.56)" },
 				},
-				title: {
-					text: axisLabel(columnSeriesRaw.value?.name, "column_unit"),
-					style: { color: "var(--color-complement-text)" },
-				},
+				// Title disabled – rendered by custom CSS overlay below
+				title: { text: "" },
 			},
 			{
 				min: 0,
+				max: lineAxisMax.value,
+				forceNiceScale: true,
+				tickAmount: 4,
 				opposite: true,
 				labels: {
 					formatter: (val) => Number(val).toFixed(0),
 					style: { colors: "rgba(255,255,255,0.56)" },
 				},
-				title: {
-					text: axisLabel(lineSeriesRaw.value?.name, "line_unit"),
-					style: { color: "var(--color-complement-text)" },
-				},
+				// Title disabled – rendered by custom CSS overlay below
+				title: { text: "" },
 			},
 		],
 	};
@@ -245,7 +279,7 @@ function axisUnit(label, key) {
 
 function axisLabel(label, unitKey) {
 	const unit = axisUnit(label, unitKey);
-	return unit ? `${label}（${unit}）` : label;
+	return unit ? `${label}（${unit}）` : (label ?? "");
 }
 
 function handleDataSelection(_e, _chartContext, config) {
@@ -284,26 +318,68 @@ function handleDataSelection(_e, _chartContext, config) {
     v-if="activeChart === 'CategoryColumnLineChart'"
     class="category-column-line-chart"
   >
+    <!-- Custom vertical axis title – left (column series) -->
+    <div class="axis-title axis-title--left" aria-hidden="true">
+      {{ leftAxisLabel }}
+    </div>
+
     <VueApexCharts
       type="line"
-      :width="chartWidth"
+      width="100%"
       height="260px"
       :options="chartOptions"
       :series="chartSeries"
       @data-point-selection="handleDataSelection"
     />
+
+    <!-- Custom vertical axis title – right (line series) -->
+    <div class="axis-title axis-title--right" aria-hidden="true">
+      {{ rightAxisLabel }}
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .category-column-line-chart {
+	position: relative;
 	width: 100%;
 	height: 100%;
-	overflow-x: auto;
+	min-width: 0;
+	max-width: 100%;
+	overflow-x: hidden;
 	overflow-y: hidden;
 
 	.vue-apexcharts {
 		justify-content: unset !important;
+		max-width: 100%;
+	}
+
+	// Custom vertical axis title labels
+	.axis-title {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		writing-mode: vertical-rl;
+		text-orientation: upright;
+		font-size: 10px;
+		letter-spacing: 0.05em;
+		color: var(--color-complement-text, rgba(255, 255, 255, 0.56));
+		pointer-events: none;
+		user-select: none;
+		z-index: 1;
+	}
+
+	.axis-title--left {
+		left: 0;
+		transform: translateY(-50%);
+	}
+
+	.axis-title--right {
+		right: 0;
+		transform: translateY(-50%);
+		// Right-side title reads bottom-to-top in vertical-rl;
+		// rotate 180° to make it read top-to-bottom as well.
+		writing-mode: vertical-lr;
 	}
 }
 </style>
