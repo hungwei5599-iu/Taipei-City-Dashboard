@@ -308,6 +308,7 @@ export const useMapStore = defineStore("map", {
 				"bike_orange",
 				"bike_red",
 				"cctv",
+				"hospital",
 				"live",
 				"youbike_elec",
 			];
@@ -468,6 +469,14 @@ export const useMapStore = defineStore("map", {
 						typeof rs.data === "string"
 							? JSON.parse(rs.data.replace(/^\uFEFF/, ""))
 							: rs.data;
+					if (
+						geojson?.type !== "FeatureCollection" ||
+						!Array.isArray(geojson.features)
+					) {
+						throw new Error(
+							`Invalid GeoJSON for ${map_config.index}`,
+						);
+					}
 					console.log("[map-debug] geojson loaded", {
 						layerId: map_config.layerId,
 						responseType: typeof rs.data,
@@ -477,7 +486,12 @@ export const useMapStore = defineStore("map", {
 					});
 					this.addGeojsonSource(map_config, geojson);
 				})
-				.catch((e) => console.error(e));
+				.catch((e) => {
+					console.error(e);
+					this.loadingLayers = this.loadingLayers.filter(
+						(el) => el !== map_config.layerId,
+					);
+				});
 		},
 		// 3-1. Add a local geojson as a source in mapbox
 		addGeojsonSource(map_config, data) {
@@ -706,6 +720,10 @@ export const useMapStore = defineStore("map", {
 				});
 			} catch (error) {
 				console.error("[map-debug] addLayer failed", error);
+				this.loadingLayers = this.loadingLayers.filter(
+					(el) => el !== map_config.layerId,
+				);
+				return;
 			}
 			if (
 				map_config.layerId ===
