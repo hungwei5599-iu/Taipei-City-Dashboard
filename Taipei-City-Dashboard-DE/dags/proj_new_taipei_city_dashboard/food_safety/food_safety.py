@@ -30,13 +30,22 @@ import re
 import pandas as pd
 from datetime import datetime
 
-from etl_utils import (
+from pathlib import Path
+import sys
+
+from utils.extract_utils import (
     extract_data_taipei_csv,
     extract_ntpc,
-    load_csv,
-    load_db,
     TAIPEI_TZ,
 )
+
+from utils.load_utils import (
+	load_csv,
+	load_to_db,
+)
+# 臺北市食品衛生查驗的特殊 extract（tsis.dbas.gov.taipei，兩段 URL CSV）
+from utils.utils_extract_d2 import extract_taipei_food_inspection
+
 
 # ── 讀取 job_config_D2.json ────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -252,7 +261,7 @@ def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
     print("[Step 3] Load 開始")
     filepath = load_csv(df, output_dir, OUTPUT_TABLE)
     if write_db:
-        load_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
+        load_to_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
     print("[Step 3] Load 完成\n")
     return filepath
 

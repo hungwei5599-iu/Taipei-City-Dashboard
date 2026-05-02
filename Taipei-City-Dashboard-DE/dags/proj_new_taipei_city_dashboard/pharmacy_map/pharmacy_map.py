@@ -36,19 +36,8 @@ from utils.etl_utils import (
     extract_data_taipei,
     extract_ntpc,
     load_csv,
-    load_db,
+    load_to_db,
     TAIPEI_TZ,
-)
-
-from utils.extract_utils import (
-	extract_data_taipei,
-    extract_ntpc,
-    TAIPEI_TZ,
-)
-
-from utils.load_utils import (
-	load_csv,
-	load_to_db,
 )
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -265,21 +254,10 @@ def step_transform(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
 # 依賴：必須在 step_transform() 完成後執行
 # ─────────────────────────────────────────────────────────────
 
-def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
-    """
-    將清洗後的 DataFrame 輸出至 CSV，可選擇同時寫入 PostgreSQL。
-
-    依賴：step_transform() 的輸出（df）
-    """
+def step_load(df: pd.DataFrame, output_dir: str) -> str:
     print("[Step 3] Load 開始")
-
-    # ── 3a. 輸出 CSV（一定執行）──
     filepath = load_csv(df, output_dir, OUTPUT_TABLE)
-
-    # ── 3b. 寫入 PostgreSQL（可選）──
-    if write_db:
-        load_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)
-
+    load_to_db(df, table_name=OUTPUT_TABLE, load_behavior=LOAD_BEHAVIOR)  # 無條件寫入
     print("[Step 3] Load 完成\n")
     return filepath
 
@@ -288,26 +266,20 @@ def step_load(df: pd.DataFrame, output_dir: str, write_db: bool = False) -> str:
 # 主流程
 # ─────────────────────────────────────────────────────────────
 
-def main(output_dir: str = "./data", write_db: bool = False):
+def main(output_dir: str = "./data"):
     print("=" * 55)
     print(f"ETL 開始：{DAG_INFOS['dag_id']}")
-    print(f"輸出目錄：{output_dir}  |  寫入DB：{write_db}")
     print("=" * 55)
 
-    # 1. Extract（無前置依賴）
-    raw = step_extract()
-    if all(df.empty for df in raw.values()):
-        print("[ETL] 所有來源均無資料，中止。")
-        return
+    df_raw = step_extract()
+    if not df_raw or all(df.empty for df in df_raw.values()):
+        print("[ETL] Extract 無資料，中止。"); return
 
-    # 2. Transform（依賴 step 1）
-    df = step_transform(raw)
+    df = step_transform(df_raw)
     if df.empty:
-        print("[ETL] Transform 結果為空，中止。")
-        return
+        print("[ETL] Transform 結果為空，中止。"); return
 
-    # 3. Load（依賴 step 2）
-    step_load(df, output_dir=output_dir, write_db=write_db)
+    step_load(df, output_dir=output_dir)
 
     print("=" * 55)
     print("ETL 完成")
@@ -315,11 +287,7 @@ def main(output_dir: str = "./data", write_db: bool = False):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="C7 雙北藥局分布與可及性分析 ETL")
-    parser.add_argument("--output", type=str, default="./data",
-                        help="CSV 輸出目錄（預設 ./data）")
-    parser.add_argument("--db", action="store_true",
-                        help="同時寫入 PostgreSQL（需設定環境變數或 HACKATHON_DB_URL）")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", default="./data")
     args = parser.parse_args()
-
-    main(output_dir=args.output, write_db=args.db)
+    main(output_dir=args.output)
