@@ -11,12 +11,61 @@ const props = defineProps([
 	"map_filter_on",
 ]);
 
+function normalizeNumbers(values) {
+	return (Array.isArray(values) ? values : [values])
+		.map((value) => Number(value))
+		.filter((value) => Number.isFinite(value));
+}
+
+function summarizeItem(item) {
+	const values = normalizeNumbers(item.data);
+	if (!values.length) return 0;
+
+	if (props.chart_config?.unit === "%") {
+		return Math.round(
+			values.reduce((sum, value) => sum + value, 0) / values.length
+		);
+	}
+
+	return values.reduce((sum, value) => sum + value, 0);
+}
+
+function isAlertItem(name = "") {
+	return `${name}`.includes("不合格") || `${name}`.includes("異常");
+}
+
+function getItemColors(item) {
+	const defaultLabel = props.chart_config.color?.[0] || "var(--color-normal-text)";
+	const defaultValue =
+		props.chart_config.color?.[1] ||
+		props.chart_config.color?.[0] ||
+		"var(--color-normal-text)";
+	const defaultUnit =
+		props.chart_config.color?.[2] ||
+		props.chart_config.color?.[1] ||
+		props.chart_config.color?.[0] ||
+		"var(--color-normal-text)";
+
+	if (!isAlertItem(item.name)) {
+		return {
+			label: defaultLabel,
+			value: defaultValue,
+			unit: defaultUnit,
+		};
+	}
+
+	return {
+		label: "#E58F8F",
+		value: "#F19A9A",
+		unit: "#B97C7C",
+	};
+}
+
 const displayItems = computed(() =>
 	props.series.map((item) => ({
 		...item,
-		total: Array.isArray(item.data)
-			? item.data.reduce((sum, value) => sum + Number(value || 0), 0)
-			: Number(item.data || 0),
+		total: summarizeItem(item),
+		colors: getItemColors(item),
 	}))
 );
 </script>
@@ -34,18 +83,18 @@ const displayItems = computed(() =>
       >
         <div
           class="TextUnitChart__name"
-          :style="{ color: props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
+          :style="{ color: item.colors.label }"
         >
           {{ item.name }}
         </div>
         <div>
           <span
             class="TextUnitChart__value"
-            :style="{ color: props.chart_config.color?.[1] || props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
+            :style="{ color: item.colors.value }"
           >{{ item.total }}</span>
           <span
             class="TextUnitChart__unit"
-            :style="{ color: props.chart_config.color?.[2] || props.chart_config.color?.[1] || props.chart_config.color?.[0] || 'var(--color-normal-text)' }"
+            :style="{ color: item.colors.unit }"
           >{{ item.icon }}</span>
         </div>
       </div>
