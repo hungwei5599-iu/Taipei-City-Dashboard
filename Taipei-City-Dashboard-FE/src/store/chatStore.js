@@ -32,8 +32,10 @@ const MAP_READY_TIMEOUT_MS = 8000;
 
 const semanticMapLayerRules = [
 	{
+		module: "emergency",
 		keywords: ["急診", "急救", "醫院", "醫療", "就醫", "hospital", "emergency", "er"],
 		layerHints: [
+			"Component2_er_ready",
 			"急診",
 			"急救",
 			"醫院",
@@ -45,14 +47,92 @@ const semanticMapLayerRules = [
 		],
 	},
 	{
+		module: "pharmacy",
 		keywords: ["藥局", "藥房", "pharmacy"],
-		layerHints: ["藥局", "藥房", "pharmacy", "hackathon_component_7_pharmacy"],
+		layerHints: ["Component3_pharmacy_map_ready", "藥局", "藥房", "pharmacy", "hackathon_component_7_pharmacy"],
 	},
 	{
+		module: "restaurant",
+		keywords: ["環保餐廳", "餐廳", "restaurant", "env_protect"],
+		layerHints: [
+			"Component5_env_protect_restaurant_ready",
+			"環保餐廳",
+			"餐廳",
+			"restaurant",
+			"env_protect",
+			"hackathon_c11_env_protect_restaurant",
+		],
+	},
+	{
+		module: "water",
+		keywords: ["水質", "淨水", "飲水", "water"],
+		layerHints: ["Component4_water_quality_ready", "水質", "淨水", "飲水", "water_quality"],
+	},
+	{
+		module: "aed",
 		keywords: ["aed", "去顫", "電擊", "自動體外"],
 		layerHints: ["aed", "自動體外", "去顫"],
 	},
 ];
+
+const fallbackMapComponents = {
+	emergency: {
+		name: "急診即時資訊",
+		index: "Component2_er_ready",
+		city: "metrotaipei",
+		map_config: [
+			{
+				name: "急診即時資訊",
+				index: "Component2_er_ready",
+				source: "geojson",
+				type: "symbol",
+				city: "metrotaipei",
+			},
+		],
+	},
+	pharmacy: {
+		name: "藥局資訊",
+		index: "Component3_pharmacy_map_ready",
+		city: "metrotaipei",
+		map_config: [
+			{
+				name: "藥局資訊",
+				index: "Component3_pharmacy_map_ready",
+				source: "geojson",
+				type: "symbol",
+				city: "metrotaipei",
+			},
+		],
+	},
+	restaurant: {
+		name: "環保餐廳",
+		index: "Component5_env_protect_restaurant_ready",
+		city: "metrotaipei",
+		map_config: [
+			{
+				name: "環保餐廳",
+				index: "Component5_env_protect_restaurant_ready",
+				source: "geojson",
+				type: "symbol",
+				city: "metrotaipei",
+			},
+		],
+	},
+	water: {
+		name: "水質資訊",
+		index: "Component4_water_quality_ready",
+		city: "metrotaipei",
+		map_config: [
+			{
+				name: "水質資訊",
+				index: "Component4_water_quality_ready",
+				source: "geojson",
+				type: "symbol",
+				city: "metrotaipei",
+			},
+		],
+	},
+};
 
 const getTodaySessionId = () =>
 	`single_turn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -177,12 +257,27 @@ const scoreSemanticComponent = (component, rule) => {
 	}, 0);
 };
 
-const findSemanticMapComponent = (question, components) => {
+const getQuestionTargetModule = (question) => {
+	const text = String(question || "").toLowerCase();
+	if (/藥局|藥房|pharmacy/.test(text)) return "pharmacy";
+	if (/急診|急救|醫院|候診|待診|hospital|emergency|(^|[^a-z])er([^a-z]|$)/.test(text)) return "emergency";
+	if (/環保餐廳|餐廳|restaurant|env_protect/.test(text)) return "restaurant";
+	if (/水質|淨水|飲水|water/.test(text)) return "water";
+	return null;
+};
+
+const getIntentTargetModule = (intent, question) =>
+	intent?.targetModule || intent?.target_module || getQuestionTargetModule(question);
+
+const findSemanticMapComponent = (question, components, targetModule = null) => {
 	const candidates = (components || []).filter(
 		(component) => component?.map_config?.length,
 	);
-	for (const rule of semanticMapLayerRules) {
-		if (!questionMatchesRule(question, rule)) continue;
+	const rules = targetModule
+		? semanticMapLayerRules.filter((rule) => rule.module === targetModule)
+		: semanticMapLayerRules;
+	for (const rule of rules) {
+		if (!targetModule && !questionMatchesRule(question, rule)) continue;
 		const matched = candidates
 			.map((component) => ({
 				component,
@@ -219,6 +314,7 @@ const inferIntentFromQuestionLegacy = (question, intent) => {
 
 const inferIntentFromQuestion = (question, intent) => {
 	const normalized = String(question || "").toLowerCase();
+	const targetModule = getIntentTargetModule(intent, question);
 	const asksNearby =
 		/最近|附近|離我|這邊|定位|nearest|nearby|closest/.test(normalized) ||
 		(/急診|醫院|藥局|藥房|環保餐廳|餐廳|水質|pharmacy|hospital|emergency|restaurant/.test(normalized) &&
@@ -227,21 +323,36 @@ const inferIntentFromQuestion = (question, intent) => {
 		/急診|醫院|待診|候診|藥局|藥房|水質|淨水|環保餐廳|餐廳|pharmacy|hospital|emergency|restaurant/.test(normalized);
 	const asksRanking =
 		/最少|最多|最低|最高|最快|最短|排名|排行|比較|top|lowest|highest/.test(normalized);
+	const needsLocation = /最近|附近|離我|這邊|定位|目前位置|我的位置|gps|near|nearest|nearby|closest/i.test(normalized);
 	const effectiveAsksNearby = asksNearby && !asksRanking;
+	const rankingMetric =
+		effectiveAsksNearby
+			? "distance"
+			: /急診|醫院|hospital|emergency/.test(normalized) &&
+					/人最少|最少人|待診.*少|候診.*少|待診人數|候診人數/.test(normalized)
+				? "patient_count"
+				: /急診|醫院|hospital|emergency/.test(normalized) &&
+						/等待|等候|最快|最短/.test(normalized)
+					? "waiting_time"
+					: /哪一區|哪個區|行政區|區域/.test(normalized) &&
+							/最多|最少/.test(normalized)
+						? "area_count"
+						: intent?.rankingMetric;
 
 	if (!effectiveAsksNearby && !(asksMapRelated && asksRanking)) return intent;
 
 	return normalizeAiInteractionIntent({
 		...intent,
+		targetModule,
 		type: effectiveAsksNearby
 			? AI_INTERACTION_TYPES.NEARBY_LOOKUP
 			: AI_INTERACTION_TYPES.OPEN_MAP,
 		needsMap: true,
-		needsLocation: effectiveAsksNearby,
+		needsLocation,
 		shouldOpenComponent: true,
 		shouldRequestUiActions: true,
-		rankingMetric: effectiveAsksNearby ? "distance" : intent?.rankingMetric,
-		resultLimit: intent?.resultLimit || 5,
+		rankingMetric,
+		resultLimit: intent?.resultLimit || (rankingMetric === "area_count" ? 1 : 5),
 	});
 };
 
@@ -306,6 +417,19 @@ const buildGuideMetrics = (question, component, item) => {
 		label: "距離",
 		value: getGuideDistanceValue(item),
 	};
+
+	if (item?.area_count !== undefined || properties.area_count !== undefined) {
+		const countLabel = topic === "emergency"
+			? "急診醫院數"
+			: topic === "restaurant"
+				? "環保餐廳數"
+				: "數量";
+		return [
+			{ label: "行政區", value: item?.district || properties.district || properties.TNAME || UNKNOWN_GUIDE_VALUE },
+			{ label: countLabel, value: item?.area_count ?? properties.area_count ?? UNKNOWN_GUIDE_VALUE },
+			{ label: "資料時間", value: item?.data_time || pickGuideValue(properties, ["last_updated", "data_time", "updated_at"]) },
+		];
+	}
 
 	if (topic === "emergency") {
 		return [
@@ -429,6 +553,18 @@ const buildGuideAnswer = (question, component, executionResult) => {
 		return `我已開啟「${componentName}」地圖，並框出藥局密度最高的行政區。「${top.name}」每萬人約 ${top.pharmacy_per_10k ?? "未知"} 間藥局，藥局數為 ${top.pharmacy_count ?? "未知"} 間。`;
 	}
 
+	if (rankingBasis === "area_count") {
+		const label = topic === "emergency"
+			? "急診醫院"
+			: topic === "restaurant"
+				? "環保餐廳"
+				: "項目";
+		const answer = `我已開啟「${componentName}」地圖，並框出${label}數最多的行政區。「${top.name}」目前有 ${top.area_count ?? "未知"} 個${label}。`;
+		return topic === "emergency"
+			? `${answer} 如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。`
+			: answer;
+	}
+
 	if (rankingBasis === "distance") {
 		const waitingText = top.waiting_time !== undefined && top.waiting_time !== null
 			? `，等待時間約 ${top.waiting_time} 分鐘`
@@ -441,6 +577,30 @@ const buildGuideAnswer = (question, component, executionResult) => {
 			answer += " 如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。";
 		}
 		return answer;
+	}
+
+	if (rankingBasis === "patient_count" && topic === "emergency") {
+		const results = executionResult.top_results || [];
+		const zeroPatientResults = results.filter((item) => Number(item?.patient_count) === 0);
+		if (zeroPatientResults.length > 1) {
+			const names = zeroPatientResults
+				.slice(0, 3)
+				.map((item) => item.name)
+				.filter(Boolean)
+				.join("、");
+			return `我已開啟「${componentName}」地圖，並依待診人數排序。目前待診人數為 0 人的急診醫院包含：${names}。如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。`;
+		}
+		const waitingText = top.waiting_time !== undefined && top.waiting_time !== null
+			? `，等待時間約 ${top.waiting_time} 分鐘`
+			: "";
+		return `我已開啟「${componentName}」地圖，並依待診人數排序。目前待診人數最少的是「${top.name}」，待診人數 ${top.patient_count ?? "未知"} 人${waitingText}。如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。`;
+	}
+
+	if (rankingBasis === "waiting_time" && topic === "emergency") {
+		const patientText = top.patient_count !== undefined && top.patient_count !== null
+			? `，待診人數 ${top.patient_count} 人`
+			: "";
+		return `我已開啟「${componentName}」地圖，並依等待時間排序。目前等待時間最短的是「${top.name}」，等待時間約 ${top.waiting_time ?? "未知"} 分鐘${patientText}。如果情況緊急或有生命危險，請直接撥打 119 或就近就醫。`;
 	}
 
 	return `我已開啟「${componentName}」地圖，並整理目前最相關的結果：「${top.name}」。`;
@@ -703,7 +863,7 @@ export const useChatStore = defineStore("chat", () => {
 		}
 	};
 
-	const resolveMapComponent = async (question, topComponents) => {
+	const resolveMapComponent = async (question, topComponents, intent) => {
 		const contentStore = useContentStore();
 		const mapLayers = await fetchMapLayerComponents();
 		const localComponents = [
@@ -719,6 +879,10 @@ export const useChatStore = defineStore("chat", () => {
 		const topMapComponent = (topComponents || []).find(
 			(component) => component?.map_config?.length,
 		);
+		const targetModule = getIntentTargetModule(intent, question);
+		const semanticComponent = findSemanticMapComponent(question, candidates, targetModule);
+		if (semanticComponent) return semanticComponent;
+		if (targetModule) return fallbackMapComponents[targetModule] || null;
 		return (
 			findSemanticMapComponent(question, candidates) ||
 			topMapComponent ||
@@ -867,7 +1031,7 @@ export const useChatStore = defineStore("chat", () => {
 			const intent = await requestAiIntent(question);
 			const mapComponent =
 				intent.needsMap || intent.shouldOpenComponent
-					? await resolveMapComponent(question, recommendComponents.value)
+					? await resolveMapComponent(question, recommendComponents.value, intent)
 					: null;
 
 			let executionResult = {
