@@ -1,4 +1,6 @@
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps([
 	"chart_config",
 	"activeChart",
@@ -12,6 +14,15 @@ const alertKeywords = ["不合格", "異常", "警示", "失敗"];
 
 const isAlertItem = (itemName = "") =>
 	alertKeywords.some((keyword) => itemName.includes(keyword));
+
+const displaySeries = computed(() =>
+	(props.series || []).map((item) => ({
+		...item,
+		total: Array.isArray(item.data)
+			? item.data.reduce((sum, value) => sum + Number(value || 0), 0)
+			: Number(item.data || 0),
+	})),
+);
 </script>
 
 <template>
@@ -21,7 +32,7 @@ const isAlertItem = (itemName = "") =>
   >
     <div class="TextUnitChart__container">
       <div
-        v-for="item in series"
+        v-for="item in displaySeries"
         :key="item.name"
         class="TextUnitChart__content"
       >
@@ -35,7 +46,7 @@ const isAlertItem = (itemName = "") =>
           <span
             class="TextUnitChart__value"
             :style="{ color: '#EEF2F8' }"
-          >{{ item.data[0] }}</span>
+          >{{ item.total }}</span>
           <span
             class="TextUnitChart__unit"
             :style="{ color: '#EEF2F8' }"

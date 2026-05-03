@@ -1006,6 +1006,7 @@ export const useChatStore = defineStore("chat", () => {
 		return false;
 	};
 
+<<<<<<< HEAD
 	const addFallbackComponentAnswer = (question, loadingMessageId = null) => {
 		const finishLoading = (payload) => {
 			if (loadingMessageId && updateChatData(loadingMessageId, {
@@ -1017,6 +1018,9 @@ export const useChatStore = defineStore("chat", () => {
 			addChatData(payload);
 		};
 
+=======
+	const addFallbackComponentAnswer = (question) => {
+>>>>>>> zhenyan2
 		if (recommendComponents.value?.length > 0) {
 			const topK = [...recommendComponents.value].sort(
 				(a, b) => (b.score || 0) - (a.score || 0),
