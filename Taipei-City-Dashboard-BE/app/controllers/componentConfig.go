@@ -41,6 +41,13 @@ type componentQuery struct {
 	SearchByName  string `form:"searchbyname"`
 }
 
+func isValidComponentCity(city string) bool {
+	return city == "" ||
+		city == "taipei" ||
+		city == "metrotaipei" ||
+		city == "newtaipei"
+}
+
 // FIXME:
 // 這邊的 component 是半成品，無法直接使用
 // 缺少 components.index(component_charts.index)，後續需要設計流程補上
@@ -72,7 +79,7 @@ func GetAllComponents(c *gin.Context) {
 	var query componentQuery
 	c.ShouldBindQuery(&query)
 
-	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == ""){
+	if !isValidComponentCity(query.City) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
@@ -102,7 +109,7 @@ func GetComponentByID(c *gin.Context) {
 	// 1.1 Get the city name from the URL
 	var query componentQuery
 	c.ShouldBindQuery(&query)
-	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == ""){
+	if !isValidComponentCity(query.City) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
@@ -162,7 +169,7 @@ func UpdateComponent(c *gin.Context) {
 	// 1.1 Get the city name from the URL
 	var query componentQuery
 	c.ShouldBindQuery(&query)
-	if !(query.City == "taipei" || query.City == "metrotaipei" || query.City == ""){
+	if !isValidComponentCity(query.City) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
@@ -215,7 +222,7 @@ func UpdateComponentChartConfig(c *gin.Context) {
 
 	// 1.1 Get the city name from the URL
 	city := c.Param("city")
-	if !(city == "taipei" || city == "metrotaipei" || city == ""){
+	if !isValidComponentCity(city) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
@@ -300,7 +307,7 @@ func DeleteComponent(c *gin.Context) {
 
 	// 1.1 Get the city name from the URL
 	city := c.Param("city")
-	if !(city == "taipei" || city == "metrotaipei" || city == ""){
+	if !isValidComponentCity(city) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "Invalid City Name"})
 		return
 	}
