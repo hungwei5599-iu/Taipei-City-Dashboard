@@ -729,12 +729,8 @@ export const useMapStore = defineStore("map", {
 		},
 		// 4-1. Using the mapbox source and map config, create a new layer
 		// The styles and configs can be edited in /assets/configs/mapbox/mapConfig.js
-<<<<<<< HEAD
+
 		async addMapLayer(map_config) {
-=======
-		addMapLayer(map_config) {
-			console.log("[map-debug] addMapLayer start", map_config);
->>>>>>> jy2
 			let extra_paint_configs = {};
 			let extra_layout_configs = {};
 			if (map_config.icon) {
@@ -962,32 +958,58 @@ export const useMapStore = defineStore("map", {
 		},
 		// 4-2-3. Animate Arc Layer
 		// Developed by Weeee Chill, Taipei Codefest 2024
-		animateArcLayer() {
-			// 開始時間
-			let startTime = performance.now();
-			// 每個動畫步驟的持續時間（毫秒）
-			const duration = 1000; // 1秒
-			const _this = this;
+		animateProgress({
+			from = 0,
+			to = 1,
+			duration = 1000,
+			onUpdate,
+			onComplete,
+		} = {}) {
+			const startTime = performance.now();
+			let frameId = null;
+			let cancelled = false;
+			const distance = to - from;
 
 			const step = (timestamp) => {
-				// 計算已經過的時間
+				if (cancelled) return;
 				const elapsedTime = timestamp - startTime;
-				// 計算進度
-				const progress = (elapsedTime / duration) * 100;
+				const ratio = Math.min(elapsedTime / duration, 1);
+				const progress = from + distance * ratio;
 
-				// 如果時間已經超過一個步驟，則增加步驟數
-				if (progress >= (_this.step / 1000) * 100) {
-					_this.step = _this.step + 1;
-					_this.renderDeckGLLayer();
-				}
+				onUpdate?.(progress, ratio);
 
-				// 如果動畫還未完成，繼續下一個動畫步驟
-				if (_this.step <= 1000) {
-					requestAnimationFrame(step);
+				if (ratio < 1) {
+					frameId = requestAnimationFrame(step);
+				} else {
+					onComplete?.(progress);
 				}
 			};
-			// 啟動動畫
-			requestAnimationFrame(step);
+
+			frameId = requestAnimationFrame(step);
+
+			return () => {
+				cancelled = true;
+				if (frameId) {
+					cancelAnimationFrame(frameId);
+				}
+			};
+		},
+		animateArcLayer() {
+			this.animateProgress({
+				from: this.step,
+				to: 1000,
+				duration: 1000,
+				onUpdate: (progress) => {
+					const nextStep = Math.floor(progress);
+					if (nextStep > this.step) {
+						this.step = nextStep;
+						this.renderDeckGLLayer();
+					}
+				},
+				onComplete: () => {
+					this.step = 1000;
+				},
+			});
 		},
 		// 4-3. Add Map Layer for Voronoi Maps
 		// Developed by 00:21, Taipei Codefest 2023
