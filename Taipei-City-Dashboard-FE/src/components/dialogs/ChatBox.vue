@@ -159,7 +159,15 @@ watch(
           </div>
           <div class="content">
             <div
-              v-if="chat.content"
+              v-if="chat.isLoading"
+              class="message--bubble message--loading"
+            >
+              <span class="loading-dot" />
+              <span class="loading-dot" />
+              <span class="loading-dot" />
+            </div>
+            <div
+              v-else-if="chat.content"
               class="message--bubble"
             >
               <!-- eslint-disable vue/no-v-html -->
@@ -402,6 +410,20 @@ $radius-10: 10px;
 $radius-15: 15px;
 $radius-20: 20px;
 
+@keyframes chat-loading-dot {
+	0%,
+	80%,
+	100% {
+		opacity: 0.35;
+		transform: translateY(0);
+	}
+
+	40% {
+		opacity: 1;
+		transform: translateY(-4px);
+	}
+}
+
 /* === Scrollbar === */
 .scrollbar-x-hide {
 	scrollbar-width: none;
@@ -572,6 +594,31 @@ $radius-20: 20px;
 							padding-left: 16px;
 							padding-right: 16px;
 							font-size: 16px;
+						}
+					}
+
+					.message--loading {
+						display: inline-flex;
+						align-items: center;
+						gap: 6px;
+						width: fit-content;
+						padding: 12px 16px;
+						min-height: 20px;
+					}
+
+					.loading-dot {
+						width: 7px;
+						height: 7px;
+						border-radius: 50%;
+						background: #facc15;
+						animation: chat-loading-dot 1s ease-in-out infinite;
+
+						&:nth-child(2) {
+							animation-delay: 0.15s;
+						}
+
+						&:nth-child(3) {
+							animation-delay: 0.3s;
 						}
 					}
 

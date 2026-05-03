@@ -788,11 +788,24 @@ export const useChatStore = defineStore("chat", () => {
 	const chatData = ref([...defaultChatData]);
 
 	const addChatData = (newChatData) => {
-		chatData.value.push({
+		const nextChat = {
 			id: chatData.value.length + 1,
 			isDefault: false,
 			...newChatData,
-		});
+		};
+		chatData.value.push(nextChat);
+		return nextChat;
+	};
+
+	const updateChatData = (id, nextChatData) => {
+		const index = chatData.value.findIndex((chat) => chat.id === id);
+		if (index === -1) return false;
+		chatData.value[index] = {
+			...chatData.value[index],
+			...nextChatData,
+			id,
+		};
+		return true;
 	};
 
 	const fetchRecommendedComponents = async (question) => {
@@ -993,12 +1006,26 @@ export const useChatStore = defineStore("chat", () => {
 		return false;
 	};
 
+<<<<<<< HEAD
+	const addFallbackComponentAnswer = (question, loadingMessageId = null) => {
+		const finishLoading = (payload) => {
+			if (loadingMessageId && updateChatData(loadingMessageId, {
+				isLoading: false,
+				...payload,
+			})) {
+				return;
+			}
+			addChatData(payload);
+		};
+
+=======
 	const addFallbackComponentAnswer = (question) => {
+>>>>>>> zhenyan2
 		if (recommendComponents.value?.length > 0) {
 			const topK = [...recommendComponents.value].sort(
 				(a, b) => (b.score || 0) - (a.score || 0),
 			);
-			addChatData({
+			finishLoading({
 				role: "bot",
 				content:
 					"AI 回答暫時失敗，但我已找到可能相關的儀表板組件，請先參考下方結果。",
@@ -1008,7 +1035,7 @@ export const useChatStore = defineStore("chat", () => {
 			return;
 		}
 
-		addChatData({
+		finishLoading({
 			role: "bot",
 			content:
 				"目前找不到可對應的儀表板組件，也暫時無法取得 AI 回答。請稍後再試，或換一個更明確的關鍵字。",
@@ -1019,6 +1046,11 @@ export const useChatStore = defineStore("chat", () => {
 	const addQueryData = async (newChatData) => {
 		addChatData(newChatData);
 		const question = newChatData.content;
+		const loadingMessage = addChatData({
+			role: "bot",
+			content: "",
+			isLoading: true,
+		});
 		recommendComponents.value = [];
 
 		try {
@@ -1070,7 +1102,7 @@ export const useChatStore = defineStore("chat", () => {
 			const answer = guidePayload?.answer || normalizeAnswerText(aiPayload);
 
 			if (answer) {
-				addChatData({
+				updateChatData(loadingMessage.id, {
 					role: "bot",
 					content: answer,
 					html: guidePayload?.html,
@@ -1078,6 +1110,7 @@ export const useChatStore = defineStore("chat", () => {
 					guidePayload: null,
 					ui_actions: mapActions,
 					showRelations: !guidePayload,
+					isLoading: false,
 				});
 				saveChatLog(question, {
 					answer,
@@ -1092,7 +1125,7 @@ export const useChatStore = defineStore("chat", () => {
 			console.error("TWCCAIError:", getRequestErrorMessage(error), error);
 		}
 
-		addFallbackComponentAnswer(question);
+		addFallbackComponentAnswer(question, loadingMessage.id);
 	};
 
 	const saveChatLog = async (question, answer) => {
@@ -1116,6 +1149,7 @@ export const useChatStore = defineStore("chat", () => {
 		recommendComponents,
 		chatData,
 		addChatData,
+		updateChatData,
 		addQueryData,
 		saveChatLog,
 	};
