@@ -69,31 +69,6 @@ function normalizeAiGuideArray(value) {
 	}
 }
 
-const LOCAL_GEOJSON_FALLBACKS = {
-	Component2_er_ready: ["hackathon_component_9_er_overview"],
-	hackathon_component_9_er_overview: ["hackathon_component_9_er_overview"],
-	Component3_pharmacy_map_ready: [
-		"hackathon_component_7_pharmacy_map_ready",
-		"hackathon_component_7_pharmacy_map",
-	],
-	hackathon_component_7_pharmacy_map_ready: [
-		"hackathon_component_7_pharmacy_map_ready",
-		"hackathon_component_7_pharmacy_map",
-	],
-	hackathon_component_7_pharmacy_map: [
-		"hackathon_component_7_pharmacy_map",
-		"hackathon_component_7_pharmacy_map_ready",
-	],
-	Component4_water_quality_ready: ["hackathon_component_10_water_quality_ready"],
-	hackathon_component_10_water_quality_ready: ["hackathon_component_10_water_quality_ready"],
-	Component5_env_protect_restaurant_ready: [
-		"hackathon_c11_env_protect_restaurant_ready",
-	],
-	hackathon_c11_env_protect_restaurant_ready: [
-		"hackathon_c11_env_protect_restaurant_ready",
-	],
-};
-
 export const useMapStore = defineStore("map", {
 	state: () => ({
 		// Array of layer IDs that are in the map
@@ -368,9 +343,13 @@ export const useMapStore = defineStore("map", {
 				"youbike_elec",
 			];
 			images.forEach((element) => {
-				this.ensureMapImageLoaded(element).catch((error) => {
-					console.error("[map-debug] preload image failed", element, error);
-				});
+				this.map.loadImage(
+					`/images/map/${element}.png`,
+					(error, image) => {
+						if (error) throw error;
+						this.map.addImage(element, image);
+					},
+				);
 			});
 			// 預載 3D 模型給 3D Mrt Map
 			const models = [
@@ -575,9 +554,6 @@ export const useMapStore = defineStore("map", {
 			this.clearByParamFilter(map_config);
 			this.turnOffMapLayerVisibility(map_config);
 		},
-		openComponentLayer(map_config = []) {
-			this.openMapConfig(map_config);
-		},
 		openGuideComponent(payload) {
 			this.guideActiveComponent = payload || null;
 			this.guideActiveComponentIndex = payload?.componentIndex || null;
@@ -603,8 +579,15 @@ export const useMapStore = defineStore("map", {
 		},
 		// 1. Passes in the map_config (an Array of Objects) of a component and adds all layers to the map layer list
 		addToMapLayerList(map_config) {
+			console.log("[map-debug] addToMapLayerList", map_config);
 			map_config.forEach((element) => {
 				let mapLayerId = `${element.index}-${element.type}-${element.city}`;
+				console.log("[map-debug] layer candidate", {
+					mapLayerId,
+					element,
+					hasMap: !!this.map,
+					currentLayers: this.currentLayers,
+				});
 				// 1-1. If the layer exists, simply turn on the visibility and add it to the visible layers list
 				if (
 					this.currentLayers.find((element) => element === mapLayerId)
@@ -633,29 +616,9 @@ export const useMapStore = defineStore("map", {
 		},
 		// 2. Call an API to get the layer data
 		fetchLocalGeoJson(map_config) {
-			const candidates = [
-				map_config.index,
-				...(LOCAL_GEOJSON_FALLBACKS[map_config.index] || []),
-			].filter(Boolean);
-			const loadCandidate = async () => {
-				let lastError = null;
-				for (const index of [...new Set(candidates)]) {
-					try {
-						const rs = await axios.get(`/mapData/${index}.geojson`);
-						if (
-							typeof rs.data === "string" &&
-							rs.data.trim().startsWith("<!DOCTYPE")
-						) {
-							throw new Error(`GeoJSON file not found: ${index}`);
-						}
-						return rs;
-					} catch (error) {
-						lastError = error;
-					}
-				}
-				throw lastError || new Error(`GeoJSON file not found: ${map_config.index}`);
-			};
-			loadCandidate()
+			console.log("[map-debug] fetchLocalGeoJson", `/mapData/${map_config.index}.geojson`, map_config);
+			axios
+				.get(`/mapData/${map_config.index}.geojson`)
 				.then((rs) => {
 					const geojson =
 						typeof rs.data === "string"
@@ -669,6 +632,13 @@ export const useMapStore = defineStore("map", {
 							`Invalid GeoJSON for ${map_config.index}`,
 						);
 					}
+					console.log("[map-debug] geojson loaded", {
+						layerId: map_config.layerId,
+						responseType: typeof rs.data,
+						type: geojson?.type,
+						featureCount: geojson?.features?.length,
+						firstFeature: geojson?.features?.[0],
+					});
 					this.addGeojsonSource(map_config, geojson);
 				})
 				.catch((e) => {
@@ -680,6 +650,7 @@ export const useMapStore = defineStore("map", {
 		},
 		// 3-1. Add a local geojson as a source in mapbox
 		addGeojsonSource(map_config, data) {
+			console.log("[map-debug] addGeojsonSource", map_config);
 			if (
 				!["voronoi", "isoline"].includes(map_config.type) &&
 				map_config.type !== "symbol-3d"
@@ -689,6 +660,7 @@ export const useMapStore = defineStore("map", {
 						type: "geojson",
 						data,
 					});
+					console.log("[map-debug] source added", `${map_config.layerId}-source`);
 				} catch (error) {
 					console.error("[map-debug] addSource failed", error);
 				}
@@ -946,15 +918,13 @@ export const useMapStore = defineStore("map", {
 			) {
 				config.filter = initialFilter;
 			}
+			console.log("[map-debug] addLayer config", config);
 			try {
-				if (
-					config.type === "symbol" &&
-					config.layout &&
-					config.layout["icon-image"]
-				) {
-					await this.ensureMapImageLoaded(config.layout["icon-image"]);
-				}
 				this.map.addLayer(config);
+				console.log("[map-debug] layer added", config.id, {
+					hasLayer: !!this.map.getLayer(config.id),
+					hasSource: !!this.map.getSource(`${map_config.layerId}-source`),
+				});
 			} catch (error) {
 				console.error("[map-debug] addLayer failed", error);
 				this.loadingLayers = this.loadingLayers.filter(
@@ -1113,32 +1083,58 @@ export const useMapStore = defineStore("map", {
 		},
 		// 4-2-3. Animate Arc Layer
 		// Developed by Weeee Chill, Taipei Codefest 2024
-		animateArcLayer() {
-			// 開始時間
-			let startTime = performance.now();
-			// 每個動畫步驟的持續時間（毫秒）
-			const duration = 1000; // 1秒
-			const _this = this;
+		animateProgress({
+			from = 0,
+			to = 1,
+			duration = 1000,
+			onUpdate,
+			onComplete,
+		} = {}) {
+			const startTime = performance.now();
+			let frameId = null;
+			let cancelled = false;
+			const distance = to - from;
 
 			const step = (timestamp) => {
-				// 計算已經過的時間
+				if (cancelled) return;
 				const elapsedTime = timestamp - startTime;
-				// 計算進度
-				const progress = (elapsedTime / duration) * 100;
+				const ratio = Math.min(elapsedTime / duration, 1);
+				const progress = from + distance * ratio;
 
-				// 如果時間已經超過一個步驟，則增加步驟數
-				if (progress >= (_this.step / 1000) * 100) {
-					_this.step = _this.step + 1;
-					_this.renderDeckGLLayer();
-				}
+				onUpdate?.(progress, ratio);
 
-				// 如果動畫還未完成，繼續下一個動畫步驟
-				if (_this.step <= 1000) {
-					requestAnimationFrame(step);
+				if (ratio < 1) {
+					frameId = requestAnimationFrame(step);
+				} else {
+					onComplete?.(progress);
 				}
 			};
-			// 啟動動畫
-			requestAnimationFrame(step);
+
+			frameId = requestAnimationFrame(step);
+
+			return () => {
+				cancelled = true;
+				if (frameId) {
+					cancelAnimationFrame(frameId);
+				}
+			};
+		},
+		animateArcLayer() {
+			this.animateProgress({
+				from: this.step,
+				to: 1000,
+				duration: 1000,
+				onUpdate: (progress) => {
+					const nextStep = Math.floor(progress);
+					if (nextStep > this.step) {
+						this.step = nextStep;
+						this.renderDeckGLLayer();
+					}
+				},
+				onComplete: () => {
+					this.step = 1000;
+				},
+			});
 		},
 		// 4-3. Add Map Layer for Voronoi Maps
 		// Developed by 00:21, Taipei Codefest 2023
@@ -3110,7 +3106,6 @@ export const useMapStore = defineStore("map", {
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
 				if (map_config && map_config.type === "arc") {
-					if (!this.deckGlLayer[mapLayerId]) return;
 					this.deckGlLayer[mapLayerId].config.data = this.deckGlLayer[
 						mapLayerId
 					].data.filter((d) => {
@@ -3141,7 +3136,6 @@ export const useMapStore = defineStore("map", {
 					this.renderDeckGLLayer();
 					return;
 				}
-				if (!this.map.getLayer(mapLayerId)) return;
 				// If x and y both exist, filter by both
 				if (
 					map_filter.byParam.xParam &&
@@ -3183,7 +3177,6 @@ export const useMapStore = defineStore("map", {
 			}
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
-				if (!this.map.getLayer(mapLayerId)) return;
 				if (map_config.title !== xParam) {
 					this.map.setLayoutProperty(
 						mapLayerId,
@@ -3208,13 +3201,11 @@ export const useMapStore = defineStore("map", {
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
 				if (map_config && map_config.type === "arc") {
-					if (!this.deckGlLayer[mapLayerId]) return;
 					this.deckGlLayer[mapLayerId].config.data =
 						this.deckGlLayer[mapLayerId].data;
 					this.renderDeckGLLayer();
 					return;
 				}
-				if (!this.map.getLayer(mapLayerId)) return;
 				this.map.setFilter(mapLayerId, null);
 			});
 		},
@@ -3226,7 +3217,6 @@ export const useMapStore = defineStore("map", {
 			}
 			map_configs.map((map_config) => {
 				let mapLayerId = `${map_config.index}-${map_config.type}-${map_config.city}`;
-				if (!this.map.getLayer(mapLayerId)) return;
 				this.map.setLayoutProperty(mapLayerId, "visibility", "visible");
 			});
 		},

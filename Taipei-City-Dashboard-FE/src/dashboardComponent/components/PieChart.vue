@@ -1,7 +1,8 @@
 <!-- Developed by Taipei Urban Intelligence Center 2023-2024-->
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
+import { useMapStore } from "../../store/mapStore";
 
 const props = defineProps([
 	"chart_config",
@@ -21,10 +22,16 @@ const emits = defineEmits([
 ]);
 
 const steps = ref(100);
-const failColor = "#D95D5D";
-const passColor = "#A7DAB4";
-const neutralColor = "#8F98A9";
+// Rose-mauve palette (image reference)
+const failColor = "#7A5260";   // deep rose-mauve  – for fail / alert slices
+const passColor = "#A88090";   // mid  rose-mauve  – for pass / main slices
+const neutralColor = "#7A8FA8"; // steel-blue       – for everything else
 const selectedIndex = ref(null);
+const mapStore = useMapStore();
+const chartProgress = ref(1);
+const hoveredSlice = ref(null);
+const mousePosition = ref({ x: null, y: null });
+let stopChartAnimation = null;
 
 const center = 110;
 const radius = 82;
@@ -103,6 +110,65 @@ function describeSlice(startAngle, endAngle) {
 	].join(" ");
 }
 
+function easeOutCubic(value) {
+	return 1 - Math.pow(1 - value, 3);
+}
+
+function stopPieAnimation() {
+	if (stopChartAnimation) {
+		stopChartAnimation();
+		stopChartAnimation = null;
+	}
+}
+
+const tooltipPosition = computed(() => {
+	if (!mousePosition.value.x || !mousePosition.value.y) {
+		return {
+			left: "-1000px",
+			top: "-1000px",
+		};
+	}
+	const tooltipWidth = 120;
+	const tooltipHeight = 58;
+	const viewportWidth = window.innerWidth;
+	const viewportHeight = window.innerHeight;
+	const shouldFlipX =
+		mousePosition.value.x + tooltipWidth + 18 > viewportWidth;
+	const shouldFlipY =
+		mousePosition.value.y + tooltipHeight + 12 > viewportHeight;
+
+	return {
+		left: shouldFlipX
+			? `${mousePosition.value.x - tooltipWidth - 8}px`
+			: `${mousePosition.value.x + 14}px`,
+		top: shouldFlipY
+			? `${mousePosition.value.y - tooltipHeight - 8}px`
+			: `${mousePosition.value.y - 12}px`,
+	};
+});
+
+const tooltipValue = computed(() => {
+	if (!hoveredSlice.value) return "";
+	if (unit.value) {
+		return `${hoveredSlice.value.value}${unit.value}`;
+	}
+	return hoveredSlice.value.valueText;
+});
+
+function updateMouseLocation(event) {
+	mousePosition.value.x = event.clientX;
+	mousePosition.value.y = event.clientY;
+}
+
+function showSliceTooltip(event, slice) {
+	hoveredSlice.value = slice;
+	updateMouseLocation(event);
+}
+
+function hideSliceTooltip() {
+	hoveredSlice.value = null;
+}
+
 const parsedItems = computed(() => {
 	if (!props.series?.length) {
 		return [];
@@ -159,10 +225,16 @@ const chartColors = computed(() =>
 
 const slices = computed(() => {
 	let cursor = startOffset;
+	const revealedAngle = 360 * chartProgress.value;
 	return displayedItems.value.map((item, index) => {
 		const ratio = parsedTotal.value ? item.value / parsedTotal.value : 0;
 		const angle = ratio * 360;
 		const endAngle = cursor + angle;
+		const animatedEndAngle = Math.min(
+			endAngle,
+			startOffset + revealedAngle
+		);
+		const visibleAngle = Math.max(animatedEndAngle - cursor, 0);
 		const percent = Math.round(ratio * 1000) / 10;
 		const labelPosition = getLabelPosition(cursor, endAngle, percent);
 		const calloutGeometry = getCalloutGeometry(cursor, endAngle);
@@ -182,12 +254,53 @@ const slices = computed(() => {
 			valueText: unit.value === "%"
 				? `${item.value}%`
 				: `${percent}%`,
-			path: describeSlice(cursor, endAngle),
+			isVisible: visibleAngle > 0.2,
+			labelOpacity: clamp((chartProgress.value - index * 0.08) * 2.5, 0, 1),
+			path: describeSlice(cursor, visibleAngle > 0.2 ? animatedEndAngle : cursor),
 		};
 		cursor = endAngle;
 		return slice;
 	});
 });
+
+function startPieAnimation() {
+	stopPieAnimation();
+	selectedIndex.value = null;
+
+	if (props.activeChart !== "PieChart" || displayedItems.value.length === 0) {
+		chartProgress.value = 1;
+		return;
+	}
+
+	chartProgress.value = 0;
+	stopChartAnimation = mapStore.animateProgress({
+		from: 0,
+		to: 1,
+		duration: 900,
+		onUpdate: (_progress, ratio) => {
+			chartProgress.value = easeOutCubic(ratio);
+		},
+		onComplete: () => {
+			chartProgress.value = 1;
+			stopChartAnimation = null;
+		},
+	});
+}
+
+watch(
+	[
+		() => props.activeChart,
+		() => props.series,
+		displayedItems,
+	],
+	startPieAnimation,
+	{
+		deep: true,
+		immediate: true,
+	}
+);
+
+onUnmounted(stopPieAnimation);
 
 function handleDataSelection(index) {
 	if (!props.map_filter || !props.map_filter_on) {
@@ -241,14 +354,18 @@ function handleDataSelection(index) {
           v-for="slice in slices"
           :key="slice.label"
           class="piechart__slice"
+          :class="{ 'is-selected': selectedIndex === `${slice.index}-0` }"
+          :style="{
+            '--slice-index': slice.index,
+            opacity: slice.isVisible ? 1 : 0,
+          }"
           :d="slice.path"
           :fill="slice.color"
+          @mouseenter="showSliceTooltip($event, slice)"
+          @mousemove="updateMouseLocation"
+          @mouseleave="hideSliceTooltip"
           @click="handleDataSelection(slice.index)"
-        >
-          <title>
-            {{ slice.displayLabel }} {{ slice.value }}{{ unit }}
-          </title>
-        </path>
+        />
         <circle
           :cx="center"
           :cy="center"
@@ -259,6 +376,11 @@ function handleDataSelection(index) {
           <g
             v-for="slice in slices"
             :key="`${slice.label}-label`"
+            class="piechart__label-group"
+            :style="{
+              '--slice-index': slice.index,
+              opacity: slice.labelOpacity,
+            }"
           >
             <template v-if="slice.isExternalLabel">
               <path
@@ -313,8 +435,19 @@ function handleDataSelection(index) {
           :cy="center"
           :r="1.8"
           class="piechart__hub"
+          :style="{ opacity: chartProgress }"
         />
       </svg>
+      <Teleport to="body">
+        <div
+          v-if="hoveredSlice"
+          class="piechart__tooltip chart-tooltip"
+          :style="tooltipPosition"
+        >
+          <h6>{{ hoveredSlice.displayLabel }}</h6>
+          <span>{{ tooltipValue }}</span>
+        </div>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -350,15 +483,24 @@ function handleDataSelection(index) {
 	}
 
 	&__slice {
-		stroke: #2b2d30;
-		stroke-width: 2.6;
-		stroke-linejoin: round;
+		stroke: none;          // remove dark border between slices
 		cursor: pointer;
-		transition: opacity 0.16s ease, filter 0.16s ease;
+		transform-box: fill-box;
+		transform-origin: center;
+		transition:
+			opacity 0.16s ease,
+			filter 0.16s ease,
+			transform 0.16s ease;
 
 		&:hover {
-			opacity: 0.96;
-			filter: brightness(1.02);
+			opacity: 0.88;
+			filter: brightness(1.08);
+			transform: scale(1.025);
+		}
+
+		&.is-selected {
+			filter: brightness(1.16) drop-shadow(0 0 8px rgba(255, 255, 255, 0.22));
+			transform: scale(1.035);
 		}
 	}
 
@@ -373,6 +515,10 @@ function handleDataSelection(index) {
 		pointer-events: none;
 	}
 
+	&__label-group {
+		transition: opacity 0.16s ease;
+	}
+
 	&__label,
 	&__callout-label {
 		text-anchor: middle;
@@ -380,7 +526,7 @@ function handleDataSelection(index) {
 	}
 
 	&__label {
-		fill: #1f2721;
+		fill: rgba(255, 255, 255, 0.92);
 		font-weight: 700;
 	}
 
@@ -409,8 +555,30 @@ function handleDataSelection(index) {
 	}
 
 	&__hub {
-		fill: #2b2d30;
+		fill: rgba(30, 28, 32, 0.72);
 		pointer-events: none;
+		transition: opacity 0.16s ease;
+	}
+
+	&__tooltip {
+		position: fixed;
+		z-index: 20;
+		pointer-events: none;
+		min-width: min-content;
+		white-space: nowrap;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.piechart {
+		&__slice {
+			transition: opacity 0.16s ease, filter 0.16s ease;
+
+			&:hover,
+			&.is-selected {
+				transform: none;
+			}
+		}
 	}
 }
 </style>
